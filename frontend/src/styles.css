@@ -837,3 +837,8 @@ textarea:focus {
     height: 40px;
   }
 }
+
+.hint {
+  font-size: 0.85rem;
+  margin: 0;
+}

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.track import TrackSource, TrackStatus
 from app.schemas.artist import ArtistBrief
@@ -43,8 +43,17 @@ class TrackFromUrl(BaseModel):
 
 
 class TrackFromSearch(BaseModel):
-    title: str = Field(min_length=1, max_length=300)
+    """Basta con uno de los dos. Solo con el artista se piden sus temas mas
+    relevantes, que es como se explora a alguien de quien no recuerdas titulos."""
+
+    title: str | None = Field(default=None, max_length=300)
     artist: str | None = Field(default=None, max_length=300)
+
+    @model_validator(mode="after")
+    def al_menos_uno(self) -> "TrackFromSearch":
+        if not (self.title or "").strip() and not (self.artist or "").strip():
+            raise ValueError("Indica un titulo, un artista, o los dos.")
+        return self
 
 
 class TrackUpdate(BaseModel):

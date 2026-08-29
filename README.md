@@ -137,10 +137,19 @@ reconocimiento) desembocan en el mismo pipeline:
 3. El frontend hace polling cada 3 segundos mientras haya descargas en marcha.
 
 **Buscar por titulo y artista no descarga nada: muestra los candidatos.**
-`POST /tracks/search/preview` devuelve los cinco primeros resultados de YouTube
-con miniatura, canal y duracion, marcando los que ya estan en la biblioteca y
-los que duran demasiado para ser una cancion. El usuario elige, y la descarga va
-por la misma puerta que un enlace pegado a mano.
+`POST /tracks/search/preview` devuelve los resultados de YouTube con miniatura,
+canal y duracion, marcando los que ya estan en la biblioteca y los que duran
+demasiado para ser una cancion. El usuario elige, y la descarga va por la misma
+puerta que un enlace pegado a mano.
+
+Basta con rellenar uno de los dos campos:
+
+- **Titulo y artista**: busqueda concreta, cinco candidatos
+  (`SEARCH_CANDIDATES`).
+- **Solo el artista**: se esta explorando su catalogo, no buscando algo
+  concreto, asi que se piden diez (`SEARCH_ARTIST_CANDIDATES`). Util cuando
+  sabes de quien es pero no recuerdas el titulo.
+- **Solo el titulo**: tambien vale, cinco candidatos.
 
 El motivo es concreto: buscar "Bad Bunny Nueva Yirky" devuelve como primer
 resultado un mix de 42 minutos, y elegir automaticamente el primero llena la

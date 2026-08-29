@@ -26,6 +26,10 @@ export function AddTrackPanel({ onAdded }: Props) {
   const [addedIds, setAddedIds] = useState<string[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
 
+  // Con la busqueda basta con el titulo o el artista; con la URL, la URL.
+  const nothingToSearch =
+    mode === 'search' && !title.trim() && !artist.trim()
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
@@ -38,7 +42,10 @@ export function AddTrackPanel({ onAdded }: Props) {
         setOk(`Descargando: ${track.request_query}`)
         onAdded()
       } else {
-        const resultados = await tracksApi.previewSearch(title.trim(), artist.trim() || null)
+        const resultados = await tracksApi.previewSearch(
+          title.trim() || null,
+          artist.trim() || null,
+        )
         setCandidates(resultados.candidates)
         setAddedIds([])
       }
@@ -117,13 +124,12 @@ export function AddTrackPanel({ onAdded }: Props) {
               <input
                 type="text"
                 value={title}
-                required
                 placeholder="Song 2"
                 onChange={(e) => setTitle(e.target.value)}
               />
             </label>
             <label className="field">
-              <span>Artista (opcional)</span>
+              <span>Artista</span>
               <input
                 type="text"
                 value={artist}
@@ -131,10 +137,14 @@ export function AddTrackPanel({ onAdded }: Props) {
                 onChange={(e) => setArtist(e.target.value)}
               />
             </label>
+            <p className="muted field--wide hint">
+              Rellena al menos uno. Solo con el artista veras sus temas mas
+              relevantes, util cuando no recuerdas el titulo.
+            </p>
           </>
         )}
         <div className="grid-form__actions">
-          <button type="submit" className="btn btn--primary" disabled={sending}>
+          <button type="submit" className="btn btn--primary" disabled={sending || nothingToSearch}>
             {sending
               ? mode === 'url'
                 ? 'Anadiendo...'

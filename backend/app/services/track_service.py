@@ -80,20 +80,26 @@ def create_from_url(db: Session, user: User, url: str) -> Track:
     return track
 
 
-def create_from_search(db: Session, user: User, title: str, artist: str | None) -> Track:
-    title = title.strip()
-    if not title:
-        raise ValueError("Indica al menos el titulo de la cancion.")
+def create_from_search(
+    db: Session, user: User, title: str | None, artist: str | None
+) -> Track:
+    title = (title or "").strip() or None
     artist = (artist or "").strip() or None
+    if not title and not artist:
+        raise ValueError("Indica un titulo, un artista, o los dos.")
 
-    key = normalize_key(artist, title)
-    existing = _find_by_normalized_key(db, key)
-    if existing is not None:
-        raise DuplicateTrackError(existing)
+    # Sin titulo no se puede deducir que cancion es hasta resolverla, asi que
+    # no hay clave por nombre con la que deduplicar todavia: lo hara el id de
+    # video en cuanto YouTube conteste.
+    key = normalize_key(artist, title) if title else None
+    if key:
+        existing = _find_by_normalized_key(db, key)
+        if existing is not None:
+            raise DuplicateTrackError(existing)
 
     label = " - ".join(part for part in (artist, title) if part)
     track = Track(
-        title=title,
+        title=title or label,
         artist_text=artist,
         ingest_source=TrackSource.search,
         request_query=label,
@@ -112,7 +118,7 @@ def create_from_search(db: Session, user: User, title: str, artist: str | None) 
 def _query_for(track: Track) -> str:
     if track.ingest_source == TrackSource.url and track.source_url:
         return track.source_url
-    return downloader.search_query(track.title, track.artist_text)
+    return downloader.search_query_for_request(track.request_query)
 
 
 def run_download(session_factory, track_id: int) -> None:

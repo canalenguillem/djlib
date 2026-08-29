@@ -126,8 +126,8 @@ def test_alta_por_titulo_y_artista(client: TestClient, admin_user, fake_download
         "/tracks/search", json={"title": "Song 2", "artist": "Blur"}, headers=h
     )
     assert respuesta.status_code == 202
-    # Se piden varios candidatos, no solo el primero
-    assert fake_downloader.resolved_queries == ["ytsearch5:Blur Song 2"]
+    # Se piden varios candidatos, no solo el primero, y se busca lo que se pidio
+    assert fake_downloader.resolved_queries == ["ytsearch5:Blur - Song 2"]
     assert client.get(f"/tracks/{respuesta.json()['id']}", headers=h).json()["status"] == "ready"
 
 
@@ -351,3 +351,62 @@ def test_si_youtube_falla_la_busqueda_lo_dice(
     )
     assert respuesta.status_code == 502
     assert "verificacion" in respuesta.json()["detail"]
+
+
+# --- Busqueda solo por artista ----------------------------------------------
+
+
+def test_solo_con_el_artista_se_piden_mas_candidatos(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    """Sin titulo se esta explorando a un artista, no buscando algo concreto."""
+    h = headers(client)
+    respuesta = client.post(
+        "/tracks/search/preview", json={"artist": "Bad Bunny"}, headers=h
+    )
+    assert respuesta.status_code == 200
+    assert respuesta.json()["query"] == "ytsearch10:Bad Bunny"
+    assert fake_downloader.searched == [(None, "Bad Bunny")]
+
+
+def test_solo_con_el_titulo_tambien_vale(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    respuesta = client.post(
+        "/tracks/search/preview", json={"title": "Song 2"}, headers=headers(client)
+    )
+    assert respuesta.status_code == 200
+    assert respuesta.json()["query"] == "ytsearch5:Song 2"
+
+
+def test_buscar_sin_nada_da_error(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    for cuerpo in ({}, {"title": "", "artist": "   "}):
+        respuesta = client.post("/tracks/search/preview", json=cuerpo, headers=h)
+        assert respuesta.status_code == 422
+        assert "titulo" in respuesta.text and "artista" in respuesta.text
+
+
+def test_alta_directa_solo_con_el_artista(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    respuesta = client.post("/tracks/search", json={"artist": "Blur"}, headers=h)
+    assert respuesta.status_code == 202
+    assert fake_downloader.resolved_queries == ["ytsearch5:Blur"]
+    assert client.get(f"/tracks/{respuesta.json()['id']}", headers=h).json()["status"] == "ready"
+
+
+def test_reintentar_repite_lo_que_pidio_el_usuario(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    """Y no el titulo ya resuelto, que para una busqueda por artista seria el
+    propio nombre del artista repetido."""
+    fake_downloader.error = DownloadError("Fallo temporal.")
+    h = headers(client)
+    track_id = client.post("/tracks/search", json={"artist": "Blur"}, headers=h).json()["id"]
+
+    fake_downloader.error = None
+    fake_downloader.resolved_queries.clear()
+    client.post(f"/tracks/{track_id}/retry", headers=h)
+    assert fake_downloader.resolved_queries == ["ytsearch5:Blur"]

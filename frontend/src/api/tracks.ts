@@ -14,14 +14,17 @@ export function addFromUrl(url: string): Promise<Track> {
   return apiFetch<Track>('/tracks/from-url', { method: 'POST', body: { url } })
 }
 
-export function previewSearch(title: string, artist: string | null): Promise<SearchResults> {
+export function previewSearch(
+  title: string | null,
+  artist: string | null,
+): Promise<SearchResults> {
   return apiFetch<SearchResults>('/tracks/search/preview', {
     method: 'POST',
     body: { title, artist },
   })
 }
 
-export function addFromSearch(title: string, artist: string | null): Promise<Track> {
+export function addFromSearch(title: string | null, artist: string | null): Promise<Track> {
   return apiFetch<Track>('/tracks/search', { method: 'POST', body: { title, artist } })
 }
 

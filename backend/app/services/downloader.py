@@ -69,11 +69,29 @@ def is_supported_url(value: str) -> bool:
     return value.startswith("http://") or value.startswith("https://")
 
 
-def search_query(title: str, artist: str | None) -> str:
+def search_query(title: str | None, artist: str | None) -> str:
     """Consulta para yt-dlp. Se piden varios resultados, no uno: el primero
-    suele ser un mix largo cuando la consulta no es exacta."""
+    suele ser un mix largo cuando la consulta no es exacta.
+
+    Sin titulo se esta explorando a un artista, asi que se piden mas.
+    """
     terms = " ".join(part.strip() for part in (artist, title) if part and part.strip())
-    return f"ytsearch{settings.search_candidates}:{terms}"
+    cuantos = (
+        settings.search_candidates
+        if (title or "").strip()
+        else settings.search_artist_candidates
+    )
+    return f"ytsearch{cuantos}:{terms}"
+
+
+def search_query_for_request(request_query: str) -> str:
+    """Reproduce la busqueda tal y como la escribio el usuario.
+
+    Se parte de lo que pidio y no del titulo del track, que para una busqueda
+    solo por artista es el propio nombre del artista (y saldria repetido) y que
+    ademas cambia en cuanto la primera resolucion lo sobrescribe.
+    """
+    return f"ytsearch{settings.search_candidates}:{request_query.strip()}"
 
 
 def _binary() -> str:
@@ -225,7 +243,7 @@ def _video_url(data: dict) -> str:
     )
 
 
-def search(title: str, artist: str | None) -> list[SearchResult]:
+def search(title: str | None, artist: str | None) -> list[SearchResult]:
     """Lista los candidatos de una busqueda sin descargar nada.
 
     Usa --flat-playlist: pedir los metadatos completos de cinco videos tarda

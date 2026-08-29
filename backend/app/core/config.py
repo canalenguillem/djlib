@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     max_song_duration_seconds: int = 900
     # Cuantos resultados se miran antes de elegir.
     search_candidates: int = 5
+    # Buscando solo por artista se explora, no se busca algo concreto: conviene
+    # ver mas para hacerse una idea de lo que hay.
+    search_artist_candidates: int = 10
     ytdlp_audio_quality: str = "0"  # 0 = mejor calidad VBR
     # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
     ytdlp_cookies_file: str | None = None
