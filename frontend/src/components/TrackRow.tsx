@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
@@ -79,7 +80,18 @@ export function TrackRow({
         <div className="track__info">
           <div className="track__title">{track.title}</div>
           <div className="track__meta">
-            <span>{track.artist_text ?? 'Artista desconocido'}</span>
+            {track.artists.length > 0 ? (
+              <span className="track__artists">
+                {track.artists.map((artist, index) => (
+                  <span key={artist.id}>
+                    {index > 0 && ', '}
+                    <Link to={`/artists/${artist.id}`}>{artist.name}</Link>
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span>{track.artist_text ?? 'Artista desconocido'}</span>
+            )}
             <span>·</span>
             <span>{formatDuration(track.duration_seconds)}</span>
             {inProgress && (

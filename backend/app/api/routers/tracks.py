@@ -5,7 +5,9 @@ from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentUser, DbSession, SessionFactory
 from app.core.time import utcnow
+from app.models.artist import EnrichmentStatus
 from app.models.track import TrackStatus
+from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
     TrackFromSearch,
     TrackFromUrl,
@@ -14,7 +16,7 @@ from app.schemas.track import (
     TrackTagsUpdate,
     TrackUpdate,
 )
-from app.services import tag_service, track_service
+from app.services import artist_service, tag_service, track_service
 from app.services.tag_service import TagError
 from app.services.track_service import DuplicateTrackError
 
@@ -135,6 +137,32 @@ def set_track_tags(
     db.commit()
     db.refresh(track)
     return TrackOut.model_validate(track)
+
+
+@router.put("/{track_id}/artists", response_model=TrackOut)
+def set_track_artists(
+    track_id: int,
+    payload: TrackArtistsUpdate,
+    background: BackgroundTasks,
+    current_user: CurrentUser,
+    db: DbSession,
+    session_factory: SessionFactory,
+) -> TrackOut:
+    """Corrige a mano quien toca la cancion. Los artistas que no existieran se
+    crean y se mandan a enriquecer."""
+    track = _get_or_404(db, track_id)
+    nombres = [n.strip() for n in payload.names if n.strip()]
+    try:
+        artists = artist_service.set_track_artists(db, track, nombres)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    nuevos = [a.id for a in artists if a.enrichment_status == EnrichmentStatus.pending]
+    db.commit()
+    db.refresh(track)
+    result = TrackOut.model_validate(track)
+    if nuevos:
+        background.add_task(artist_service.run_enrichment, session_factory, nuevos)
+    return result
 
 
 @router.post("/{track_id}/retry", response_model=TrackOut, status_code=status.HTTP_202_ACCEPTED)

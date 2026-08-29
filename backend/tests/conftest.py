@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 import app.core.security as security
@@ -16,7 +16,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
-from app.services import downloader, user_service
+from app.services import downloader, enrichment, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
@@ -35,10 +35,26 @@ ADMIN_PASSWORD = "AdminPass1234"
 USER_PASSWORD = "UserPass1234"
 
 
-@pytest.fixture(autouse=True)
-def fresh_database() -> Generator[None, None, None]:
+@pytest.fixture(scope="session", autouse=True)
+def database_schema() -> Generator[None, None, None]:
+    """El esquema se crea una sola vez por sesion. Recrear las tablas en cada
+    test es DDL, que en InnoDB es lento y ademas se dispara si la maquina tiene
+    otras bases de datos trabajando al mismo tiempo."""
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    yield
+    Base.metadata.drop_all(engine)
+
+
+@pytest.fixture(autouse=True)
+def fresh_database(database_schema) -> Generator[None, None, None]:
+    """Cada test arranca con las tablas vacias. Vaciar filas es mucho mas
+    barato que rehacer el esquema."""
+    with engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+        conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))
     login_rate_limiter.clear()
     yield
     login_rate_limiter.clear()
@@ -159,4 +175,62 @@ def fake_downloader(music_dir, monkeypatch) -> FakeDownloader:
     fake = FakeDownloader(music_dir)
     monkeypatch.setattr(downloader, "resolve", fake.resolve)
     monkeypatch.setattr(downloader, "download", fake.download)
+    return fake
+
+
+class FakeEnrichment:
+    """Sustituye a MusicBrainz + Wikipedia: mismo contrato, sin red."""
+
+    def __init__(self) -> None:
+        self.facts: dict[str, enrichment.ArtistFacts] = {
+            "Blur": enrichment.ArtistFacts(
+                name="Blur",
+                musicbrainz_id="ba853904-ae25-4ebb-89d6-c44cfbd71bd2",
+                country="GB",
+                begin_year=1988,
+                artist_type="Group",
+                bio="Blur es un grupo britanico de rock formado en Londres en 1988.",
+                wikipedia_url="https://es.wikipedia.org/wiki/Blur",
+                relations=[
+                    enrichment.RelationFact("Damon Albarn", "miembros"),
+                    enrichment.RelationFact("Gorillaz", "colaboracion"),
+                ],
+            ),
+            "Robbie Williams": enrichment.ArtistFacts(
+                name="Robbie Williams",
+                country="GB",
+                begin_year=1974,
+                artist_type="Person",
+                bio="Cantante britanico.",
+                relations=[enrichment.RelationFact("Take That", "miembro de")],
+            ),
+            "Take That": enrichment.ArtistFacts(
+                name="Take That",
+                country="GB",
+                begin_year=1990,
+                artist_type="Group",
+                bio="Boy band britanica.",
+                # MusicBrainz devuelve la relacion por los dos lados
+                relations=[enrichment.RelationFact("Robbie Williams", "miembros")],
+            ),
+        }
+        self.error: Exception | None = None
+        self.lookups: list[str] = []
+
+    def lookup(self, name: str):
+        self.lookups.append(name)
+        if self.error is not None:
+            raise self.error
+        return self.facts.get(name)
+
+
+@pytest.fixture(autouse=True)
+def fake_enrichment(monkeypatch) -> FakeEnrichment:
+    """autouse a proposito: descargar una cancion crea la ficha de su artista y
+    consulta las fuentes externas. Sin esto, cualquier test de la biblioteca
+    saldria a internet de verdad, y la suite pasaria de segundos a minutos
+    ademas de depender de que MusicBrainz este de buen humor.
+    """
+    fake = FakeEnrichment()
+    monkeypatch.setattr(enrichment, "lookup", fake.lookup)
     return fake

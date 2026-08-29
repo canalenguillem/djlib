@@ -6,11 +6,12 @@ montar crates tematicos. FastAPI + MariaDB + Vite/React/TypeScript, en Docker.
 
 **Implementado**: autenticacion y usuarios; ingesta por enlace y por titulo +
 artista; biblioteca con busqueda, filtrado combinado por etiquetas, reproductor,
-descarga del mp3 y borrado; catalogo de etiquetas.
+descarga del mp3 y borrado; catalogo de etiquetas; fichas de artista con datos
+de MusicBrainz y Wikipedia.
 
 **Pendiente**: reconocimiento de audio tipo Shazam (la configuracion ya esta
-prevista, falta clave de AudD/ACRCloud), fichas de artista con datos de
-MusicBrainz/Wikipedia, crates guardados con nombre y analisis de BPM.
+prevista, falta clave de AudD/ACRCloud), crates guardados con nombre y analisis
+de BPM.
 
 ## Puesta en marcha
 
@@ -154,6 +155,14 @@ Biblioteca (todo requiere sesion):
 | POST | `/tags` | Crear etiqueta (`mood`, `style` o `moment`) |
 | PATCH | `/tags/{id}` | Renombrar |
 | DELETE | `/tags/{id}` | Borrar (se quita de las canciones que la tuvieran) |
+| PUT | `/tracks/{id}/artists` | Corregir a mano quien toca la cancion |
+| GET | `/artists` | Listado de fichas, con `search` |
+| POST | `/artists` | Alta manual de artista |
+| GET | `/artists/{id}` | Ficha con sus relaciones |
+| GET | `/artists/{id}/tracks` | Sus canciones en la biblioteca |
+| PATCH | `/artists/{id}` | Edicion manual (la marca como `manual`) |
+| POST | `/artists/{id}/enrich` | Reconsultar las fuentes (`?force=true` si es manual) |
+| DELETE | `/artists/{id}` | Borrar la ficha (no borra sus canciones) |
 
 ## Decisiones de seguridad
 
@@ -172,6 +181,38 @@ Biblioteca (todo requiere sesion):
   (un login correcto limpia el contador). Vive en memoria del proceso; para
   varias replicas habria que moverlo a Redis.
 - Un admin no puede desactivarse ni cambiarse el rol a si mismo.
+
+## Fichas de artista
+
+Al descargar una cancion se crea sola la ficha de su artista y se rellena
+consultando dos fuentes:
+
+- **MusicBrainz** aporta pais, anos de actividad, tipo (grupo o persona) y las
+  relaciones entre artistas, que es lo interesante: "Robbie Williams fue
+  miembro de Take That".
+- **Wikipedia** aporta la biografia en prosa. Se llega a ella por el enlace a
+  Wikidata que MusicBrainz ya guarda, que acierta mas que buscar por nombre.
+
+El buscador de MusicBrainz devuelve 503 con frecuencia. Cuando pasa, el
+identificador del artista se resuelve por **Wikidata** (que guarda el mismo id
+en su propiedad P434) y los datos se leen del lookup directo de MusicBrainz,
+que si es estable. Se respeta el limite de una peticion por segundo.
+
+Las relaciones guardan el nombre del otro artista aunque no este en la
+biblioteca; cuando mas adelante aparece, la relacion pasa a ser un enlace
+navegable en los dos sentidos.
+
+**Editar una ficha a mano la marca como `manual`** y el enriquecido automatico
+deja de pisarla. Desde la ficha se puede forzar el rehacer si se quiere volver a
+los datos externos.
+
+Para las canciones que ya estaban antes de existir este modulo:
+
+```bash
+docker compose exec backend python -m app.cli.link_artists
+```
+
+Crea las fichas que falten y las enriquece. Es idempotente.
 
 ## Si YouTube empieza a bloquear las descargas
 

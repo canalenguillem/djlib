@@ -4,6 +4,8 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RequireAdmin } from './auth/RequireAdmin'
 import { Layout } from './components/Layout'
 import { AccountPage } from './pages/Account'
+import { ArtistDetailPage } from './pages/ArtistDetail'
+import { ArtistsPage } from './pages/Artists'
 import { LibraryPage } from './pages/Library'
 import { LoginPage } from './pages/Login'
 import { NotFoundPage } from './pages/NotFound'
@@ -20,6 +22,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <Navigate to="/library" replace /> },
           { path: '/library', element: <LibraryPage /> },
+          { path: '/artists', element: <ArtistsPage /> },
+          { path: '/artists/:artistId', element: <ArtistDetailPage /> },
           { path: '/tags', element: <TagsPage /> },
           { path: '/account', element: <AccountPage /> },
           {

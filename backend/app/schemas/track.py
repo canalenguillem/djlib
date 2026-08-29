@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.track import TrackSource, TrackStatus
+from app.schemas.artist import ArtistBrief
 from app.schemas.tag import TagOut
 
 
@@ -27,6 +28,7 @@ class TrackOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     tags: list[TagOut] = []
+    artists: list[ArtistBrief] = []
 
 
 class TrackPage(BaseModel):

@@ -61,6 +61,7 @@ export interface Track {
   created_at: string
   updated_at: string
   tags: Tag[]
+  artists: ArtistBrief[]
 }
 
 export interface TrackPage {
@@ -74,4 +75,46 @@ export interface TrackFilters {
   search?: string
   status?: TrackStatus
   tagIds?: number[]
+}
+
+export type EnrichmentStatus = 'pending' | 'ok' | 'not_found' | 'error' | 'manual'
+
+export interface ArtistBrief {
+  id: number
+  name: string
+  slug: string
+}
+
+export interface ArtistRelation {
+  id: number
+  related_name: string
+  relation_type: string
+  related_artist_id: number | null
+}
+
+export interface Artist {
+  id: number
+  name: string
+  slug: string
+  bio: string | null
+  country: string | null
+  begin_year: number | null
+  end_year: number | null
+  artist_type: string | null
+  musicbrainz_id: string | null
+  wikipedia_url: string | null
+  enrichment_status: EnrichmentStatus
+  enrichment_error: string | null
+  enriched_at: string | null
+  created_at: string
+  updated_at: string
+  relations: ArtistRelation[]
+  track_count: number
+}
+
+export interface ArtistPage {
+  items: Artist[]
+  total: number
+  limit: number
+  offset: number
 }

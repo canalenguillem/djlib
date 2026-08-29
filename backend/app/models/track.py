@@ -100,6 +100,12 @@ class Track(Base):
     )
 
     added_by: Mapped["User | None"] = relationship()  # noqa: F821
+    artists: Mapped[list["Artist"]] = relationship(  # noqa: F821
+        secondary="track_artists",
+        back_populates="tracks",
+        lazy="selectin",
+        order_by="track_artists.c.position",
+    )
     tags: Mapped[list["Tag"]] = relationship(  # noqa: F821
         secondary=track_tags, back_populates="tracks", lazy="selectin", order_by="Tag.name"
     )

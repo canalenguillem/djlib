@@ -20,6 +20,7 @@ export function Layout() {
         </div>
         <nav className="topbar__nav">
           <NavLink to="/library">Biblioteca</NavLink>
+          <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>
           <NavLink to="/account">Mi cuenta</NavLink>
           {user?.role === 'admin' && <NavLink to="/users">Usuarios</NavLink>}

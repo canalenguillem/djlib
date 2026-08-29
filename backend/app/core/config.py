@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
     ytdlp_cookies_file: str | None = None
 
+    # --- Fichas de artista (MusicBrainz + Wikipedia) ---
+    enrichment_enabled: bool = True
+    musicbrainz_base_url: str = "https://musicbrainz.org/ws/2"
+    # MusicBrainz exige un User-Agent identificable; sin el bloquea por IP.
+    enrichment_user_agent: str = "DJLibrary/0.3 (self-hosted; https://github.com/canalenguillem/djlib)"
+    enrichment_timeout_seconds: int = 15
+    wikipedia_lang: str = "es"
+
     # --- Reconocimiento de audio (fase posterior, aun desactivado) ---
     recognition_provider: str = ""  # "audd" | "acrcloud" | vacio = desactivado
     recognition_api_key: str = ""

@@ -11,10 +11,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.text import normalize_key
 from app.core.time import utcnow
+from app.models.artist import EnrichmentStatus
 from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
-from app.services import downloader
+from app.services import artist_service, downloader
 from app.services.downloader import DownloadError
 
 logger = logging.getLogger(__name__)
@@ -179,7 +180,19 @@ def run_download(session_factory, track_id: int) -> None:
         track.error_message = None
         track.downloaded_at = utcnow()
         track.updated_at = utcnow()
+
+        # La ficha del artista se crea sola al descargar: asi queda documentado
+        # quien toca esto para la proxima vez que suene.
+        artists = artist_service.link_track_artists(db, track)
+        pending_ids = [
+            a.id for a in artists if a.enrichment_status == EnrichmentStatus.pending
+        ]
         db.commit()
+
+    # Fuera de la transaccion: pedir datos a MusicBrainz/Wikipedia es lento y no
+    # debe retrasar el que la cancion aparezca ya como lista.
+    if pending_ids:
+        artist_service.run_enrichment(session_factory, pending_ids)
 
 
 def _fail(session_factory, track_id: int, message: str) -> None:
