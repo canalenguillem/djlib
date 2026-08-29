@@ -18,7 +18,7 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (loading) return <Loading />
-  if (user) return <Navigate to="/account" replace />
+  if (user) return <Navigate to="/library" replace />
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -28,7 +28,7 @@ export function LoginPage() {
     try {
       await signIn(username.trim(), password)
       const from = (location.state as { from?: string } | null)?.from
-      navigate(from && from !== '/login' ? from : '/account', { replace: true })
+      navigate(from && from !== '/login' ? from : '/library', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError('Demasiados intentos fallidos. Espera unos minutos y vuelve a probar.')

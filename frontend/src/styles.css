@@ -335,3 +335,329 @@ select:focus {
     transform: rotate(360deg);
   }
 }
+
+/* --- Pestanas ------------------------------------------------------------- */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: inherit;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.tab--active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.field--wide {
+  grid-column: 1 / -1;
+}
+
+/* --- Filtros -------------------------------------------------------------- */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.filters__search {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filters__tags {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.filters__group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filters__label,
+.tagpicker__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  min-width: 62px;
+}
+
+/* --- Chips (etiquetas) ---------------------------------------------------- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chip {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.65rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chip--on {
+  background: rgba(111, 92, 255, 0.18);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chips--static .chip {
+  cursor: default;
+}
+
+/* Un color por eje de clasificacion, para leer la fila de un vistazo */
+.chip--mood {
+  border-color: rgba(111, 92, 255, 0.5);
+  color: #c3bbff;
+}
+
+.chip--style {
+  border-color: rgba(46, 168, 106, 0.5);
+  color: #8ce0b4;
+}
+
+.chip--moment {
+  border-color: rgba(224, 160, 60, 0.5);
+  color: #f0c98a;
+}
+
+.chip__remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.6;
+  padding: 0;
+}
+
+.chip__remove svg {
+  width: 10px;
+  height: 10px;
+}
+
+.chip__remove:hover {
+  opacity: 1;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 420px;
+}
+
+/* --- Listado de canciones ------------------------------------------------- */
+.library__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.tracklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.track {
+  border-top: 1px solid var(--border);
+  padding: 0.7rem 0;
+}
+
+.track:first-child {
+  border-top: none;
+}
+
+.track__main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.track__play {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.track__play:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.track__play:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.track__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.track__title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.track__error {
+  font-size: 0.85rem;
+  color: #ffb4ae;
+}
+
+.track__actions {
+  flex: none;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.track__actions .btn {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: var(--err);
+  color: #ffb4ae;
+}
+
+.badge--busy {
+  color: #c3bbff;
+  border-color: rgba(111, 92, 255, 0.5);
+}
+
+.track--error .track__title,
+.track--pending .track__title,
+.track--downloading .track__title {
+  color: var(--muted);
+}
+
+/* --- Editor de etiquetas de una cancion ----------------------------------- */
+.tagpicker {
+  margin: 0.6rem 0 0.2rem 3rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0b0e13;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tagpicker__group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.tagpicker__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* --- Reproductor ---------------------------------------------------------- */
+.player {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+}
+
+.player__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 240px;
+}
+
+.player__info strong,
+.player__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player__audio {
+  flex: 1;
+  height: 36px;
+}
+
+@media (max-width: 700px) {
+  .track__main {
+    flex-wrap: wrap;
+  }
+
+  .track__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .tagpicker {
+    margin-left: 0;
+  }
+
+  .player {
+    flex-wrap: wrap;
+  }
+}

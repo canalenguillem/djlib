@@ -128,3 +128,34 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   if (!response.ok) throw new ApiError(response.status, extractMessage(response.status, payload))
   return payload as T
 }
+
+
+/** Descarga binaria autenticada: el navegador no puede poner cabeceras en
+ *  <audio src> ni en <a download>, asi que el fichero se trae por fetch y se
+ *  convierte en una URL de blob. */
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const send = async (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    try {
+      return await fetch(`${API_BASE}${path}`, { headers })
+    } catch {
+      throw new ApiError(0, 'No se puede contactar con el servidor.')
+    }
+  }
+
+  let response = await send(tokenStore.access)
+  if (response.status === 401 && tokenStore.refresh) {
+    try {
+      response = await send(await refreshAccessToken())
+    } catch {
+      notifySessionExpired()
+      throw new ApiError(401, 'Tu sesion ha expirado. Vuelve a iniciar sesion.')
+    }
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    throw new ApiError(response.status, extractMessage(response.status, payload))
+  }
+  return response.blob()
+}

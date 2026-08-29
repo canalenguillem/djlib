@@ -29,3 +29,49 @@ export interface UpdateUserPayload {
   is_active?: boolean
   role?: UserRole
 }
+
+export type TrackStatus = 'pending' | 'downloading' | 'ready' | 'error'
+export type IngestSource = 'url' | 'search' | 'recognition'
+export type TagKind = 'mood' | 'style' | 'moment'
+
+export interface Tag {
+  id: number
+  kind: TagKind
+  name: string
+  slug: string
+  created_at: string
+}
+
+export interface Track {
+  id: number
+  title: string
+  artist_text: string | null
+  duration_seconds: number | null
+  ingest_source: IngestSource
+  request_query: string
+  source_url: string | null
+  source_site: string | null
+  source_video_id: string | null
+  status: TrackStatus
+  error_message: string | null
+  file_size: number | null
+  bpm: number | null
+  added_by_user_id: number | null
+  downloaded_at: string | null
+  created_at: string
+  updated_at: string
+  tags: Tag[]
+}
+
+export interface TrackPage {
+  items: Track[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface TrackFilters {
+  search?: string
+  status?: TrackStatus
+  tagIds?: number[]
+}

@@ -5,8 +5,8 @@ export function NotFoundPage() {
     <div className="card">
       <h2>Pagina no encontrada</h2>
       <p className="muted">La ruta que buscas no existe.</p>
-      <Link to="/account" className="btn btn--primary">
-        Volver a mi cuenta
+      <Link to="/library" className="btn btn--primary">
+        Volver a la biblioteca
       </Link>
     </div>
   )

@@ -37,6 +37,8 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      # Volumen aparte para los mp3: no se pierden al reconstruir la imagen
+      - music_data:/data/music
     # Sin puertos publicados: solo accesible desde la red de compose y a traves
     # del proxy del frontend. Para atacar la API directa desde el host:
     #   docker compose exec backend curl -s localhost:8000/health
@@ -64,4 +66,5 @@ services:
 
 volumes:
   mariadb_data:
+  music_data:
   frontend_node_modules:

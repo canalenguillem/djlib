@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
 from app.core.time import to_epoch
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.models.user import User
 from app.services import user_service
 
@@ -19,6 +19,16 @@ CREDENTIALS_ERROR = HTTPException(
 )
 
 DbSession = Annotated[Session, Depends(get_db)]
+
+
+def get_session_factory():
+    """Fabrica de sesiones para las tareas en segundo plano, que se ejecutan
+    cuando la sesion de la peticion ya esta cerrada. Como dependencia, los
+    tests pueden sustituirla por la de su base de datos."""
+    return SessionLocal
+
+
+SessionFactory = Annotated[object, Depends(get_session_factory)]
 
 
 def get_current_user(

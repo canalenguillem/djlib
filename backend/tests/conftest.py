@@ -1,18 +1,22 @@
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
+from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+import app.core.security as security
 import app.models  # noqa: F401  (registra los modelos en Base.metadata)
+from app.api.deps import get_session_factory
 from app.core.config import settings
 from app.core.rate_limit import login_rate_limiter
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
-from app.services import user_service
+from app.services import downloader, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
@@ -21,6 +25,11 @@ engine = create_engine(settings.test_database_url, pool_pre_ping=True, future=Tr
 TestingSessionLocal = sessionmaker(
     bind=engine, autoflush=False, autocommit=False, future=True
 )
+
+# argon2 esta calibrado para ser lento a proposito, lo que multiplica por
+# quince la duracion de la suite. En tests basta con que la funcion sea la
+# misma: se rebajan los parametros de coste.
+security._hasher = PasswordHasher(time_cost=1, memory_cost=8, parallelism=1)
 
 ADMIN_PASSWORD = "AdminPass1234"
 USER_PASSWORD = "UserPass1234"
@@ -54,6 +63,9 @@ def client() -> Generator[TestClient, None, None]:
             session.close()
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
+    # Las descargas en segundo plano deben escribir en la base de tests, no en
+    # la real: se les inyecta la misma fabrica de sesiones.
+    fastapi_app.dependency_overrides[get_session_factory] = lambda: TestingSessionLocal
     with TestClient(fastapi_app) as test_client:
         yield test_client
     fastapi_app.dependency_overrides.clear()
@@ -96,3 +108,55 @@ def login(client: TestClient, username: str, password: str) -> dict:
 
 def auth_headers(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def music_dir(tmp_path, monkeypatch) -> Path:
+    """Aisla los mp3 de cada test en su propio directorio temporal."""
+    destino = tmp_path / "music"
+    destino.mkdir()
+    monkeypatch.setattr(settings, "music_dir", str(destino))
+    return destino
+
+
+class FakeDownloader:
+    """Sustituye a yt-dlp: ni red ni subprocesos, pero el mismo contrato.
+
+    Los tests configuran que debe devolver `resolve` (o que error lanzar) y
+    `download` escribe un fichero de mentira en el directorio de musica.
+    """
+
+    def __init__(self, destination: Path) -> None:
+        self.destination = destination
+        self.info = downloader.MediaInfo(
+            video_id="dQw4w9WgXcQ",
+            title="Song 2",
+            artist="Blur",
+            duration_seconds=121,
+            webpage_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            site="youtube",
+        )
+        self.error: Exception | None = None
+        self.resolved_queries: list[str] = []
+        self.downloaded_queries: list[str] = []
+
+    def resolve(self, query: str):
+        self.resolved_queries.append(query)
+        if self.error is not None:
+            raise self.error
+        return self.info
+
+    def download(self, query: str, destination_dir: Path, video_id: str) -> Path:
+        self.downloaded_queries.append(query)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        path = destination_dir / f"{video_id}.mp3"
+        path.write_bytes(b"ID3fake-mp3-para-tests")
+        return path
+
+
+@pytest.fixture
+def fake_downloader(music_dir, monkeypatch) -> FakeDownloader:
+    fake = FakeDownloader(music_dir)
+    monkeypatch.setattr(downloader, "resolve", fake.resolve)
+    monkeypatch.setattr(downloader, "download", fake.download)
+    return fake

@@ -19,6 +19,8 @@ export function Layout() {
           DJ Library
         </div>
         <nav className="topbar__nav">
+          <NavLink to="/library">Biblioteca</NavLink>
+          <NavLink to="/tags">Etiquetas</NavLink>
           <NavLink to="/account">Mi cuenta</NavLink>
           {user?.role === 'admin' && <NavLink to="/users">Usuarios</NavLink>}
         </nav>

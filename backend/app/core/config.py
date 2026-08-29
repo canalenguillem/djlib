@@ -35,6 +35,20 @@ class Settings(BaseSettings):
     login_rate_limit_window_seconds: int = 300
     trust_proxy_headers: bool = False
 
+    # --- Biblioteca musical ---
+    music_dir: str = "/data/music"
+    # yt-dlp puede tardar bastante con conexiones lentas o videos largos.
+    download_timeout_seconds: int = 900
+    # Descarta videos absurdamente largos (directos, albumes completos).
+    max_track_duration_seconds: int = 3600
+    ytdlp_audio_quality: str = "0"  # 0 = mejor calidad VBR
+    # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
+    ytdlp_cookies_file: str | None = None
+
+    # --- Reconocimiento de audio (fase posterior, aun desactivado) ---
+    recognition_provider: str = ""  # "audd" | "acrcloud" | vacio = desactivado
+    recognition_api_key: str = ""
+
     # --- Seed ---
     seed_admin_username: str = "enguillem"
     seed_admin_email: str | None = None

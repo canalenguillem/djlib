@@ -1,8 +1,16 @@
-# DJ Library — Fase 1: autenticacion
+# DJ Library
 
-Modulo de autenticacion y gestion de usuarios de DJ Library (FastAPI + MariaDB +
-Vite/React/TypeScript, todo en Docker). Los modulos de tracks, artistas, tags,
-reconocimiento de audio y descarga con yt-dlp llegaran en fases posteriores.
+Biblioteca musical autoalojada para uso como DJ: descarga canciones de YouTube,
+las clasifica por mood, estilo y momento de la noche, y permite filtrarlas para
+montar crates tematicos. FastAPI + MariaDB + Vite/React/TypeScript, en Docker.
+
+**Implementado**: autenticacion y usuarios; ingesta por enlace y por titulo +
+artista; biblioteca con busqueda, filtrado combinado por etiquetas, reproductor,
+descarga del mp3 y borrado; catalogo de etiquetas.
+
+**Pendiente**: reconocimiento de audio tipo Shazam (la configuracion ya esta
+prevista, falta clave de AudD/ACRCloud), fichas de artista con datos de
+MusicBrainz/Wikipedia, crates guardados con nombre y analisis de BPM.
 
 ## Puesta en marcha
 
@@ -86,6 +94,31 @@ crea el script `docker/mariadb/init/01-create-test-db.sh` la primera vez que se
 inicializa el volumen. Si ya tenias el volumen creado de antes, la base de tests
 no existira: recrealo con `docker compose down -v && docker compose up -d`.
 
+## Como funciona la ingesta
+
+Los tres caminos del briefing (enlace, busqueda manual y, mas adelante,
+reconocimiento) desembocan en el mismo pipeline:
+
+1. El endpoint valida, deduplica y crea la fila con `status=pending`. Responde
+   al instante con 202: la descarga no bloquea la peticion.
+2. Una tarea en segundo plano resuelve los metadatos con yt-dlp
+   (`--dump-json --skip-download`, barato), vuelve a deduplicar ahora que conoce
+   el id real del video, y descarga el audio a mp3 con ffmpeg.
+3. El frontend hace polling cada 3 segundos mientras haya descargas en marcha.
+
+**Deduplicacion** en dos niveles: por id del video (indice sobre
+`source_video_id`) y, como red secundaria, por una clave normalizada de
+artista + titulo que ignora acentos, mayusculas y el ruido tipico de YouTube,
+de modo que "Blur - Song 2 (Official Video)" y "blur song 2" son la misma.
+
+**Los mp3** se guardan en el volumen `music_data` con el id del video como
+nombre de fichero (sin acentos ni colisiones); el nombre bonito
+"Artista - Titulo.mp3" se aplica al descargar desde el navegador.
+
+Como las descargas viven dentro del proceso del backend, un reinicio las deja a
+medias: al arrancar se marcan como error, se ven en el listado y se reintentan
+con un boton.
+
 ## API
 
 Desde el navegador todas cuelgan del prefijo `/api` (el proxy lo quita antes de
@@ -104,6 +137,24 @@ llegar al backend): `POST http://localhost:5175/api/auth/login`.
 | PATCH | `/users/{id}` | admin | Activar/desactivar o cambiar rol |
 | GET | `/health` | publico | Comprobacion de vida |
 
+Biblioteca (todo requiere sesion):
+
+| Metodo | Ruta | Descripcion |
+| --- | --- | --- |
+| GET | `/tracks` | Listado con `search`, `status`, `tag_id` (repetible) y paginacion |
+| POST | `/tracks/from-url` | Alta desde un enlace |
+| POST | `/tracks/search` | Alta por titulo + artista (`ytsearch1`) |
+| GET | `/tracks/{id}` | Detalle, util para seguir el estado de la descarga |
+| PATCH | `/tracks/{id}` | Corregir titulo y artista a mano |
+| PUT | `/tracks/{id}/tags` | Fijar las etiquetas de una cancion |
+| POST | `/tracks/{id}/retry` | Reintentar una descarga fallida |
+| GET | `/tracks/{id}/file` | El mp3 (soporta Range para el reproductor) |
+| DELETE | `/tracks/{id}` | Borra el registro y el fichero |
+| GET | `/tags` | Catalogo, filtrable por `kind` |
+| POST | `/tags` | Crear etiqueta (`mood`, `style` o `moment`) |
+| PATCH | `/tags/{id}` | Renombrar |
+| DELETE | `/tags/{id}` | Borrar (se quita de las canciones que la tuvieran) |
+
 ## Decisiones de seguridad
 
 - **Contrasenas**: argon2id (`argon2-cffi`). El login verifica siempre un hash,
@@ -121,6 +172,16 @@ llegar al backend): `POST http://localhost:5175/api/auth/login`.
   (un login correcto limpia el contador). Vive en memoria del proceso; para
   varias replicas habria que moverlo a Redis.
 - Un admin no puede desactivarse ni cambiarse el rol a si mismo.
+
+## Si YouTube empieza a bloquear las descargas
+
+Es el riesgo conocido de yt-dlp. Dos palancas, por orden:
+
+1. Actualizar yt-dlp: `docker compose build --no-cache backend`. La mayoria de
+   los bloqueos se arreglan solo con esto.
+2. Si pide verificacion ("Sign in to confirm you're not a bot"), exporta las
+   cookies de tu navegador a un fichero, montalo en el contenedor y apunta
+   `YTDLP_COOKIES_FILE` a su ruta.
 
 ## Estructura
 
