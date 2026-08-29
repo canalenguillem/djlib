@@ -1,8 +1,9 @@
 # --- Base con dependencias instaladas ---------------------------------------
 FROM node:22-alpine AS base
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+# npm ci instala exactamente las versiones del lockfile: builds reproducibles.
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 
 # --- Desarrollo: dev server de Vite con hot reload --------------------------
