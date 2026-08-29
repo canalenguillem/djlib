@@ -152,7 +152,9 @@ def run_download(session_factory, track_id: int) -> None:
                 _fail(session_factory, track_id, f"'{duplicate.title}' ya esta en la biblioteca.")
                 return
 
-        path = downloader.download(query, music_dir(), info.video_id)
+        # Se descarga la URL ya resuelta, no la consulta: repetir la busqueda
+        # podria dar otro resultado, y con varios candidatos se bajarian todos.
+        path = downloader.download(info.webpage_url or query, music_dir(), info.video_id)
 
     except DownloadError as exc:
         _fail(session_factory, track_id, str(exc))

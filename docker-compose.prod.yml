@@ -1,0 +1,60 @@
+# Despliegue de produccion: el frontend se sirve como build estatico desde
+# nginx, no desde el dev server de Vite. Usa el MISMO proyecto y los mismos
+# volumenes que docker-compose.yml, asi que arrancarlo sustituye a la version
+# de desarrollo conservando la base de datos y los mp3:
+#
+#   docker compose -f docker-compose.prod.yml up -d --build   # pasar a produccion
+#   docker compose up -d                                      # volver a desarrollo
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Solo los mp3: el codigo viene de la imagen, no del disco del host.
+      - music_data:/data/music
+    # Sin --reload y con un unico worker: las descargas se ejecutan dentro del
+    # proceso y el limitador del login vive en memoria, asi que repartir las
+    # peticiones entre varios procesos romperia ambas cosas.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # Unico puerto publicado. Apunta aqui tu reverse proxy con TLS.
+      - "${FRONTEND_HOST_PORT:-5175}:80"
+
+volumes:
+  mariadb_data:
+  music_data:

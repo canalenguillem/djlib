@@ -13,6 +13,9 @@ CMD ["npm", "run", "dev"]
 
 # --- Produccion: build estatico servido por nginx (para el despliegue) ------
 FROM base AS build
+# Vite congela las variables VITE_* en el build, no las lee al arrancar.
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 FROM nginx:alpine AS prod

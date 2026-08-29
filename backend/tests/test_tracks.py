@@ -126,8 +126,21 @@ def test_alta_por_titulo_y_artista(client: TestClient, admin_user, fake_download
         "/tracks/search", json={"title": "Song 2", "artist": "Blur"}, headers=h
     )
     assert respuesta.status_code == 202
-    assert fake_downloader.resolved_queries == ["ytsearch1:Blur Song 2"]
+    # Se piden varios candidatos, no solo el primero
+    assert fake_downloader.resolved_queries == ["ytsearch5:Blur Song 2"]
     assert client.get(f"/tracks/{respuesta.json()['id']}", headers=h).json()["status"] == "ready"
+
+
+def test_se_descarga_la_url_resuelta_no_la_consulta(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    """Repetir la busqueda al descargar podria dar otro resultado distinto del
+    que se comprobo, y con varios candidatos bajaria todos."""
+    h = headers(client)
+    client.post("/tracks/search", json={"title": "Song 2", "artist": "Blur"}, headers=h)
+    assert fake_downloader.downloaded_queries == [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    ]
 
 
 def test_busqueda_que_apunta_a_un_video_ya_descargado_no_duplica(

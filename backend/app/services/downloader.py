@@ -54,9 +54,10 @@ def is_supported_url(value: str) -> bool:
 
 
 def search_query(title: str, artist: str | None) -> str:
-    """Consulta para yt-dlp: pide el primer resultado de YouTube."""
+    """Consulta para yt-dlp. Se piden varios resultados, no uno: el primero
+    suele ser un mix largo cuando la consulta no es exacta."""
     terms = " ".join(part.strip() for part in (artist, title) if part and part.strip())
-    return f"ytsearch1:{terms}"
+    return f"ytsearch{settings.search_candidates}:{terms}"
 
 
 def _binary() -> str:
@@ -120,17 +121,31 @@ def _explain(stderr: str) -> str:
     return last_line[:400] or "yt-dlp ha fallado sin dar detalles."
 
 
-def _parse_info(payload: str) -> MediaInfo:
-    line = next((ln for ln in payload.splitlines() if ln.strip().startswith("{")), None)
-    if line is None:
-        raise DownloadError("yt-dlp no ha devuelto informacion del video.")
-    data = json.loads(line)
+def _candidates(payload: str) -> list[dict]:
+    """yt-dlp escribe un objeto JSON POR LINEA, uno por video encontrado. Con
+    --flat-playlist devuelve en cambio un unico objeto de tipo "playlist" con
+    sus entradas dentro. Se admiten las dos formas."""
+    found: list[dict] = []
+    for line in payload.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        data = json.loads(line)
+        if data.get("_type") == "playlist":
+            found.extend(entry for entry in (data.get("entries") or []) if entry)
+        else:
+            found.append(data)
+    return found
 
-    if data.get("_type") == "playlist":  # ytsearch devuelve una lista
-        entries = data.get("entries") or []
-        if not entries:
-            raise DownloadError("La busqueda no ha encontrado ningun resultado.")
-        data = entries[0]
+
+def _parse_info(payload: str) -> MediaInfo:
+    found = _candidates(payload)
+    if not found:
+        raise DownloadError("La busqueda no ha encontrado ningun resultado.")
+
+    # Una URL concreta devuelve un solo candidato y se respeta tal cual; solo
+    # se elige cuando hay varios, es decir, cuando venimos de una busqueda.
+    data = found[0] if len(found) == 1 else _pick_song(found)
 
     duration = data.get("duration")
 
@@ -152,6 +167,28 @@ def _parse_info(payload: str) -> MediaInfo:
         duration_seconds=int(duration) if duration else None,
         webpage_url=data.get("webpage_url") or data.get("original_url") or "",
         site=(data.get("extractor_key") or data.get("extractor") or "").lower()[:50],
+    )
+
+
+def _pick_song(entries: list[dict]) -> dict:
+    """Elige el primer resultado con duracion de cancion.
+
+    Buscar "Bad Bunny Nueva Yirky" devuelve como primer resultado un mix de 42
+    minutos: coger ciegamente el primero llena la biblioteca de recopilatorios.
+    """
+    limit = settings.max_song_duration_seconds
+    for entry in entries:
+        duration = entry.get("duration")
+        if duration and duration <= limit:
+            return entry
+
+    duraciones = ", ".join(
+        f"{int(e['duration']) // 60} min" for e in entries[:3] if e.get("duration")
+    )
+    raise DownloadError(
+        "Todos los resultados son demasiado largos para ser una cancion"
+        + (f" ({duraciones})" if duraciones else "")
+        + ". Afina el titulo o pega la URL exacta del video."
     )
 
 

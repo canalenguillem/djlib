@@ -84,6 +84,34 @@ db.commit()"
 
 Cambiar la contrasena asi tambien revoca las sesiones abiertas de ese usuario.
 
+## Produccion
+
+En desarrollo, el frontend es el dev server de Vite: sirve el codigo sin
+minificar, expone el HMR y permite leer ficheros del proyecto. Eso no debe
+estar de cara a internet. Para el despliegue hay un compose aparte que sirve el
+build estatico desde nginx:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build   # pasar a produccion
+docker compose up -d                                      # volver a desarrollo
+```
+
+Usa el **mismo proyecto y los mismos volumenes**, asi que cambiar de modo
+conserva la base de datos y los mp3. Diferencias respecto a desarrollo:
+
+- nginx sirve el build estatico y hace de proxy de `/api` al backend, igual que
+  hacia Vite: un unico puerto publicado y sin CORS.
+- El backend corre sin `--reload` y sin montar el codigo desde el disco: **viene
+  de la imagen**. Cualquier cambio en el backend necesita
+  `docker compose -f docker-compose.prod.yml up -d --build backend`.
+- Un solo worker de uvicorn a proposito: las descargas se ejecutan dentro del
+  proceso y el limitador del login vive en memoria, asi que repartir las
+  peticiones entre varios procesos romperia ambas cosas.
+- Los assets llevan hash en el nombre y se cachean un ano; `index.html` nunca se
+  cachea, para que el navegador no se quede con un build viejo.
+
+Apunta tu reverse proxy con TLS al puerto publicado (`FRONTEND_HOST_PORT`).
+
 ## Tests
 
 ```bash
@@ -104,8 +132,17 @@ reconocimiento) desembocan en el mismo pipeline:
    al instante con 202: la descarga no bloquea la peticion.
 2. Una tarea en segundo plano resuelve los metadatos con yt-dlp
    (`--dump-json --skip-download`, barato), vuelve a deduplicar ahora que conoce
-   el id real del video, y descarga el audio a mp3 con ffmpeg.
+   el id real del video, y descarga el audio a mp3 con ffmpeg. Se descarga la
+   URL ya resuelta, no la consulta: repetirla podria dar otro resultado.
 3. El frontend hace polling cada 3 segundos mientras haya descargas en marcha.
+
+**En las busquedas se miran varios resultados y se elige por duracion**
+(`MAX_SONG_DURATION_SECONDS`, 15 min por defecto). El primer resultado de
+YouTube para una consulta imprecisa suele ser un mix de una hora: buscar
+"Bad Bunny Nueva Yirky" devuelve como primer resultado un mix de 42 minutos.
+Si ningun candidato tiene duracion de cancion, se avisa en vez de descargarlo.
+Para un tema legitimamente largo, pega su URL: por ahi el tope es
+`MAX_TRACK_DURATION_SECONDS` (una hora).
 
 **Deduplicacion** en dos niveles: por id del video (indice sobre
 `source_video_id`) y, como red secundaria, por una clave normalizada de

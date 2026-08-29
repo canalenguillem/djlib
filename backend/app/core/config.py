@@ -39,8 +39,14 @@ class Settings(BaseSettings):
     music_dir: str = "/data/music"
     # yt-dlp puede tardar bastante con conexiones lentas o videos largos.
     download_timeout_seconds: int = 900
-    # Descarta videos absurdamente largos (directos, albumes completos).
+    # Tope duro para una URL concreta: descarta directos y albumes enteros.
     max_track_duration_seconds: int = 3600
+    # Tope al elegir entre los resultados de una busqueda. El primer resultado
+    # de YouTube para una consulta vaga suele ser un mix de una hora, asi que
+    # se descartan los que no tienen duracion de cancion.
+    max_song_duration_seconds: int = 900
+    # Cuantos resultados se miran antes de elegir.
+    search_candidates: int = 5
     ytdlp_audio_quality: str = "0"  # 0 = mejor calidad VBR
     # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
     ytdlp_cookies_file: str | None = None
