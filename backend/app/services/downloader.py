@@ -32,6 +32,22 @@ class DownloadError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class SearchResult:
+    """Un candidato del listado de YouTube, para que el usuario elija.
+
+    Se queda con el titulo tal cual lo muestra YouTube (sin limpiar) porque es
+    asi como el usuario reconoce el video que busca.
+    """
+
+    video_id: str
+    title: str
+    channel: str | None
+    duration_seconds: int | None
+    url: str
+    thumbnail_url: str | None
+
+
+@dataclass(frozen=True)
 class MediaInfo:
     video_id: str
     title: str
@@ -190,6 +206,53 @@ def _pick_song(entries: list[dict]) -> dict:
         + (f" ({duraciones})" if duraciones else "")
         + ". Afina el titulo o pega la URL exacta del video."
     )
+
+
+def _thumbnail(data: dict) -> str | None:
+    """La miniatura mas grande que siga siendo razonable para un listado."""
+    thumbnails = [t for t in (data.get("thumbnails") or []) if t.get("url")]
+    if not thumbnails:
+        return None
+    utiles = [t for t in thumbnails if (t.get("width") or 0) <= 640]
+    return (utiles or thumbnails)[-1]["url"]
+
+
+def _video_url(data: dict) -> str:
+    return (
+        data.get("webpage_url")
+        or data.get("url")
+        or f"https://www.youtube.com/watch?v={data.get('id')}"
+    )
+
+
+def search(title: str, artist: str | None) -> list[SearchResult]:
+    """Lista los candidatos de una busqueda sin descargar nada.
+
+    Usa --flat-playlist: pedir los metadatos completos de cinco videos tarda
+    unos diez segundos, mientras que el listado tarda menos de dos, y trae ya
+    titulo, duracion, canal y miniatura, que es todo lo que hace falta para
+    elegir.
+    """
+    payload = _run(
+        _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist)]
+    )
+    resultados = []
+    for data in _candidates(payload):
+        video_id = str(data.get("id") or "")
+        if not video_id:
+            continue
+        duration = data.get("duration")
+        resultados.append(
+            SearchResult(
+                video_id=video_id,
+                title=(data.get("title") or "").strip() or "Sin titulo",
+                channel=(data.get("channel") or data.get("uploader") or None),
+                duration_seconds=int(duration) if duration else None,
+                url=_video_url(data),
+                thumbnail_url=_thumbnail(data),
+            )
+        )
+    return resultados
 
 
 def resolve(query: str) -> MediaInfo:

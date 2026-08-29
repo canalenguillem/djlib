@@ -155,12 +155,38 @@ class FakeDownloader:
         self.error: Exception | None = None
         self.resolved_queries: list[str] = []
         self.downloaded_queries: list[str] = []
+        self.searched: list[tuple[str, str | None]] = []
+        # Lo que devuelve una busqueda: un mix largo primero, como hace YouTube
+        self.results = [
+            downloader.SearchResult(
+                video_id="mixlargo123",
+                title="Puro Perreo Vol.37 Mix (Bad Bunny, Karol G, etc)",
+                channel="DJ Nayef Qva",
+                duration_seconds=2527,
+                url="https://www.youtube.com/watch?v=mixlargo123",
+                thumbnail_url="https://i.ytimg.com/vi/mixlargo123/hqdefault.jpg",
+            ),
+            downloader.SearchResult(
+                video_id="dQw4w9WgXcQ",
+                title="Blur - Song 2 (Official Music Video)",
+                channel="Blur",
+                duration_seconds=121,
+                url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                thumbnail_url="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+            ),
+        ]
 
     def resolve(self, query: str):
         self.resolved_queries.append(query)
         if self.error is not None:
             raise self.error
         return self.info
+
+    def search(self, title: str, artist: str | None):
+        self.searched.append((title, artist))
+        if self.error is not None:
+            raise self.error
+        return self.results
 
     def download(self, query: str, destination_dir: Path, video_id: str) -> Path:
         self.downloaded_queries.append(query)
@@ -175,6 +201,7 @@ def fake_downloader(music_dir, monkeypatch) -> FakeDownloader:
     fake = FakeDownloader(music_dir)
     monkeypatch.setattr(downloader, "resolve", fake.resolve)
     monkeypatch.setattr(downloader, "download", fake.download)
+    monkeypatch.setattr(downloader, "search", fake.search)
     return fake
 
 

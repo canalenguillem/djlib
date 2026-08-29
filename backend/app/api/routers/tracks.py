@@ -4,11 +4,14 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, 
 from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentUser, DbSession, SessionFactory
+from app.core.config import settings
 from app.core.time import utcnow
 from app.models.artist import EnrichmentStatus
 from app.models.track import TrackStatus
 from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
+    SearchCandidate,
+    SearchResults,
     TrackFromSearch,
     TrackFromUrl,
     TrackOut,
@@ -16,7 +19,8 @@ from app.schemas.track import (
     TrackTagsUpdate,
     TrackUpdate,
 )
-from app.services import artist_service, tag_service, track_service
+from app.services import artist_service, downloader, tag_service, track_service
+from app.services.downloader import DownloadError
 from app.services.tag_service import TagError
 from app.services.track_service import DuplicateTrackError
 
@@ -74,6 +78,43 @@ def add_from_url(
     result = TrackOut.model_validate(track)
     _schedule(background, session_factory, track.id)
     return result
+
+
+@router.post("/search/preview", response_model=SearchResults)
+def preview_search(
+    payload: TrackFromSearch, current_user: CurrentUser, db: DbSession
+) -> SearchResults:
+    """Devuelve los candidatos de YouTube para que el usuario elija cual quiere.
+
+    Sincrono a proposito: el usuario esta esperando el listado. Es rapido
+    porque solo pide el listado, no los metadatos completos de cada video.
+    """
+    try:
+        resultados = downloader.search(payload.title, payload.artist)
+    except DownloadError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+
+    ya_estan = track_service.existing_video_ids(db, [r.video_id for r in resultados])
+    limite = settings.max_song_duration_seconds
+
+    return SearchResults(
+        query=downloader.search_query(payload.title, payload.artist),
+        candidates=[
+            SearchCandidate(
+                video_id=r.video_id,
+                title=r.title,
+                channel=r.channel,
+                duration_seconds=r.duration_seconds,
+                url=r.url,
+                thumbnail_url=r.thumbnail_url,
+                already_in_library=r.video_id in ya_estan,
+                too_long=bool(r.duration_seconds and r.duration_seconds > limite),
+            )
+            for r in resultados
+        ],
+    )
 
 
 @router.post("/search", response_model=TrackOut, status_code=status.HTTP_202_ACCEPTED)

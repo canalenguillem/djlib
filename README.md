@@ -136,13 +136,24 @@ reconocimiento) desembocan en el mismo pipeline:
    URL ya resuelta, no la consulta: repetirla podria dar otro resultado.
 3. El frontend hace polling cada 3 segundos mientras haya descargas en marcha.
 
-**En las busquedas se miran varios resultados y se elige por duracion**
-(`MAX_SONG_DURATION_SECONDS`, 15 min por defecto). El primer resultado de
-YouTube para una consulta imprecisa suele ser un mix de una hora: buscar
-"Bad Bunny Nueva Yirky" devuelve como primer resultado un mix de 42 minutos.
-Si ningun candidato tiene duracion de cancion, se avisa en vez de descargarlo.
-Para un tema legitimamente largo, pega su URL: por ahi el tope es
-`MAX_TRACK_DURATION_SECONDS` (una hora).
+**Buscar por titulo y artista no descarga nada: muestra los candidatos.**
+`POST /tracks/search/preview` devuelve los cinco primeros resultados de YouTube
+con miniatura, canal y duracion, marcando los que ya estan en la biblioteca y
+los que duran demasiado para ser una cancion. El usuario elige, y la descarga va
+por la misma puerta que un enlace pegado a mano.
+
+El motivo es concreto: buscar "Bad Bunny Nueva Yirky" devuelve como primer
+resultado un mix de 42 minutos, y elegir automaticamente el primero llena la
+biblioteca de recopilatorios. Con la duracion delante, eso se ve de un vistazo y
+ademas se nota que hay que afinar la consulta.
+
+La vista previa usa `--flat-playlist`, que tarda 1,6 s en lugar de los 9,6 s que
+cuesta pedir los metadatos completos de los cinco videos.
+
+Sigue existiendo `POST /tracks/search`, que elige solo: se queda con el primer
+candidato con duracion de cancion (`MAX_SONG_DURATION_SECONDS`, 15 min) y avisa
+si ninguno la tiene. Para un tema legitimamente largo, pega su URL: por ahi el
+tope es `MAX_TRACK_DURATION_SECONDS` (una hora).
 
 **Deduplicacion** en dos niveles: por id del video (indice sobre
 `source_video_id`) y, como red secundaria, por una clave normalizada de
@@ -181,7 +192,8 @@ Biblioteca (todo requiere sesion):
 | --- | --- | --- |
 | GET | `/tracks` | Listado con `search`, `status`, `tag_id` (repetible) y paginacion |
 | POST | `/tracks/from-url` | Alta desde un enlace |
-| POST | `/tracks/search` | Alta por titulo + artista (`ytsearch1`) |
+| POST | `/tracks/search/preview` | Candidatos de YouTube para elegir, sin descargar |
+| POST | `/tracks/search` | Alta por titulo + artista eligiendo automaticamente |
 | GET | `/tracks/{id}` | Detalle, util para seguir el estado de la descarga |
 | PATCH | `/tracks/{id}` | Corregir titulo y artista a mano |
 | PUT | `/tracks/{id}/tags` | Fijar las etiquetas de una cancion |

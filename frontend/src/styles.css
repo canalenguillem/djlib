@@ -772,3 +772,68 @@ textarea:focus {
   outline-offset: 1px;
   border-color: transparent;
 }
+
+/* --- Resultados de busqueda ----------------------------------------------- */
+.candidates {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.candidate {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.candidate__thumb {
+  flex: none;
+  width: 96px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #0b0e13;
+}
+
+.candidate__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.candidate__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+/* La duracion es el dato que evita bajarse un mix de 42 minutos por error */
+.candidate__long {
+  color: #ffb4ae;
+  font-weight: 600;
+}
+
+@media (max-width: 700px) {
+  .candidate {
+    flex-wrap: wrap;
+  }
+
+  .candidate__thumb {
+    width: 72px;
+    height: 40px;
+  }
+}

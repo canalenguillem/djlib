@@ -284,3 +284,70 @@ def test_tras_borrarla_se_puede_volver_a_anadir(
     track_id = add_url(client, h).json()["id"]
     client.delete(f"/tracks/{track_id}", headers=h)
     assert add_url(client, h).status_code == 202
+
+
+# --- Vista previa de la busqueda --------------------------------------------
+
+
+def test_la_busqueda_muestra_los_candidatos(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    respuesta = client.post(
+        "/tracks/search/preview", json={"title": "Song 2", "artist": "Blur"}, headers=h
+    )
+    assert respuesta.status_code == 200
+    datos = respuesta.json()
+    assert fake_downloader.searched == [("Song 2", "Blur")]
+    assert [c["title"] for c in datos["candidates"]] == [
+        "Puro Perreo Vol.37 Mix (Bad Bunny, Karol G, etc)",
+        "Blur - Song 2 (Official Music Video)",
+    ]
+    # Se conserva el orden de YouTube y se avisa de cual es un mix
+    assert datos["candidates"][0]["too_long"] is True
+    assert datos["candidates"][1]["too_long"] is False
+    assert datos["candidates"][0]["duration_seconds"] == 2527
+    assert datos["candidates"][1]["channel"] == "Blur"
+
+
+def test_la_busqueda_marca_lo_que_ya_esta_en_la_biblioteca(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    add_url(client, h)  # deja dQw4w9WgXcQ en la biblioteca
+
+    candidatos = client.post(
+        "/tracks/search/preview", json={"title": "Song 2", "artist": "Blur"}, headers=h
+    ).json()["candidates"]
+    marcados = {c["video_id"]: c["already_in_library"] for c in candidatos}
+    assert marcados == {"mixlargo123": False, "dQw4w9WgXcQ": True}
+
+
+def test_elegir_un_candidato_lo_descarga(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    candidatos = client.post(
+        "/tracks/search/preview", json={"title": "Song 2", "artist": "Blur"}, headers=h
+    ).json()["candidates"]
+
+    # El usuario elige el segundo, no el mix que YouTube pone primero
+    elegido = candidatos[1]
+    respuesta = client.post("/tracks/from-url", json={"url": elegido["url"]}, headers=h)
+    assert respuesta.status_code == 202
+    assert client.get(f"/tracks/{respuesta.json()['id']}", headers=h).json()["status"] == "ready"
+
+
+def test_la_vista_previa_requiere_sesion(client: TestClient) -> None:
+    assert client.post("/tracks/search/preview", json={"title": "x"}).status_code == 401
+
+
+def test_si_youtube_falla_la_busqueda_lo_dice(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    fake_downloader.error = DownloadError("YouTube pide verificacion.")
+    respuesta = client.post(
+        "/tracks/search/preview", json={"title": "Song 2"}, headers=headers(client)
+    )
+    assert respuesta.status_code == 502
+    assert "verificacion" in respuesta.json()["detail"]

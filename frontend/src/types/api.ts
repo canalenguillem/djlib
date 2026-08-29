@@ -118,3 +118,19 @@ export interface ArtistPage {
   limit: number
   offset: number
 }
+
+export interface SearchCandidate {
+  video_id: string
+  title: string
+  channel: string | null
+  duration_seconds: number | null
+  url: string
+  thumbnail_url: string | null
+  already_in_library: boolean
+  too_long: boolean
+}
+
+export interface SearchResults {
+  query: string
+  candidates: SearchCandidate[]
+}

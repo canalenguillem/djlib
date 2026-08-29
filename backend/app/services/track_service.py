@@ -267,6 +267,20 @@ def get_by_id(db: Session, track_id: int) -> Track | None:
     return db.get(Track, track_id)
 
 
+def existing_video_ids(db: Session, video_ids: list[str]) -> set[str]:
+    """De una lista de ids de video, cuales ya estan en la biblioteca."""
+    if not video_ids:
+        return set()
+    return set(
+        db.scalars(
+            select(Track.source_video_id).where(
+                Track.source_video_id.in_(video_ids),
+                Track.status.in_(LIVE_STATUSES),
+            )
+        )
+    )
+
+
 # --- Edicion y borrado ------------------------------------------------------
 
 

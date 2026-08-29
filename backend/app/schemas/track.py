@@ -56,3 +56,22 @@ class TrackUpdate(BaseModel):
 
 class TrackTagsUpdate(BaseModel):
     tag_ids: list[int] = []
+
+
+class SearchCandidate(BaseModel):
+    """Un resultado de YouTube tal y como se le ofrece al usuario."""
+
+    video_id: str
+    title: str
+    channel: str | None = None
+    duration_seconds: int | None = None
+    url: str
+    thumbnail_url: str | None = None
+    # Marcas para que se vea de un vistazo que conviene y que no
+    already_in_library: bool = False
+    too_long: bool = False
+
+
+class SearchResults(BaseModel):
+    query: str
+    candidates: list[SearchCandidate]

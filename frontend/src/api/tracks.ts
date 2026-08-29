@@ -1,4 +1,4 @@
-import type { Track, TrackFilters, TrackPage } from '../types/api'
+import type { SearchResults, Track, TrackFilters, TrackPage } from '../types/api'
 import { apiFetch, apiFetchBlob } from './client'
 
 export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
@@ -12,6 +12,13 @@ export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
 
 export function addFromUrl(url: string): Promise<Track> {
   return apiFetch<Track>('/tracks/from-url', { method: 'POST', body: { url } })
+}
+
+export function previewSearch(title: string, artist: string | null): Promise<SearchResults> {
+  return apiFetch<SearchResults>('/tracks/search/preview', {
+    method: 'POST',
+    body: { title, artist },
+  })
 }
 
 export function addFromSearch(title: string, artist: string | null): Promise<Track> {
