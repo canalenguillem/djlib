@@ -1,0 +1,21 @@
+# Entorno
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# Editores / SO
+.DS_Store
+.idea/
+.vscode/
