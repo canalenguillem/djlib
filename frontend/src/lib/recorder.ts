@@ -11,6 +11,25 @@ const FORMATS: Array<{ mime: string; extension: string }> = [
   { mime: 'audio/aac', extension: 'aac' },
 ]
 
+/** El navegador activa por defecto cancelacion de eco, supresion de ruido y
+ *  control automatico de ganancia, que estan pensados para videollamadas y son
+ *  justo lo contrario de lo que hace falta aqui:
+ *
+ *  - La cancelacion de eco elimina el sonido que sale por los altavoces del
+ *    propio dispositivo. Al grabar musica que suena en el mismo equipo, el
+ *    cancelador tarda unos segundos en adaptarse: la primera grabacion sale
+ *    bien y a partir de la segunda se queda en silencio.
+ *  - La supresion de ruido trata la musica como ruido de fondo y la destroza.
+ *  - El control de ganancia bombea el volumen y ensucia la huella acustica.
+ *
+ *  Para identificar musica hay que pedir la senal cruda.
+ */
+const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+}
+
 export class RecorderError extends Error {
   readonly kind: 'insecure' | 'denied' | 'no-mic' | 'unsupported' | 'unknown'
 
@@ -26,6 +45,17 @@ export function pickFormat(): { mime: string; extension: string } | null {
     if (MediaRecorder.isTypeSupported(format.mime)) return format
   }
   return null
+}
+
+// Un solo AudioContext para toda la sesion: los navegadores limitan cuantos se
+// pueden tener abiertos y en una noche se graba muchas veces.
+let sharedContext: AudioContext | null = null
+
+function getAudioContext(): AudioContext {
+  if (sharedContext === null || sharedContext.state === "closed") {
+    sharedContext = new AudioContext()
+  }
+  return sharedContext
 }
 
 export function checkSupport(): RecorderError | null {
@@ -88,20 +118,22 @@ export async function record(
 
   let stream: MediaStream
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    stream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS })
   } catch (error) {
     throw translateError(error)
   }
 
   // Vumetro: se analiza el mismo stream en paralelo a la grabacion.
   let peakLevel = 0
-  let audioContext: AudioContext | null = null
   let levelTimer = 0
+  let source: MediaStreamAudioSourceNode | null = null
   try {
-    audioContext = new AudioContext()
+    const audioContext = getAudioContext()
+    if (audioContext.state === "suspended") await audioContext.resume()
     const analyser = audioContext.createAnalyser()
     analyser.fftSize = 1024
-    audioContext.createMediaStreamSource(stream).connect(analyser)
+    source = audioContext.createMediaStreamSource(stream)
+    source.connect(analyser)
     const buffer = new Float32Array(analyser.fftSize)
     levelTimer = window.setInterval(() => {
       analyser.getFloatTimeDomainData(buffer)
@@ -131,7 +163,7 @@ export async function record(
       window.clearInterval(levelTimer)
       window.clearTimeout(limit)
       stream.getTracks().forEach((t) => t.stop())
-      void audioContext?.close().catch(() => undefined)
+      source?.disconnect()
     }
 
     recorder.ondataavailable = (event) => {

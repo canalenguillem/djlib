@@ -265,6 +265,12 @@ Detalles que importan en la practica:
 - El fragmento se graba en **opus** donde se puede (unos 100 KB), que es lo que
   conviene subiendo desde datos moviles; Safari en iOS solo admite mp4 y
   tambien esta contemplado.
+- Se pide el microfono **sin cancelacion de eco, sin supresion de ruido y sin
+  control automatico de ganancia**. Son los valores por defecto del navegador,
+  pensados para videollamadas, y aqui hacen dano: el cancelador de eco elimina
+  el sonido que sale por los altavoces del propio equipo (la primera grabacion
+  sale bien y a partir de la segunda queda en silencio), y la supresion de
+  ruido trata la musica como ruido de fondo.
 - Se distinguen **tres** situaciones que antes se veian igual: **no ha entrado
   sonido** (el vumetro lo avisa en directo y la grabacion ni se envia, para no
   gastar cuota), **no reconocida** (el audio esta bien pero AudD no la tiene) y
