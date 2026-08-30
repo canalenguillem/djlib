@@ -62,12 +62,25 @@ function translateError(error: unknown): RecorderError {
 export interface Recording {
   blob: Blob
   filename: string
+  /** Nivel maximo captado, de 0 a 1. Sirve para distinguir "no se reconoce"
+   *  de "no ha entrado sonido", que son problemas muy distintos. */
+  peakLevel: number
 }
 
-/** Graba durante `seconds`. `onTick` recibe los segundos transcurridos. */
+export interface RecordCallbacks {
+  onTick: (elapsed: number) => void
+  /** Nivel instantaneo (0-1) varias veces por segundo, para el vumetro. */
+  onLevel: (level: number) => void
+}
+
+// Por debajo de esto la grabacion es practicamente silencio: el microfono no
+// esta captando el altavoz, esta silenciado o el navegador cogio otra entrada.
+export const SILENCE_THRESHOLD = 0.015
+
+/** Graba durante `seconds`, informando del tiempo y del nivel de entrada. */
 export async function record(
   seconds: number,
-  onTick: (elapsed: number) => void,
+  callbacks: RecordCallbacks,
   signal: { stop: () => void },
 ): Promise<Recording> {
   const format = pickFormat()
@@ -78,6 +91,28 @@ export async function record(
     stream = await navigator.mediaDevices.getUserMedia({ audio: true })
   } catch (error) {
     throw translateError(error)
+  }
+
+  // Vumetro: se analiza el mismo stream en paralelo a la grabacion.
+  let peakLevel = 0
+  let audioContext: AudioContext | null = null
+  let levelTimer = 0
+  try {
+    audioContext = new AudioContext()
+    const analyser = audioContext.createAnalyser()
+    analyser.fftSize = 1024
+    audioContext.createMediaStreamSource(stream).connect(analyser)
+    const buffer = new Float32Array(analyser.fftSize)
+    levelTimer = window.setInterval(() => {
+      analyser.getFloatTimeDomainData(buffer)
+      let sum = 0
+      for (const sample of buffer) sum += sample * sample
+      const rms = Math.sqrt(sum / buffer.length)
+      peakLevel = Math.max(peakLevel, rms)
+      callbacks.onLevel(rms)
+    }, 100)
+  } catch {
+    // Sin vumetro se puede grabar igual; no es motivo para fallar.
   }
 
   return new Promise<Recording>((resolve, reject) => {
@@ -93,8 +128,10 @@ export async function record(
 
     const cleanup = () => {
       window.clearInterval(timer)
+      window.clearInterval(levelTimer)
       window.clearTimeout(limit)
       stream.getTracks().forEach((t) => t.stop())
+      void audioContext?.close().catch(() => undefined)
     }
 
     recorder.ondataavailable = (event) => {
@@ -109,13 +146,14 @@ export async function record(
       resolve({
         blob: new Blob(chunks, { type: format.mime }),
         filename: `fragmento.${format.extension}`,
+        peakLevel,
       })
     }
 
     let elapsed = 0
     const timer = window.setInterval(() => {
       elapsed += 1
-      onTick(elapsed)
+      callbacks.onTick(elapsed)
     }, 1000)
     const limit = window.setTimeout(() => {
       if (recorder.state !== 'inactive') recorder.stop()
@@ -127,6 +165,6 @@ export async function record(
     }
 
     recorder.start()
-    onTick(0)
+    callbacks.onTick(0)
   })
 }

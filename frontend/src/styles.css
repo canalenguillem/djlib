@@ -983,3 +983,39 @@ textarea:focus {
     font-size: 0.85rem;
   }
 }
+
+/* --- Vumetro y repeticion de la grabacion --------------------------------- */
+/* Si esta barra no se mueve, no esta entrando sonido: distingue "no se
+   reconoce la cancion" de "el microfono no esta captando nada", que son
+   problemas distintos y hasta ahora se veian igual. */
+.vumeter {
+  width: min(320px, 100%);
+  height: 10px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.vumeter__level {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok), var(--accent));
+  border-radius: 999px;
+  transition: width 0.1s linear;
+}
+
+.lastTake {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+}
+
+.lastTake summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lastTake__audio {
+  width: 100%;
+  margin-top: 0.6rem;
+}

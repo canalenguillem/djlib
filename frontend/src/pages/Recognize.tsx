@@ -6,7 +6,7 @@ import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
-import { RecorderError, checkSupport, record } from '../lib/recorder'
+import { RecorderError, SILENCE_THRESHOLD, checkSupport, record } from '../lib/recorder'
 import type { RecognitionResult, SearchCandidate } from '../types/api'
 
 // AudD recomienda fragmentos de 2 a 12 segundos: por encima de ahi, con el
@@ -23,8 +23,13 @@ export function RecognizePage() {
   const [support, setSupport] = useState<RecorderError | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [elapsed, setElapsed] = useState(0)
+  const [level, setLevel] = useState(0)
   const [result, setResult] = useState<RecognitionResult | null>(null)
+  const [silent, setSilent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Se guarda la ultima grabacion para poder escucharla: si no se reconoce,
+  // oirla dice enseguida si el problema fue la captura o la cancion.
+  const [lastTake, setLastTake] = useState<{ url: string; peak: number } | null>(null)
 
   const [addedIds, setAddedIds] = useState<string[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
@@ -47,11 +52,29 @@ export function RecognizePage() {
   async function handleRecord() {
     setError(null)
     setResult(null)
+    setSilent(false)
     setAddedIds([])
     setElapsed(0)
+    setLevel(0)
     setPhase('recording')
     try {
-      const grabacion = await record(SECONDS, setElapsed, stopper.current)
+      const grabacion = await record(
+        SECONDS,
+        { onTick: setElapsed, onLevel: setLevel },
+        stopper.current,
+      )
+      setLastTake((anterior) => {
+        if (anterior) URL.revokeObjectURL(anterior.url)
+        return { url: URL.createObjectURL(grabacion.blob), peak: grabacion.peakLevel }
+      })
+      // Si no ha entrado sonido, no se manda: AudD devolveria un error
+      // confuso y habria gastado una peticion de la cuota para nada.
+      if (grabacion.peakLevel < SILENCE_THRESHOLD) {
+        setSilent(true)
+        setPhase('done')
+        return
+      }
+
       setPhase('identifying')
       const identificada = await recognitionApi.recognizeAudio(
         grabacion.blob,
@@ -166,18 +189,53 @@ export function RecognizePage() {
         </button>
 
         {recording && (
-          <div className="recorder__bar" aria-hidden="true">
-            <div
-              className="recorder__progress"
-              style={{ width: `${Math.min(100, (elapsed / SECONDS) * 100)}%` }}
-            />
-          </div>
+          <>
+            <div className="recorder__bar" aria-hidden="true">
+              <div
+                className="recorder__progress"
+                style={{ width: `${Math.min(100, (elapsed / SECONDS) * 100)}%` }}
+              />
+            </div>
+            {/* Vumetro: si no se mueve, no esta entrando sonido al microfono */}
+            <div className="vumeter" role="status" aria-label="Nivel de entrada">
+              <div
+                className="vumeter__level"
+                style={{ width: `${Math.min(100, Math.round(level * 320))}%` }}
+              />
+            </div>
+            <p className="muted recognize__hint">
+              {level * 320 < 4
+                ? 'No se esta captando sonido. Sube el volumen o acerca el microfono.'
+                : 'Captando sonido...'}
+            </p>
+          </>
         )}
 
         <p className="muted recognize__hint">
           Acerca el movil al altavoz y manten pulsado el ambiente unos segundos.
         </p>
       </section>
+
+      {silent && (
+        <section className="card">
+          <h2>No se ha captado sonido</h2>
+          <Alert kind="error">
+            La grabacion esta practicamente en silencio, asi que no se ha enviado a
+            identificar. Comprueba que el navegador esta usando el microfono correcto
+            y que no esta silenciado, sube el volumen de lo que suena y acerca el
+            microfono al altavoz.
+          </Alert>
+          {lastTake && (
+            <details className="lastTake">
+              <summary>Escuchar lo que se ha grabado</summary>
+              <audio src={lastTake.url} controls className="lastTake__audio" />
+            </details>
+          )}
+          <button type="button" className="btn btn--primary" onClick={handleRecord}>
+            Reintentar grabacion
+          </button>
+        </section>
+      )}
 
       {result?.recognized && (
         <section className="card">
@@ -208,10 +266,27 @@ export function RecognizePage() {
       {result && !result.recognized && (
         <section className="card">
           <h2>No se ha reconocido</h2>
-          <p className="muted">
-            Suele pasar con mucho ruido o si suena lejos. Acercate al altavoz y vuelve
-            a grabar, o busca lo que creas que es.
-          </p>
+          {lastTake && lastTake.peak < SILENCE_THRESHOLD ? (
+            <Alert kind="error">
+              Apenas se ha captado sonido en la grabacion. Comprueba que el navegador
+              usa el microfono correcto y que no esta silenciado, sube el volumen de
+              lo que suena y vuelve a intentarlo.
+            </Alert>
+          ) : (
+            <p className="muted">
+              El audio se ha grabado bien, pero AudD no lo tiene en su base de datos.
+              Le pasa a menudo con remezclas, edits y sesiones de DJ, que no estan
+              publicadas como lanzamiento. Tambien falla si suena lejos o con mucho
+              ruido. Escucha lo grabado para salir de dudas, o busca lo que creas
+              que es.
+            </p>
+          )}
+          {lastTake && (
+            <details className="lastTake">
+              <summary>Escuchar lo que se ha grabado</summary>
+              <audio src={lastTake.url} controls className="lastTake__audio" />
+            </details>
+          )}
           <button type="button" className="btn btn--primary" onClick={handleRecord}>
             Reintentar grabacion
           </button>

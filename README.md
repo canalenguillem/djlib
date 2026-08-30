@@ -265,9 +265,14 @@ Detalles que importan en la practica:
 - El fragmento se graba en **opus** donde se puede (unos 100 KB), que es lo que
   conviene subiendo desde datos moviles; Safari en iOS solo admite mp4 y
   tambien esta contemplado.
-- Se distingue **"no reconocida"** de **"ha fallado"**: lo primero se arregla
-  acercandose al altavoz y hay boton de reintentar; lo segundo (cuota agotada,
-  clave mal puesta, AudD caido) sale con su mensaje concreto.
+- Se distinguen **tres** situaciones que antes se veian igual: **no ha entrado
+  sonido** (el vumetro lo avisa en directo y la grabacion ni se envia, para no
+  gastar cuota), **no reconocida** (el audio esta bien pero AudD no la tiene) y
+  **ha fallado** (cuota agotada, clave mal, AudD caido). Cada una dice que hacer.
+- Cuando no se reconoce se puede **escuchar lo grabado**, que resuelve enseguida
+  la duda de si el problema fue la captura o la cancion.
+- AudD indexa lanzamientos comerciales: las remezclas, edits y sesiones de DJ a
+  menudo no estan en su base de datos por muy limpia que sea la grabacion.
 - Si no reconoce, hay un formulario para buscar a mano con lo que hayas
   pillado del tema, sin salir de la pantalla.
 - Una sola llamada al servidor devuelve la identificacion **y** los candidatos
