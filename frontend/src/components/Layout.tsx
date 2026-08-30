@@ -32,6 +32,7 @@ export function Layout() {
         <nav className="topbar__nav">
           <NavLink to="/library">Biblioteca</NavLink>
           {recognitionEnabled && <NavLink to="/recognize">Reconocer</NavLink>}
+          <NavLink to="/crates">Crates</NavLink>
           <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>
           <NavLink to="/account">Mi cuenta</NavLink>

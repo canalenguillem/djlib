@@ -1019,3 +1019,110 @@ textarea:focus {
   width: 100%;
   margin-top: 0.6rem;
 }
+
+/* --- Crates --------------------------------------------------------------- */
+.cratelist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.85rem;
+}
+
+.cratecard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cratecard__name {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.cratecard__name:hover {
+  color: var(--accent-hover);
+}
+
+.cratecard__desc {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.crate__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.filters__footer {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* --- Orden del set -------------------------------------------------------- */
+.setlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.setitem {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+  cursor: grab;
+}
+
+.setitem:first-child {
+  border-top: none;
+}
+
+.setitem--dragging {
+  opacity: 0.4;
+}
+
+/* El numero de orden es lo primero que se mira al repasar un set */
+.setitem__pos {
+  flex: none;
+  width: 1.8rem;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.setitem__controls {
+  flex: none;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.setitem__controls .btn {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 700px) {
+  .setitem {
+    flex-wrap: wrap;
+  }
+
+  .setitem__controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

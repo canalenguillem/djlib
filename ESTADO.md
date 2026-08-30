@@ -17,14 +17,14 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 110, en ~6 segundos |
-| Migraciones | 3 |
-| Endpoints | 34 |
-| Commits | 12 |
+| Tests | 126, en ~7 segundos |
+| Migraciones | 4 |
+| Endpoints | 42 |
+| Commits | 15 |
 
 ## Lo que hace
 
-Todo el MVP del briefing salvo los crates guardados y el BPM.
+Todo el MVP del briefing salvo el análisis de BPM.
 
 **Tres vías de ingesta**, las tres desembocando en el mismo pipeline de
 descarga:
@@ -42,6 +42,9 @@ descarga:
 **Artistas**: ficha creada automáticamente al descargar, con país, años de
 actividad, biografía de Wikipedia y relaciones entre artistas de MusicBrainz.
 Editable a mano.
+
+**Crates**: selecciones con nombre y orden propio, montadas guardando un filtro
+de golpe o añadiendo canciones a mano, y reordenables arrastrando o con flechas.
 
 **Usuarios**: login con JWT, roles admin y user, alta y gestión desde el panel.
 
@@ -108,6 +111,10 @@ más de lo que ayuda.
 **Editar una ficha de artista a mano la marca como `manual`** y el enriquecido
 automático deja de pisarla, salvo que se fuerce desde la propia ficha.
 
+**El orden de un crate se manda entero**, no por movimientos sueltos: dos
+reordenaciones seguidas no pueden dejarlo a medias, y el frontend puede pintar
+el cambio al instante y deshacerlo si el servidor lo rechaza.
+
 **El catálogo de etiquetas es cerrado**, con slug único por categoría: "80s" y
 "Ochentas" chocan en vez de convivir. El filtrado combina en AND.
 
@@ -161,7 +168,7 @@ segundos. Ahora son 6.
 
 ## Pruebas
 
-110 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
+126 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
 dobles. Corren contra una base MariaDB aparte, no contra SQLite, para probar el
 mismo motor que producción.
 
@@ -177,7 +184,6 @@ el micrófono simulado de Chromium alimentado con audio real.
 
 | | |
 | --- | --- |
-| **Crates guardados** | Poner nombre a una combinación de filtros y reordenar las canciones, tipo Serato. El modelo ya lo admite. |
 | **Editar título y artista desde la fila** | La API lo soporta (`PATCH /tracks/{id}`), la interfaz no. Serviría para corregir metadatos sucios de YouTube. |
 | **Análisis de BPM** | Fase 2 explícita del briefing. |
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
+import * as cratesApi from '../api/crates'
 import * as tagsApi from '../api/tags'
 import * as tracksApi from '../api/tracks'
 import { AddTrackPanel } from '../components/AddTrackPanel'
@@ -27,6 +29,9 @@ export function LibraryPage() {
   const [activeSearch, setActiveSearch] = useState('')
   const [filterTagIds, setFilterTagIds] = useState<number[]>([])
   const [playing, setPlaying] = useState<Track | null>(null)
+  const [crateName, setCrateName] = useState('')
+  const [savingCrate, setSavingCrate] = useState(false)
+  const navigate = useNavigate()
 
   const load = useCallback(async () => {
     try {
@@ -72,6 +77,25 @@ export function LibraryPage() {
   }
 
   const filtering = activeSearch !== '' || filterTagIds.length > 0
+  // Solo tiene sentido guardar canciones utilizables: las que estan a medias
+  // de descargar no se pueden pinchar.
+  const readyTracks = tracks.filter((t) => t.status === 'ready')
+
+  async function saveAsCrate() {
+    if (!crateName.trim()) return
+    setSavingCrate(true)
+    setError(null)
+    try {
+      const crate = await cratesApi.createCrate(
+        crateName.trim(),
+        readyTracks.map((t) => t.id),
+      )
+      navigate(`/crates/${crate.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el crate.')
+      setSavingCrate(false)
+    }
+  }
 
   return (
     <div className="stack">
@@ -126,19 +150,44 @@ export function LibraryPage() {
             </div>
           )}
 
-          {filtering && (
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => {
-                setSearch('')
-                setActiveSearch('')
-                setFilterTagIds([])
-              }}
-            >
-              Limpiar filtros
-            </button>
-          )}
+          <div className="filters__footer">
+            {filtering && (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={() => {
+                  setSearch('')
+                  setActiveSearch('')
+                  setFilterTagIds([])
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+            {readyTracks.length > 0 && (
+              <form
+                className="inline-form"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void saveAsCrate()
+                }}
+              >
+                <input
+                  type="text"
+                  value={crateName}
+                  placeholder={`Guardar estas ${readyTracks.length} como crate...`}
+                  onChange={(e) => setCrateName(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="btn btn--ghost"
+                  disabled={savingCrate || !crateName.trim()}
+                >
+                  {savingCrate ? 'Guardando...' : 'Guardar crate'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </section>
 

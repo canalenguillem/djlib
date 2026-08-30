@@ -252,6 +252,14 @@ Biblioteca (todo requiere sesion):
 | POST | `/tracks/{id}/retry` | Reintentar una descarga fallida |
 | GET | `/tracks/{id}/file` | El mp3 (soporta Range para el reproductor) |
 | DELETE | `/tracks/{id}` | Borra el registro y el fichero |
+| GET | `/crates` | Listado con numero de canciones y duracion total |
+| POST | `/crates` | Crear, opcionalmente con canciones de golpe |
+| GET | `/crates/{id}` | El crate con sus canciones en orden |
+| PATCH | `/crates/{id}` | Renombrar o cambiar la descripcion |
+| DELETE | `/crates/{id}` | Borrar el crate (no toca las canciones) |
+| POST | `/crates/{id}/tracks` | Anadir una cancion al final |
+| DELETE | `/crates/{id}/tracks/{track_id}` | Quitarla |
+| PUT | `/crates/{id}/order` | Fijar el orden mandando la lista completa |
 | GET | `/recognize/status` | Si el servidor tiene el reconocimiento configurado |
 | POST | `/recognize` | Identifica un fragmento de audio y devuelve candidatos |
 | GET | `/tags` | Catalogo, filtrable por `kind` |
@@ -329,6 +337,29 @@ Detalles que importan en la practica:
 - Una sola llamada al servidor devuelve la identificacion **y** los candidatos
   de YouTube: en el movil, con datos y en mitad de un bar, ahorrar una vuelta
   se nota.
+
+## Crates
+
+Un **crate** es una seleccion de canciones con nombre y orden propio: "warm-up
+del sabado", "cierre 90s". Viene de las cajas de vinilos que los DJ llevaban al
+bar.
+
+La diferencia con un filtro es que **no cambia solo**. Un filtro se recalcula
+cada vez y ordena por fecha; un crate es una seleccion congelada en el orden
+que tu decides, y sigue igual aunque despues cambies las etiquetas de una
+cancion o borres una etiqueta entera.
+
+Se montan de dos formas: filtrando la biblioteca y guardando el resultado de
+golpe, o creando uno vacio y buscando canciones desde la propia ficha del
+crate. Se reordena arrastrando o con flechas (en el movil, flechas).
+
+Solo entran canciones ya descargadas: un crate con descargas a medias no sirve
+para pinchar.
+
+**El orden se manda entero, no por movimientos sueltos** (`PUT
+/crates/{id}/order` con la lista completa). Asi dos reordenaciones seguidas no
+pueden dejar el crate en un estado a medias, y el frontend puede pintar el
+cambio al instante y deshacerlo si el servidor lo rechaza.
 
 ## Fichas de artista
 

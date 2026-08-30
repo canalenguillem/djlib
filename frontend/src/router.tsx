@@ -6,6 +6,8 @@ import { Layout } from './components/Layout'
 import { AccountPage } from './pages/Account'
 import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
+import { CrateDetailPage } from './pages/CrateDetail'
+import { CratesPage } from './pages/Crates'
 import { LibraryPage } from './pages/Library'
 import { LoginPage } from './pages/Login'
 import { NotFoundPage } from './pages/NotFound'
@@ -26,6 +28,8 @@ export const router = createBrowserRouter([
           { path: '/recognize', element: <RecognizePage /> },
           { path: '/artists', element: <ArtistsPage /> },
           { path: '/artists/:artistId', element: <ArtistDetailPage /> },
+          { path: '/crates', element: <CratesPage /> },
+          { path: '/crates/:crateId', element: <CrateDetailPage /> },
           { path: '/tags', element: <TagsPage /> },
           { path: '/account', element: <AccountPage /> },
           {

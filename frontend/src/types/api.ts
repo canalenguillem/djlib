@@ -149,3 +149,19 @@ export interface RecognitionResult {
   song_link: string | null
   candidates: SearchCandidate[]
 }
+
+export interface CrateSummary {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  created_by_user_id: number | null
+  created_at: string
+  updated_at: string
+  track_count: number
+  total_seconds: number
+}
+
+export interface Crate extends CrateSummary {
+  tracks: Track[]
+}
