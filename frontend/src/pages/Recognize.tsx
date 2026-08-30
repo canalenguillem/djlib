@@ -9,7 +9,12 @@ import { SearchCandidates } from '../components/SearchCandidates'
 import { RecorderError, checkSupport, record } from '../lib/recorder'
 import type { RecognitionResult, SearchCandidate } from '../types/api'
 
-const SECONDS = 13
+// AudD recomienda fragmentos de 2 a 12 segundos: por encima de ahi, con el
+// ruido de un bar, falla al generar la huella. 11 deja margen.
+const SECONDS = 11
+// Por debajo de esto no hay material suficiente para identificar nada, asi que
+// no se deja cortar antes aunque se toque el boton.
+const MIN_SECONDS = 3
 
 type Phase = 'idle' | 'recording' | 'identifying' | 'done'
 
@@ -62,6 +67,10 @@ export function RecognizePage() {
       setError(err instanceof Error ? err.message : 'No se ha podido identificar la cancion.')
       setPhase('idle')
     }
+  }
+
+  function handleStop() {
+    if (canStop) stopper.current.stop()
   }
 
   async function handleAdd(candidate: SearchCandidate) {
@@ -120,6 +129,7 @@ export function RecognizePage() {
   const recording = phase === 'recording'
   const identifying = phase === 'identifying'
   const remaining = Math.max(0, SECONDS - elapsed)
+  const canStop = elapsed >= MIN_SECONDS
 
   return (
     <div className="stack recognize">
@@ -133,12 +143,14 @@ export function RecognizePage() {
           type="button"
           className={`recorder ${recording ? 'recorder--on' : ''}`}
           disabled={identifying || support !== null}
-          onClick={recording ? () => stopper.current.stop() : handleRecord}
+          onClick={recording ? handleStop : handleRecord}
         >
           {recording ? (
             <>
               <span className="recorder__count">{remaining}</span>
-              <span className="recorder__label">Grabando... toca para parar</span>
+              <span className="recorder__label">
+                {canStop ? 'Grabando... toca para parar' : 'Grabando...'}
+              </span>
             </>
           ) : identifying ? (
             <>

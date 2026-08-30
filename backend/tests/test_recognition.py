@@ -1,5 +1,6 @@
 """Reconocimiento de audio: el flujo de grabar en un bar e identificar el tema."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.services.recognition import RecognitionError
@@ -142,3 +143,42 @@ def test_de_reconocida_a_la_biblioteca(
     track = client.get(f"/tracks/{alta.json()['id']}", headers=h).json()
     assert track["status"] == "ready"
     assert track["title"] == "Song 2"
+
+
+# --- Traduccion de los errores de AudD --------------------------------------
+
+
+def test_los_errores_de_audd_se_traducen(monkeypatch) -> None:
+    """AudD contesta parrafos en ingles que en un movil son ilegibles y no
+    dicen que hacer. Los conocidos se traducen; el resto se recorta."""
+    import httpx
+
+    from app.core.config import settings
+    from app.services import recognition
+
+    monkeypatch.setattr(settings, "recognition_provider", "audd")
+    monkeypatch.setattr(settings, "recognition_api_key", "clave")
+
+    def responder(payload):
+        def fake_post(*args, **kwargs):
+            return httpx.Response(200, json=payload, request=httpx.Request("POST", "https://api.audd.io/"))
+
+        monkeypatch.setattr(httpx, "post", fake_post)
+
+    # 300: el que sale al grabar con ruido o un fragmento largo
+    responder({"status": "error", "error": {"error_code": 300, "error_message": "x" * 500}})
+    with pytest.raises(recognition.RecognitionError) as exc:
+        recognition.recognize(b"audio")
+    assert "acercate al altavoz" in str(exc.value)
+    assert len(str(exc.value)) < 200
+
+    # 901: cuota agotada, que se arregla en otro sitio
+    responder({"status": "error", "error": {"error_code": 901, "error_message": "limit"}})
+    with pytest.raises(recognition.RecognitionError, match="dashboard.audd.io"):
+        recognition.recognize(b"audio")
+
+    # Uno desconocido: se recorta en vez de volcar parrafos
+    responder({"status": "error", "error": {"error_code": 999, "error_message": "y" * 500}})
+    with pytest.raises(recognition.RecognitionError) as exc:
+        recognition.recognize(b"audio")
+    assert len(str(exc.value)) < 220

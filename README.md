@@ -242,7 +242,7 @@ Biblioteca (todo requiere sesion):
 
 ## Reconocimiento de audio
 
-Grabas 10-15 segundos de lo que esta sonando y el sistema identifica la cancion,
+Grabas 11 segundos de lo que esta sonando y el sistema identifica la cancion,
 busca sus versiones en YouTube y te deja elegir cual descargar. Es el flujo
 pensado para usarse con el movil en la mano, en un bar.
 
@@ -258,9 +258,13 @@ Detalles que importan en la practica:
 - **Requiere HTTPS.** El navegador solo da acceso al microfono en contextos
   seguros, asi que por `http://<ip>:5175` no funciona y la pantalla lo explica
   en vez de fallar sin mas. Por el subdominio con TLS, si.
-- El fragmento se graba en **opus** donde se puede (unos 100 KB por 13
-  segundos), que es lo que conviene subiendo desde datos moviles; Safari en iOS
-  solo admite mp4 y tambien esta contemplado.
+- **La grabacion dura 11 segundos** porque AudD recomienda fragmentos de 2 a 12:
+  con 13 y ruido ambiente real devolvia el error 300 ("problem with creating an
+  audio fingerprint"), aunque con audio limpio aguante mas. Tampoco se puede
+  cortar antes de 3 segundos, que no daria material suficiente.
+- El fragmento se graba en **opus** donde se puede (unos 100 KB), que es lo que
+  conviene subiendo desde datos moviles; Safari en iOS solo admite mp4 y
+  tambien esta contemplado.
 - Se distingue **"no reconocida"** de **"ha fallado"**: lo primero se arregla
   acercandose al altavoz y hay boton de reintentar; lo segundo (cuota agotada,
   clave mal puesta, AudD caido) sale con su mensaje concreto.

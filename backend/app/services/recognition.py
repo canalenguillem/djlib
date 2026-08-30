@@ -21,6 +21,11 @@ AUDD_ENDPOINT = "https://api.audd.io/"
 # Codigos que devuelve AudD y que conviene traducir a algo accionable.
 # https://docs.audd.io/#common-errors
 _AUDD_ERRORS = {
+    300: (
+        "AudD no ha podido identificar el audio. Suele pasar con mucho ruido, "
+        "si suena lejos o si el fragmento es demasiado largo: acercate al "
+        "altavoz y vuelve a grabar."
+    ),
     900: "La clave de AudD no es valida. Revisa RECOGNITION_API_KEY.",
     901: "Se han agotado las peticiones de AudD. Amplia el plan en dashboard.audd.io.",
     902: "La clave de AudD ha caducado.",
@@ -98,9 +103,12 @@ def _recognize_audd(audio: bytes, filename: str) -> RecognizedTrack | None:
     if payload.get("status") == "error":
         error = payload.get("error") or {}
         codigo = error.get("error_code")
+        # El texto crudo de AudD son varios parrafos en ingles: ilegible en un
+        # movil y sin nada accionable. Se traduce lo conocido y se recorta el resto.
         raise RecognitionError(
             _AUDD_ERRORS.get(codigo)
-            or f"AudD ha devuelto un error ({codigo}): {error.get('error_message', '')}"
+            or f"AudD ha devuelto un error ({codigo}): "
+            f"{(error.get('error_message') or '')[:160]}"
         )
 
     result = payload.get("result")
