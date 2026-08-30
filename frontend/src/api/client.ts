@@ -159,3 +159,33 @@ export async function apiFetchBlob(path: string): Promise<Blob> {
   }
   return response.blob()
 }
+
+
+/** Envio de formulario multipart (el fragmento de audio del reconocimiento).
+ *  No se puede reutilizar apiFetch porque ahi el cuerpo va como JSON y aqui el
+ *  navegador tiene que poner el Content-Type con su propio boundary. */
+export async function apiFetchForm<T>(path: string, form: FormData): Promise<T> {
+  const send = async (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    try {
+      return await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: form })
+    } catch {
+      throw new ApiError(0, 'No se puede contactar con el servidor.')
+    }
+  }
+
+  let response = await send(tokenStore.access)
+  if (response.status === 401 && tokenStore.refresh) {
+    try {
+      response = await send(await refreshAccessToken())
+    } catch {
+      notifySessionExpired()
+      throw new ApiError(401, 'Tu sesion ha expirado. Vuelve a iniciar sesion.')
+    }
+  }
+
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw new ApiError(response.status, extractMessage(response.status, payload))
+  return payload as T
+}

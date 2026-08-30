@@ -62,9 +62,13 @@ class Settings(BaseSettings):
     enrichment_timeout_seconds: int = 15
     wikipedia_lang: str = "es"
 
-    # --- Reconocimiento de audio (fase posterior, aun desactivado) ---
-    recognition_provider: str = ""  # "audd" | "acrcloud" | vacio = desactivado
+    # --- Reconocimiento de audio ---
+    recognition_provider: str = ""  # "audd" | vacio = desactivado
     recognition_api_key: str = ""
+    recognition_timeout_seconds: int = 45
+    # Un fragmento de 15 s en opus ronda los 100 KB; el tope deja margen de
+    # sobra y corta subidas absurdas antes de gastar una peticion de AudD.
+    recognition_max_upload_bytes: int = 10 * 1024 * 1024
 
     # --- Seed ---
     seed_admin_username: str = "enguillem"

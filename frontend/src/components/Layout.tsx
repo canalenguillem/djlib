@@ -1,10 +1,21 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
+import * as recognitionApi from '../api/recognition'
 import { useAuth } from '../auth/useAuth'
 
 export function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const [recognitionEnabled, setRecognitionEnabled] = useState(false)
+
+  // El enlace solo aparece si el servidor tiene clave de reconocimiento.
+  useEffect(() => {
+    recognitionApi
+      .getRecognitionStatus()
+      .then((estado) => setRecognitionEnabled(estado.enabled))
+      .catch(() => setRecognitionEnabled(false))
+  }, [])
 
   async function handleSignOut() {
     await signOut()
@@ -20,6 +31,7 @@ export function Layout() {
         </div>
         <nav className="topbar__nav">
           <NavLink to="/library">Biblioteca</NavLink>
+          {recognitionEnabled && <NavLink to="/recognize">Reconocer</NavLink>}
           <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>
           <NavLink to="/account">Mi cuenta</NavLink>

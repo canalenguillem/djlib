@@ -9,6 +9,7 @@ import { ArtistsPage } from './pages/Artists'
 import { LibraryPage } from './pages/Library'
 import { LoginPage } from './pages/Login'
 import { NotFoundPage } from './pages/NotFound'
+import { RecognizePage } from './pages/Recognize'
 import { TagsPage } from './pages/Tags'
 import { UsersPage } from './pages/Users'
 
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <Navigate to="/library" replace /> },
           { path: '/library', element: <LibraryPage /> },
+          { path: '/recognize', element: <RecognizePage /> },
           { path: '/artists', element: <ArtistsPage /> },
           { path: '/artists/:artistId', element: <ArtistDetailPage /> },
           { path: '/tags', element: <TagsPage /> },

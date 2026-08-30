@@ -16,7 +16,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
-from app.services import downloader, enrichment, user_service
+from app.services import downloader, enrichment, recognition, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
@@ -260,4 +260,34 @@ def fake_enrichment(monkeypatch) -> FakeEnrichment:
     """
     fake = FakeEnrichment()
     monkeypatch.setattr(enrichment, "lookup", fake.lookup)
+    return fake
+
+
+class FakeRecognition:
+    """Sustituye a AudD. Los tests deciden si reconoce, no reconoce o falla."""
+
+    def __init__(self) -> None:
+        self.track: recognition.RecognizedTrack | None = recognition.RecognizedTrack(
+            artist="Blur",
+            title="Song 2",
+            album="Blur",
+            release_date="1997-04-07",
+            song_link="https://lis.tn/ejemplo",
+        )
+        self.error: Exception | None = None
+        self.recibido: list[int] = []  # tamano de cada fragmento recibido
+
+    def recognize(self, audio: bytes, filename: str = "fragmento.webm"):
+        self.recibido.append(len(audio))
+        if self.error is not None:
+            raise self.error
+        return self.track
+
+
+@pytest.fixture
+def fake_recognition(monkeypatch) -> FakeRecognition:
+    fake = FakeRecognition()
+    monkeypatch.setattr(recognition, "recognize", fake.recognize)
+    monkeypatch.setattr(settings, "recognition_provider", "audd")
+    monkeypatch.setattr(settings, "recognition_api_key", "clave-de-prueba")
     return fake

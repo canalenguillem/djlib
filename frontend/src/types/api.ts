@@ -134,3 +134,18 @@ export interface SearchResults {
   query: string
   candidates: SearchCandidate[]
 }
+
+export interface RecognitionStatus {
+  enabled: boolean
+  provider: string | null
+}
+
+export interface RecognitionResult {
+  recognized: boolean
+  artist: string | null
+  title: string | null
+  album: string | null
+  release_date: string | null
+  song_link: string | null
+  candidates: SearchCandidate[]
+}

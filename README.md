@@ -4,14 +4,12 @@ Biblioteca musical autoalojada para uso como DJ: descarga canciones de YouTube,
 las clasifica por mood, estilo y momento de la noche, y permite filtrarlas para
 montar crates tematicos. FastAPI + MariaDB + Vite/React/TypeScript, en Docker.
 
-**Implementado**: autenticacion y usuarios; ingesta por enlace y por titulo +
-artista; biblioteca con busqueda, filtrado combinado por etiquetas, reproductor,
-descarga del mp3 y borrado; catalogo de etiquetas; fichas de artista con datos
-de MusicBrainz y Wikipedia.
+**Implementado**: autenticacion y usuarios; ingesta por enlace, por titulo +
+artista y por reconocimiento de audio; biblioteca con busqueda, filtrado
+combinado por etiquetas, reproductor, descarga del mp3 y borrado; catalogo de
+etiquetas; fichas de artista con datos de MusicBrainz y Wikipedia.
 
-**Pendiente**: reconocimiento de audio tipo Shazam (la configuracion ya esta
-prevista, falta clave de AudD/ACRCloud), crates guardados con nombre y analisis
-de BPM.
+**Pendiente**: crates guardados con nombre y analisis de BPM.
 
 ## Puesta en marcha
 
@@ -209,6 +207,8 @@ Biblioteca (todo requiere sesion):
 | POST | `/tracks/{id}/retry` | Reintentar una descarga fallida |
 | GET | `/tracks/{id}/file` | El mp3 (soporta Range para el reproductor) |
 | DELETE | `/tracks/{id}` | Borra el registro y el fichero |
+| GET | `/recognize/status` | Si el servidor tiene el reconocimiento configurado |
+| POST | `/recognize` | Identifica un fragmento de audio y devuelve candidatos |
 | GET | `/tags` | Catalogo, filtrable por `kind` |
 | POST | `/tags` | Crear etiqueta (`mood`, `style` o `moment`) |
 | PATCH | `/tags/{id}` | Renombrar |
@@ -239,6 +239,36 @@ Biblioteca (todo requiere sesion):
   (un login correcto limpia el contador). Vive en memoria del proceso; para
   varias replicas habria que moverlo a Redis.
 - Un admin no puede desactivarse ni cambiarse el rol a si mismo.
+
+## Reconocimiento de audio
+
+Grabas 10-15 segundos de lo que esta sonando y el sistema identifica la cancion,
+busca sus versiones en YouTube y te deja elegir cual descargar. Es el flujo
+pensado para usarse con el movil en la mano, en un bar.
+
+Hace falta una clave de **AudD**: se saca en
+[dashboard.audd.io/signup](https://dashboard.audd.io/signup), da 300 peticiones
+gratis sin tarjeta y despues cuesta 5 $ por cada 1000. Se configura con
+`RECOGNITION_PROVIDER=audd` y `RECOGNITION_API_KEY`. **Sin clave, la pantalla no
+aparece en el menu**: el frontend consulta `GET /recognize/status` y se oculta
+sola, en lugar de ofrecer algo que va a fallar.
+
+Detalles que importan en la practica:
+
+- **Requiere HTTPS.** El navegador solo da acceso al microfono en contextos
+  seguros, asi que por `http://<ip>:5175` no funciona y la pantalla lo explica
+  en vez de fallar sin mas. Por el subdominio con TLS, si.
+- El fragmento se graba en **opus** donde se puede (unos 100 KB por 13
+  segundos), que es lo que conviene subiendo desde datos moviles; Safari en iOS
+  solo admite mp4 y tambien esta contemplado.
+- Se distingue **"no reconocida"** de **"ha fallado"**: lo primero se arregla
+  acercandose al altavoz y hay boton de reintentar; lo segundo (cuota agotada,
+  clave mal puesta, AudD caido) sale con su mensaje concreto.
+- Si no reconoce, hay un formulario para buscar a mano con lo que hayas
+  pillado del tema, sin salir de la pantalla.
+- Una sola llamada al servidor devuelve la identificacion **y** los candidatos
+  de YouTube: en el movil, con datos y en mitad de un bar, ahorrar una vuelta
+  se nota.
 
 ## Fichas de artista
 
