@@ -50,7 +50,7 @@ def test_alta_por_url_descarga_y_queda_lista(
     assert track["artist_text"] == "Blur"
     assert track["duration_seconds"] == 121
     assert track["source_video_id"] == "dQw4w9WgXcQ"
-    assert (music_dir / "dQw4w9WgXcQ.mp3").exists()
+    assert (music_dir / "dQw4w9WgXcQ.m4a").exists()
 
 
 def test_url_invalida_da_400(client: TestClient, admin_user, fake_downloader) -> None:
@@ -234,14 +234,17 @@ def test_borrar_una_etiqueta_la_quita_de_las_canciones(
 # --- Fichero, edicion y borrado ---------------------------------------------
 
 
-def test_descargar_el_mp3(client: TestClient, admin_user, fake_downloader) -> None:
+def test_descargar_el_fichero(client: TestClient, admin_user, fake_downloader) -> None:
     h = headers(client)
     track_id = add_url(client, h).json()["id"]
 
     fichero = client.get(f"/tracks/{track_id}/file", headers=h)
     assert fichero.status_code == 200
-    assert fichero.headers["content-type"] == "audio/mpeg"
-    assert fichero.content == b"ID3fake-mp3-para-tests"
+    # El audio se guarda sin recodificar, asi que el tipo depende del flujo
+    assert fichero.headers["content-type"] == "audio/mp4"
+    assert b"audio-de-mentira" in fichero.content
+    # Starlette codifica el nombre: "Blur - Song 2.m4a" -> Blur%20-%20Song%202.m4a
+    assert fichero.headers["content-disposition"].endswith("Blur%20-%20Song%202.m4a")
 
 
 def test_el_fichero_de_una_descarga_fallida_da_409(
@@ -268,7 +271,7 @@ def test_borrar_una_cancion_borra_tambien_el_fichero(
 ) -> None:
     h = headers(client)
     track_id = add_url(client, h).json()["id"]
-    fichero = music_dir / "dQw4w9WgXcQ.mp3"
+    fichero = music_dir / "dQw4w9WgXcQ.m4a"
     assert fichero.exists()
 
     assert client.delete(f"/tracks/{track_id}", headers=h).status_code == 204
@@ -410,3 +413,17 @@ def test_reintentar_repite_lo_que_pidio_el_usuario(
     fake_downloader.resolved_queries.clear()
     client.post(f"/tracks/{track_id}/retry", headers=h)
     assert fake_downloader.resolved_queries == ["ytsearch5:Blur"]
+
+
+def test_el_tipo_y_la_extension_siguen_al_flujo_descargado(
+    client: TestClient, admin_user, fake_downloader, music_dir: Path
+) -> None:
+    """Si YouTube solo ofrece opus, se guarda opus: no se recodifica nada."""
+    fake_downloader.extension = "opus"
+    h = headers(client)
+    track_id = add_url(client, h).json()["id"]
+
+    assert (music_dir / "dQw4w9WgXcQ.opus").exists()
+    fichero = client.get(f"/tracks/{track_id}/file", headers=h)
+    assert fichero.headers["content-type"] == "audio/ogg"
+    assert fichero.headers["content-disposition"].endswith(".opus")

@@ -247,7 +247,7 @@ def get_track_file(track_id: int, current_user: CurrentUser, db: DbSession):
         )
     return FileResponse(
         path,
-        media_type="audio/mpeg",
+        media_type=track_service.media_type(path),
         filename=track_service.download_filename(track),
         content_disposition_type="inline",
     )

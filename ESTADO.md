@@ -92,9 +92,14 @@ una clave normalizada de artista + título que ignora acentos, mayúsculas y el
 ruido típico de YouTube. "Blur - Song 2 (Official Video)" y "blur song 2" son
 la misma canción.
 
-**Los mp3 se guardan con el id del vídeo como nombre**, no con el título: sin
-acentos, sin caracteres raros y sin dos canciones peleándose por el mismo
+**Los ficheros se guardan con el id del vídeo como nombre**, no con el título:
+sin acentos, sin caracteres raros y sin dos canciones peleándose por el mismo
 nombre. El nombre bonito se aplica al descargar desde el navegador.
+
+**El audio se guarda sin recodificar.** YouTube sirve como mucho ~130 kbps con
+pérdida; pasarlo a mp3 320 no añade información, añade una segunda pérdida y
+triplica el tamaño. Se prefiere m4a (AAC) sobre opus porque los programas de DJ
+lo leen de forma nativa.
 
 **Las descargas viven dentro del proceso del backend**, sin cola externa. Es
 suficiente para un uso personal, pero un reinicio las deja a medias: al
@@ -160,6 +165,11 @@ caído).
 **Vite 6 bloquea los Host que no conoce.** Entrar por nombre de dominio daba
 `403 Blocked request` hasta declararlo en `VITE_ALLOWED_HOSTS`. En producción no
 aplica, porque ahí sirve nginx.
+
+**Se estaban guardando mp3 de 262 kbps recodificados desde 130 kbps.** El
+número engañaba: el fichero pesaba el doble y sonaba peor que la fuente, porque
+era una segunda compresión con pérdida encima de la primera. Es lo mismo que
+hacen las webs que prometen "descargar YouTube en 320".
 
 **Los tests salían a internet.** Los de biblioteca no sustituían el enriquecido
 de artistas, así que cada uno consultaba MusicBrainz de verdad. Eso, más

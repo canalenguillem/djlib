@@ -156,6 +156,7 @@ class FakeDownloader:
         self.resolved_queries: list[str] = []
         self.downloaded_queries: list[str] = []
         self.searched: list[tuple[str, str | None]] = []
+        self.extension = "m4a"
         # Lo que devuelve una busqueda: un mix largo primero, como hace YouTube
         self.results = [
             downloader.SearchResult(
@@ -191,8 +192,9 @@ class FakeDownloader:
     def download(self, query: str, destination_dir: Path, video_id: str) -> Path:
         self.downloaded_queries.append(query)
         destination_dir.mkdir(parents=True, exist_ok=True)
-        path = destination_dir / f"{video_id}.mp3"
-        path.write_bytes(b"ID3fake-mp3-para-tests")
+        # Igual que yt-dlp: la extension la decide el flujo, no nosotros
+        path = destination_dir / f"{video_id}.{self.extension}"
+        path.write_bytes(b"\x00\x00\x00\x20ftypM4A audio-de-mentira")
         return path
 
 

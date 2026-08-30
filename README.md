@@ -212,9 +212,30 @@ tope es `MAX_TRACK_DURATION_SECONDS` (una hora).
 artista + titulo que ignora acentos, mayusculas y el ruido tipico de YouTube,
 de modo que "Blur - Song 2 (Official Video)" y "blur song 2" son la misma.
 
-**Los mp3** se guardan en el volumen `music_data` con el id del video como
-nombre de fichero (sin acentos ni colisiones); el nombre bonito
-"Artista - Titulo.mp3" se aplica al descargar desde el navegador.
+### Calidad del audio
+
+**El flujo se guarda tal cual viene, sin recodificar.** YouTube sirve como
+mucho unos 130 kbps con perdida (AAC de 130k o opus de ~122-138k, segun el
+video); no existe el 320 kbps por mucho que lo prometan las webs de descarga.
+Recodificar esos 130k a un mp3 de 320 no anade informacion: anade una segunda
+compresion con perdida y triplica el tamano. Medido en una descarga real:
+
+| | codec | bitrate | tamano |
+| --- | --- | --- | --- |
+| mp3 recodificado (como se hacia antes) | mp3 | 262 kbps | 5,6 MB |
+| flujo original (como se hace ahora) | aac | 128 kbps | 3,0 MB |
+
+Se prefiere **m4a (AAC)** sobre opus, aunque opus sea mejor codec por bit,
+porque rekordbox, Serato y Mixxx leen m4a de forma nativa y con opus dan
+problemas. Se controla con `YTDLP_FORMAT`.
+
+Para un set de club conviene comprar los temas (Beatport, Bandcamp, Traxsource):
+ahi si hay WAV o FLAC del master. Esta herramienta sirve para descubrir,
+preparar y pinchar en un bar.
+
+**Los ficheros** se guardan en el volumen `music_data` con el id del video como
+nombre (sin acentos ni colisiones) y la extension del flujo descargado; el
+nombre bonito "Artista - Titulo.m4a" se aplica al descargar desde el navegador.
 
 Como las descargas viven dentro del proceso del backend, un reinicio las deja a
 medias: al arrancar se marcan como error, se ven en el listado y se reintentan

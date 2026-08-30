@@ -309,9 +309,27 @@ def delete_track(db: Session, track: Track) -> None:
             logger.warning("No se pudo borrar el fichero %s", path)
 
 
+# Tipo MIME segun la extension del flujo que sirviera YouTube.
+MEDIA_TYPES = {
+    ".m4a": "audio/mp4",
+    ".mp3": "audio/mpeg",
+    ".opus": "audio/ogg",
+    ".ogg": "audio/ogg",
+    ".webm": "audio/webm",
+    ".aac": "audio/aac",
+    ".flac": "audio/flac",
+    ".wav": "audio/wav",
+}
+
+
+def media_type(path: Path) -> str:
+    return MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
+
+
 def download_filename(track: Track) -> str:
-    """Nombre bonito para el navegador; en disco se llama <video_id>.mp3."""
+    """Nombre bonito para el navegador; en disco se llama <video_id>.<ext>."""
     parts = [p for p in (track.artist_text, track.title) if p]
     raw = " - ".join(parts) or "track"
     safe = "".join(c if c.isalnum() or c in " -_.()[]" else "_" for c in raw)
-    return f"{safe.strip()[:120]}.mp3"
+    extension = Path(track.file_path).suffix if track.file_path else ".m4a"
+    return f"{safe.strip()[:120]}{extension}"

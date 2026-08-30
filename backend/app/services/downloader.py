@@ -279,32 +279,46 @@ def resolve(query: str) -> MediaInfo:
     return _parse_info(_run(_base_args() + ["--dump-json", "--skip-download", query]))
 
 
+# Extensiones que puede tener el flujo descargado, por orden de preferencia.
+AUDIO_EXTENSIONS = ("m4a", "mp3", "opus", "webm", "ogg", "aac", "flac", "wav")
+
+
+def find_audio_file(destination_dir: Path, video_id: str) -> Path | None:
+    """El fichero se llama <video_id>.<lo que fuera>, porque la extension
+    depende del flujo que sirva YouTube."""
+    for extension in AUDIO_EXTENSIONS:
+        candidato = destination_dir / f"{video_id}.{extension}"
+        if candidato.exists():
+            return candidato
+    return next(iter(sorted(destination_dir.glob(f"{video_id}.*"))), None)
+
+
 def download(query: str, destination_dir: Path, video_id: str) -> Path:
-    """Descarga el audio y lo deja como <destination_dir>/<video_id>.mp3.
+    """Descarga el audio a <destination_dir>/<video_id>.<ext>, sin recodificar.
+
+    YouTube sirve como mucho unos 130 kbps con perdida; recodificar eso a mp3
+    320 no anade informacion, anade una segunda perdida y triplica el tamano.
+    Se guarda el flujo tal y como viene.
 
     El nombre de fichero es el id del video, no el titulo: sin acentos, sin
-    mayusculas ni caracteres raros, y sin dos canciones peleandose por el mismo
-    nombre. El titulo bonito se aplica al descargar desde el frontend.
+    caracteres raros y sin dos canciones peleandose por el mismo nombre. El
+    titulo bonito se aplica al descargar desde el frontend.
     """
     destination_dir.mkdir(parents=True, exist_ok=True)
-    output_template = str(destination_dir / f"{video_id}.%(ext)s")
 
     _run(
         _base_args()
         + [
-            "--extract-audio",
-            "--audio-format",
-            "mp3",
-            "--audio-quality",
-            settings.ytdlp_audio_quality,
+            "--format",
+            settings.ytdlp_format,
             "--embed-metadata",
             "--output",
-            output_template,
+            str(destination_dir / f"{video_id}.%(ext)s"),
             query,
         ]
     )
 
-    result = destination_dir / f"{video_id}.mp3"
-    if not result.exists():
-        raise DownloadError("La descarga termino pero no se encontro el mp3 resultante.")
+    result = find_audio_file(destination_dir, video_id)
+    if result is None:
+        raise DownloadError("La descarga termino pero no se encontro el fichero de audio.")
     return result

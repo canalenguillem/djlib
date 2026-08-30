@@ -50,7 +50,12 @@ class Settings(BaseSettings):
     # Buscando solo por artista se explora, no se busca algo concreto: conviene
     # ver mas para hacerse una idea de lo que hay.
     search_artist_candidates: int = 10
-    ytdlp_audio_quality: str = "0"  # 0 = mejor calidad VBR
+    # Que flujo se baja. Se guarda TAL CUAL, sin recodificar: YouTube sirve como
+    # mucho unos 130 kbps con perdida, y volver a comprimirlo a mp3 320 solo
+    # anade una segunda perdida y triplica el tamano sin anadir informacion.
+    # Se prefiere m4a (AAC) sobre opus porque rekordbox, Serato y Mixxx lo leen
+    # de forma nativa y opus les da problemas.
+    ytdlp_format: str = "bestaudio[ext=m4a]/bestaudio/best"
     # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
     ytdlp_cookies_file: str | None = None
 
