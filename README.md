@@ -113,6 +113,48 @@ conserva la base de datos y los mp3. Diferencias respecto a desarrollo:
 
 Apunta tu reverse proxy con TLS al puerto publicado (`FRONTEND_HOST_PORT`).
 
+## Copias de seguridad
+
+```bash
+./scripts/backup.sh              # copia y la verifica
+./scripts/backup.sh --no-verify  # mas rapida, sin verificar
+./scripts/restore.sh             # lista las copias disponibles
+./scripts/restore.sh ultima      # restaura la mas reciente
+```
+
+Cada copia guarda el volcado de MariaDB, los mp3 y el propio `.env` (sin el,
+no se puede restaurar en una maquina nueva porque la contrasena de la base de
+datos tiene que coincidir). Van a `BACKUP_DIR` (por defecto `backups/`, que
+esta en `.gitignore`) en carpetas con fecha, y se conservan las `BACKUP_KEEP`
+mas recientes. El entorno manda sobre `.env`, asi que se puede lanzar una copia
+puntual a otro sitio con `BACKUP_DIR=/mnt/nas ./scripts/backup.sh`.
+
+**La copia se verifica sola**: restaura el volcado en una base de datos
+desechable, comprueba que salen las mismas canciones y que el archivo de musica
+se puede leer. Una copia que no se ha probado no es una copia.
+
+El volcado usa `--single-transaction`, asi que es consistente sin bloquear las
+tablas: la aplicacion puede seguir funcionando durante la copia.
+
+**Ojo**: `backups/` contiene tus secretos y tu musica. No lo sincronices con
+nada publico.
+
+### Automatizarlo
+
+```cron
+30 4 * * * /ruta/a/djWill/scripts/backup.sh --quiet >> $HOME/djlib-backup.log 2>&1
+```
+
+Con `--quiet` no escribe nada si todo va bien, asi que el log solo crece cuando
+hay problemas.
+
+### Restaurar en una maquina nueva
+
+1. Clona el repositorio y copia el `env.backup` de la copia como `.env`.
+2. `docker compose -f docker-compose.prod.yml up -d --build`
+3. `./scripts/restore.sh <fecha>`
+4. `docker compose -f docker-compose.prod.yml restart backend`
+
 ## Tests
 
 ```bash

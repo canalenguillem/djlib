@@ -177,10 +177,21 @@ el micrófono simulado de Chromium alimentado con audio real.
 
 | | |
 | --- | --- |
-| **Copias de seguridad** | No hay. Un `docker compose down -v` se lleva los mp3 y la base de datos. Es lo más corto de hacer y lo que más disgusto evita. |
 | **Crates guardados** | Poner nombre a una combinación de filtros y reordenar las canciones, tipo Serato. El modelo ya lo admite. |
 | **Editar título y artista desde la fila** | La API lo soporta (`PATCH /tracks/{id}`), la interfaz no. Serviría para corregir metadatos sucios de YouTube. |
 | **Análisis de BPM** | Fase 2 explícita del briefing. |
+
+## Copias de seguridad
+
+`scripts/backup.sh` guarda el volcado de MariaDB, los mp3 y el `.env`, y **se
+verifica sola** restaurando el volcado en una base de datos desechable. Corre
+por cron todos los días a las 4:30. `scripts/restore.sh` hace el camino
+inverso, pidiendo confirmación porque sobrescribe.
+
+Se probó restaurando la copia completa en una pila Docker aislada, levantada
+vacía: las siete tablas quedaron con los mismos recuentos que producción, los
+mp3 coincidían byte a byte (283.216.662 en ambas) y `ffprobe` confirmó que eran
+audio válido y no ficheros truncados.
 
 ## Riesgos conocidos
 
@@ -195,4 +206,10 @@ sigue igual, y el mensaje lo dice claro.
 **AudD no conoce las remezclas.** Indexa lanzamientos comerciales: los edits y
 las sesiones de DJ no suelen estar, por muy limpia que sea la grabación.
 
-**El espacio en disco.** Los mp3 crecen sin límite y nada lo vigila.
+**El espacio en disco.** Los mp3 crecen sin límite y nada lo vigila, y ahora
+cada copia de seguridad multiplica ese tamaño por las que se conserven (siete
+por defecto). Con 34 canciones son 269 MB por copia.
+
+**Las copias están en la misma máquina.** Protegen de un borrado accidental o
+de un `down -v`, no de que el disco muera. Apuntar `BACKUP_DIR` a un NAS o a un
+disco externo cierra ese hueco.

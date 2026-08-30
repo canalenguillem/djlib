@@ -16,6 +16,9 @@ dist/
 *.local
 *.tsbuildinfo
 
+# Copias de seguridad: contienen .env con secretos y los mp3
+backups/
+
 # Editores / SO
 .DS_Store
 .idea/
