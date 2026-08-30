@@ -1126,3 +1126,51 @@ textarea:focus {
     justify-content: flex-end;
   }
 }
+
+/* --- Energia -------------------------------------------------------------- */
+.track__energy {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.track__energylabel {
+  font-size: 0.75rem;
+}
+
+.energy {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+/* Puntos y no estrellas: esto mide intensidad, no calidad, y las estrellas
+   se leen inevitablemente como una nota. */
+.energy__dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.energy__dot:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.energy__dot--on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.energy__dot:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+input[type='file'] {
+  padding: 0.4rem;
+  cursor: pointer;
+}

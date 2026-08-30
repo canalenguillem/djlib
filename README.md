@@ -212,6 +212,19 @@ tope es `MAX_TRACK_DURATION_SECONDS` (una hora).
 artista + titulo que ignora acentos, mayusculas y el ruido tipico de YouTube,
 de modo que "Blur - Song 2 (Official Video)" y "blur song 2" son la misma.
 
+### Importar musica propia
+
+`POST /tracks/upload` acepta ficheros que ya tenga el usuario: compras de
+Bandcamp o Beatport, descargas de un record pool. Se admiten mp3, m4a, aac,
+wav, aiff, flac, ogg y opus, hasta 200 MB (un wav de cuatro minutos ronda los
+40 MB).
+
+Se guarda **sin recodificar**, asi que un wav o un aiff conservan toda su
+calidad, que es justo el motivo de haberlos comprado. El titulo y el artista se
+leen del propio fichero con ffprobe si el usuario no los indica, y ffprobe hace
+ademas de validacion: si no ve una pista de audio, el fichero no entra por mucho
+que la extension diga lo contrario.
+
 ### Calidad del audio
 
 **El flujo se guarda tal cual viene, sin recodificar.** YouTube sirve como
@@ -273,6 +286,8 @@ Biblioteca (todo requiere sesion):
 | POST | `/tracks/{id}/retry` | Reintentar una descarga fallida |
 | GET | `/tracks/{id}/file` | El mp3 (soporta Range para el reproductor) |
 | DELETE | `/tracks/{id}` | Borra el registro y el fichero |
+| POST | `/tracks/upload` | Subir un fichero propio (multipart) |
+| GET | `/crates/{id}/export` | El crate entero en un zip, numerado en orden |
 | GET | `/crates` | Listado con numero de canciones y duracion total |
 | POST | `/crates` | Crear, opcionalmente con canciones de golpe |
 | GET | `/crates/{id}` | El crate con sus canciones en orden |
@@ -359,6 +374,19 @@ Detalles que importan en la practica:
   de YouTube: en el movil, con datos y en mitad de un bar, ahorrar una vuelta
   se nota.
 
+## Energia de 1 a 5
+
+Cada cancion puede llevar una intensidad de 1 a 5, como las estrellas que usan
+los DJ en rekordbox o Serato: 1 para el warm-up con la gente entrando, 3 para
+mantener la pista, 5 para el pico de la noche. **No es una nota de calidad**, y
+por eso en la interfaz son puntos y no estrellas: las estrellas se leen
+inevitablemente como "esta cancion es mejor".
+
+Sirve para montar la curva de una noche: `GET /tracks?energy_min=4` da los temas
+de pico, y `?sort=energy_asc` ordena de menos a mas para construir la subida.
+Las canciones sin energia asignada quedan siempre al final (MariaDB no admite
+`NULLS LAST`, asi que se emula con una clave de orden previa).
+
 ## Crates
 
 Un **crate** es una seleccion de canciones con nombre y orden propio: "warm-up
@@ -373,6 +401,12 @@ cancion o borres una etiqueta entera.
 Se montan de dos formas: filtrando la biblioteca y guardando el resultado de
 golpe, o creando uno vacio y buscando canciones desde la propia ficha del
 crate. Se reordena arrastrando o con flechas (en el movil, flechas).
+
+**Se puede descargar el crate entero en un zip**, con las canciones numeradas
+en el orden del set (`01 - Artista - Titulo.ext`). Es el puente con la noche del
+bolo: se descomprime en el USB y queda listo para rekordbox o un CDJ. El zip va
+sin comprimir, porque el audio ya viene comprimido y deflate solo gastaria CPU
+para no ahorrar nada.
 
 Solo entran canciones ya descargadas: un crate con descargas a medias no sirve
 para pinchar.

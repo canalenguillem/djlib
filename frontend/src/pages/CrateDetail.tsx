@@ -142,6 +142,26 @@ export function CrateDetailPage() {
         </button>
         <button
           type="button"
+          className="btn btn--primary"
+          disabled={busy || crate.track_count === 0}
+          onClick={() =>
+            guard(async () => {
+              const blob = await cratesApi.exportCrate(id)
+              const href = URL.createObjectURL(blob)
+              const enlace = document.createElement('a')
+              enlace.href = href
+              enlace.download = `${crate.name}.zip`
+              document.body.appendChild(enlace)
+              enlace.click()
+              enlace.remove()
+              URL.revokeObjectURL(href)
+            })
+          }
+        >
+          {busy ? 'Preparando...' : 'Descargar el crate'}
+        </button>
+        <button
+          type="button"
           className="btn btn--ghost btn--danger"
           disabled={busy}
           onClick={() =>

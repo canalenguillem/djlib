@@ -40,7 +40,8 @@ class TrackStatus(str, enum.Enum):
 class TrackSource(str, enum.Enum):
     url = "url"        # el usuario pego un enlace
     search = "search"  # el usuario escribio titulo + artista
-    recognition = "recognition"  # reservado para el modulo de reconocimiento
+    recognition = "recognition"  # llego por reconocimiento de audio
+    upload = "upload"  # fichero propio subido desde el ordenador
 
 
 class Track(Base):
@@ -89,6 +90,10 @@ class Track(Base):
     normalized_key: Mapped[str | None] = mapped_column(String(400), nullable=True)
 
     bpm: Mapped[int | None] = mapped_column(Integer, nullable=True)  # fase 2
+    # Intensidad de 1 a 5, como las estrellas que usan los DJ: 1 para el
+    # warm-up, 5 para el pico de la noche. No es una nota de calidad.
+    # El indice se declara abajo en __table_args__, junto a los demas
+    energy: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     added_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
@@ -112,6 +117,7 @@ class Track(Base):
 
     __table_args__ = (
         Index("ix_tracks_normalized_key", "normalized_key"),
+        Index("ix_tracks_energy", "energy"),
         Index("ix_tracks_source_video_id", "source_video_id"),
         {"mysql_engine": "InnoDB"},
     )

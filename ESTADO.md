@@ -17,18 +17,22 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 126, en ~7 segundos |
-| Migraciones | 4 |
-| Endpoints | 42 |
-| Commits | 15 |
+| Tests | 147, en ~10 segundos |
+| Migraciones | 5 |
+| Endpoints | 45 |
+| Commits | 18 |
 
 ## Lo que hace
 
-Todo el MVP del briefing salvo el análisis de BPM.
+Todo el MVP del briefing salvo el análisis de BPM, más varias cosas que
+salieron de usarlo de verdad.
 
 **Tres vías de ingesta**, las tres desembocando en el mismo pipeline de
 descarga:
 
+0. **Fichero propio** subido desde el ordenador: compras de Bandcamp o
+   Beatport, descargas de un record pool. Se guarda sin recodificar, así que un
+   wav o un aiff conservan toda su calidad.
 1. **Enlace de YouTube** pegado a mano.
 2. **Título y/o artista**: muestra los candidatos de YouTube con miniatura,
    canal y duración, y eliges. Solo con el artista, muestra diez para explorar
@@ -43,7 +47,12 @@ descarga:
 actividad, biografía de Wikipedia y relaciones entre artistas de MusicBrainz.
 Editable a mano.
 
-**Crates**: selecciones con nombre y orden propio, montadas guardando un filtro
+**Energía 1-5**: intensidad por canción, filtrable y ordenable, para montar la
+curva de una noche. No es una nota de calidad, y por eso son puntos y no
+estrellas.
+
+**Crates**: selecciones con nombre y orden propio, descargables en un zip
+numerado para llevar al USB, montadas guardando un filtro
 de golpe o añadiendo canciones a mano, y reordenables arrastrando o con flechas.
 
 **Usuarios**: login con JWT, roles admin y user, alta y gestión desde el panel.
@@ -171,6 +180,13 @@ número engañaba: el fichero pesaba el doble y sonaba peor que la fuente, porqu
 era una segunda compresión con pérdida encima de la primera. Es lo mismo que
 hacen las webs que prometen "descargar YouTube en 320".
 
+**MariaDB no admite `NULLS LAST`.** Ordenar por energía dejaba las canciones sin
+asignar en medio; se emula con una clave de orden previa.
+
+**Un índice declarado dos veces rompe toda la suite.** Puse `index=True` en la
+columna de energía y además el `Index` explícito en `__table_args__`, y
+`create_all` intentaba crearlo dos veces: 147 tests en error por una línea.
+
 **Los tests salían a internet.** Los de biblioteca no sustituían el enriquecido
 de artistas, así que cada uno consultaba MusicBrainz de verdad. Eso, más
 recrear el esquema de la base de datos en cada test, tenía la suite en 250
@@ -178,7 +194,7 @@ segundos. Ahora son 6.
 
 ## Pruebas
 
-126 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
+147 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
 dobles. Corren contra una base MariaDB aparte, no contra SQLite, para probar el
 mismo motor que producción.
 

@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     enrichment_timeout_seconds: int = 15
     wikipedia_lang: str = "es"
 
+    # Un wav de cuatro minutos ronda los 40 MB, y un aiff parecido: el tope
+    # tiene que dar sitio a los formatos sin perdida que compra un DJ.
+    upload_max_bytes: int = 200 * 1024 * 1024
+
     # --- Reconocimiento de audio ---
     recognition_provider: str = ""  # "audd" | vacio = desactivado
     recognition_api_key: str = ""

@@ -1,11 +1,13 @@
 import type { SearchResults, Track, TrackFilters, TrackPage } from '../types/api'
-import { apiFetch, apiFetchBlob } from './client'
+import { apiFetch, apiFetchBlob, apiFetchForm } from './client'
 
 export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
   const params = new URLSearchParams()
   if (filters.search?.trim()) params.set('search', filters.search.trim())
   if (filters.status) params.set('status', filters.status)
   for (const id of filters.tagIds ?? []) params.append('tag_id', String(id))
+  if (filters.energyMin) params.set('energy_min', String(filters.energyMin))
+  if (filters.sort && filters.sort !== 'recent') params.set('sort', filters.sort)
   const query = params.toString()
   return apiFetch<TrackPage>(`/tracks${query ? `?${query}` : ''}`)
 }
@@ -28,9 +30,22 @@ export function addFromSearch(title: string | null, artist: string | null): Prom
   return apiFetch<Track>('/tracks/search', { method: 'POST', body: { title, artist } })
 }
 
+/** Sube un fichero propio: una compra, una descarga de un record pool. */
+export function uploadTrack(
+  file: File,
+  title?: string,
+  artist?: string,
+): Promise<Track> {
+  const form = new FormData()
+  form.append('audio', file, file.name)
+  if (title?.trim()) form.append('title', title.trim())
+  if (artist?.trim()) form.append('artist', artist.trim())
+  return apiFetchForm<Track>('/tracks/upload', form)
+}
+
 export function updateTrack(
   id: number,
-  payload: { title?: string; artist_text?: string | null },
+  payload: { title?: string; artist_text?: string | null; energy?: number },
 ): Promise<Track> {
   return apiFetch<Track>(`/tracks/${id}`, { method: 'PATCH', body: payload })
 }

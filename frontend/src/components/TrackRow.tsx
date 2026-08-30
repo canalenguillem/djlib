@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
 import type { Tag, Track, TrackStatus } from '../types/api'
+import { EnergyPicker } from './EnergyPicker'
 import { PauseIcon, PlayIcon } from './icons'
 import { TagPicker } from './TagPicker'
 
@@ -109,6 +110,18 @@ export function TrackRow({
           </div>
           {track.status === 'error' && track.error_message && (
             <div className="track__error">{track.error_message}</div>
+          )}
+          {track.status === 'ready' && (
+            <div className="track__energy">
+              <EnergyPicker
+                value={track.energy}
+                disabled={busy}
+                onChange={(energy) =>
+                  guard(async () => onChanged(await tracksApi.updateTrack(track.id, { energy })))
+                }
+              />
+              <span className="muted track__energylabel">energia</span>
+            </div>
           )}
           {track.tags.length > 0 && (
             <div className="chips chips--static">

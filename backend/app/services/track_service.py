@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from pathlib import Path
 
 from sqlalchemy import func, or_, select
@@ -15,7 +16,7 @@ from app.models.artist import EnrichmentStatus
 from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
-from app.services import artist_service, downloader
+from app.services import artist_service, audio_file, downloader
 from app.services.downloader import DownloadError
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,64 @@ def create_from_search(
         request_query=label,
         normalized_key=key,
         status=TrackStatus.pending,
+        added_by_user_id=user.id,
+    )
+    db.add(track)
+    db.flush()
+    return track
+
+
+def create_from_upload(
+    db: Session,
+    user: User,
+    *,
+    contenido: bytes,
+    filename: str,
+    title: str | None = None,
+    artist: str | None = None,
+) -> Track:
+    """Da de alta un fichero que sube el usuario desde su ordenador.
+
+    A diferencia de las descargas, aqui no hay nada que esperar: el fichero ya
+    esta, asi que la cancion nace directamente en estado `ready`.
+    """
+    extension = audio_file.normalize_extension(filename)
+
+    destino = music_dir()
+    destino.mkdir(parents=True, exist_ok=True)
+    # Nombre propio, sin relacion con el original: los ficheros que llegan de
+    # fuera traen acentos, espacios y caracteres de todo tipo.
+    nombre = f"up_{uuid.uuid4().hex}{extension}"
+    ruta = destino / nombre
+    ruta.write_bytes(contenido)
+
+    try:
+        metadatos = audio_file.probe(ruta)
+    except audio_file.AudioFileError:
+        ruta.unlink(missing_ok=True)
+        raise
+
+    titulo = (title or "").strip() or metadatos.title or Path(filename).stem
+    interprete = (artist or "").strip() or metadatos.artist
+
+    clave = normalize_key(interprete, titulo)
+    existente = _find_by_normalized_key(db, clave)
+    if existente is not None:
+        ruta.unlink(missing_ok=True)
+        raise DuplicateTrackError(existente)
+
+    track = Track(
+        title=titulo,
+        artist_text=interprete,
+        duration_seconds=metadatos.duration_seconds,
+        ingest_source=TrackSource.upload,
+        request_query=filename[:500],
+        source_site="upload",
+        normalized_key=clave,
+        file_path=str(ruta),
+        file_size=ruta.stat().st_size,
+        status=TrackStatus.ready,
+        downloaded_at=utcnow(),
         added_by_user_id=user.id,
     )
     db.add(track)
@@ -243,6 +302,9 @@ def list_tracks(
     search: str | None = None,
     status: TrackStatus | None = None,
     tag_ids: list[int] | None = None,
+    energy_min: int | None = None,
+    energy_max: int | None = None,
+    sort: str = "recent",
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list[Track], int]:
@@ -253,6 +315,10 @@ def list_tracks(
         stmt = stmt.where(or_(Track.title.like(pattern), Track.artist_text.like(pattern)))
     if status is not None:
         stmt = stmt.where(Track.status == status)
+    if energy_min is not None:
+        stmt = stmt.where(Track.energy >= energy_min)
+    if energy_max is not None:
+        stmt = stmt.where(Track.energy <= energy_max)
 
     # Filtro combinado: la cancion debe llevar TODAS las etiquetas pedidas
     # ("warm-up" Y "britanica" Y "chill"), no cualquiera de ellas.
@@ -263,8 +329,21 @@ def list_tracks(
 
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
+    # Ordenar por energia sirve para montar la curva de una noche: de los
+    # temas tranquilos del principio a los del pico.
+    # MariaDB no admite NULLS LAST, asi que se emula con una clave previa:
+    # las que no tienen energia asignada quedan siempre al final.
+    sin_energia = Track.energy.is_(None)
+    ordenes = {
+        "recent": (Track.created_at.desc(),),
+        "energy": (sin_energia, Track.energy.desc(), Track.title),
+        "energy_asc": (sin_energia, Track.energy.asc(), Track.title),
+        "title": (Track.title,),
+    }
     rows = list(
-        db.scalars(stmt.order_by(Track.created_at.desc()).limit(limit).offset(offset))
+        db.scalars(
+            stmt.order_by(*ordenes.get(sort, ordenes["recent"])).limit(limit).offset(offset)
+        )
     )
     return rows, total
 

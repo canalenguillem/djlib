@@ -31,7 +31,7 @@ export interface UpdateUserPayload {
 }
 
 export type TrackStatus = 'pending' | 'downloading' | 'ready' | 'error'
-export type IngestSource = 'url' | 'search' | 'recognition'
+export type IngestSource = 'url' | 'search' | 'recognition' | 'upload'
 export type TagKind = 'mood' | 'style' | 'moment'
 
 export interface Tag {
@@ -56,6 +56,7 @@ export interface Track {
   error_message: string | null
   file_size: number | null
   bpm: number | null
+  energy: number | null
   added_by_user_id: number | null
   downloaded_at: string | null
   created_at: string
@@ -71,10 +72,14 @@ export interface TrackPage {
   offset: number
 }
 
+export type TrackSort = 'recent' | 'energy' | 'energy_asc' | 'title'
+
 export interface TrackFilters {
   search?: string
   status?: TrackStatus
   tagIds?: number[]
+  energyMin?: number
+  sort?: TrackSort
 }
 
 export type EnrichmentStatus = 'pending' | 'ok' | 'not_found' | 'error' | 'manual'

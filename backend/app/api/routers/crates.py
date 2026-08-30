@@ -1,4 +1,11 @@
+import re
+import tempfile
+import zipfile
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Response, status
+from fastapi.responses import FileResponse
+from starlette.background import BackgroundTask
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.time import utcnow
@@ -98,6 +105,51 @@ def delete_crate(crate_id: int, current_user: CurrentUser, db: DbSession) -> Res
     db.delete(crate)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _nombre_seguro(texto: str) -> str:
+    limpio = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", texto).strip(" .")
+    return limpio[:100] or "track"
+
+
+@router.get("/{crate_id}/export")
+def export_crate(crate_id: int, current_user: CurrentUser, db: DbSession):
+    """Descarga el crate entero en un zip, numerado en orden.
+
+    Es el puente con la noche del bolo: se descomprime en el USB y las
+    canciones quedan en el orden del set, listas para rekordbox o un CDJ.
+    """
+    crate = _get_or_404(db, crate_id)
+    entradas = [
+        (posicion, track)
+        for posicion, track in enumerate(crate.tracks, start=1)
+        if track.file_path and Path(track.file_path).exists()
+    ]
+    if not entradas:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="El crate no tiene ninguna cancion descargada.",
+        )
+
+    temporal = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    temporal.close()
+    destino = Path(temporal.name)
+
+    # Sin comprimir: el audio ya viene comprimido y deflate solo gastaria CPU
+    # para no ahorrar practicamente nada.
+    with zipfile.ZipFile(destino, "w", zipfile.ZIP_STORED) as zip_file:
+        for posicion, track in entradas:
+            origen = Path(track.file_path)
+            partes = [p for p in (track.artist_text, track.title) if p]
+            nombre = _nombre_seguro(" - ".join(partes) or "track")
+            zip_file.write(origen, f"{posicion:02d} - {nombre}{origen.suffix}")
+
+    return FileResponse(
+        destino,
+        media_type="application/zip",
+        filename=f"{_nombre_seguro(crate.name)}.zip",
+        background=BackgroundTask(destino.unlink, missing_ok=True),
+    )
 
 
 @router.post("/{crate_id}/tracks", response_model=CrateDetail)

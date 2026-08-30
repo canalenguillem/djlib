@@ -1,6 +1,16 @@
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 
 from app.api.deps import CurrentUser, DbSession, SessionFactory
@@ -20,6 +30,7 @@ from app.schemas.track import (
     TrackUpdate,
 )
 from app.services import artist_service, downloader, tag_service, track_service
+from app.services.audio_file import AudioFileError
 from app.services.downloader import DownloadError
 from app.services.tag_service import TagError
 from app.services.track_service import DuplicateTrackError
@@ -40,6 +51,9 @@ def list_tracks(
     search: str | None = None,
     status_filter: TrackStatus | None = Query(default=None, alias="status"),
     tag_ids: list[int] = Query(default=[], alias="tag_id"),
+    energy_min: int | None = Query(default=None, ge=1, le=5),
+    energy_max: int | None = Query(default=None, ge=1, le=5),
+    sort: str = Query(default="recent", pattern="^(recent|energy|energy_asc|title)$"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> TrackPage:
@@ -48,6 +62,9 @@ def list_tracks(
         search=search,
         status=status_filter,
         tag_ids=tag_ids,
+        energy_min=energy_min,
+        energy_max=energy_max,
+        sort=sort,
         limit=limit,
         offset=offset,
     )
@@ -138,6 +155,57 @@ def add_from_search(
     return result
 
 
+@router.post("/upload", response_model=TrackOut, status_code=status.HTTP_201_CREATED)
+def upload_track(
+    background: BackgroundTasks,
+    current_user: CurrentUser,
+    db: DbSession,
+    session_factory: SessionFactory,
+    audio: UploadFile = File(..., description="Fichero de audio propio"),
+    title: str | None = Form(default=None),
+    artist: str | None = Form(default=None),
+) -> TrackOut:
+    """Anade un fichero que ya tiene el usuario: una compra en Bandcamp o
+    Beatport, una descarga de un record pool.
+
+    No hay nada que descargar, asi que entra directamente como lista.
+    """
+    contenido = audio.file.read(settings.upload_max_bytes + 1)
+    if len(contenido) > settings.upload_max_bytes:
+        limite = settings.upload_max_bytes // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"El fichero supera el limite de {limite} MB.",
+        )
+    if not contenido:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="El fichero esta vacio."
+        )
+
+    try:
+        track = track_service.create_from_upload(
+            db,
+            current_user,
+            contenido=contenido,
+            filename=audio.filename or "audio",
+            title=title,
+            artist=artist,
+        )
+    except DuplicateTrackError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except AudioFileError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    artistas = artist_service.link_track_artists(db, track)
+    nuevos = [a.id for a in artistas if a.enrichment_status == EnrichmentStatus.pending]
+    db.commit()
+    db.refresh(track)
+    resultado = TrackOut.model_validate(track)
+    if nuevos:
+        background.add_task(artist_service.run_enrichment, session_factory, nuevos)
+    return resultado
+
+
 def _get_or_404(db, track_id: int):
     track = track_service.get_by_id(db, track_id)
     if track is None:
@@ -159,6 +227,8 @@ def update_track(
         track.title = payload.title.strip()
     if payload.artist_text is not None:
         track.artist_text = payload.artist_text.strip() or None
+    if payload.energy is not None:
+        track.energy = payload.energy
     track.updated_at = utcnow()
     db.commit()
     db.refresh(track)

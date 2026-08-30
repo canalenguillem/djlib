@@ -1,5 +1,5 @@
 import type { Crate, CrateSummary } from '../types/api'
-import { apiFetch } from './client'
+import { apiFetch, apiFetchBlob } from './client'
 
 export function listCrates(): Promise<CrateSummary[]> {
   return apiFetch<CrateSummary[]>('/crates')
@@ -43,4 +43,9 @@ export function removeTrackFromCrate(id: number, trackId: number): Promise<Crate
  *  asi el servidor no puede quedarse con un orden a medias. */
 export function reorderCrate(id: number, trackIds: number[]): Promise<Crate> {
   return apiFetch<Crate>(`/crates/${id}/order`, { method: 'PUT', body: { track_ids: trackIds } })
+}
+
+/** El crate entero en un zip, numerado en el orden del set. */
+export function exportCrate(id: number): Promise<Blob> {
+  return apiFetchBlob(`/crates/${id}/export`)
 }

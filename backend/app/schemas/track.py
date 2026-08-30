@@ -23,6 +23,7 @@ class TrackOut(BaseModel):
     error_message: str | None = None
     file_size: int | None = None
     bpm: int | None = None
+    energy: int | None = None
     added_by_user_id: int | None = None
     downloaded_at: datetime | None = None
     created_at: datetime
@@ -57,10 +58,15 @@ class TrackFromSearch(BaseModel):
 
 
 class TrackUpdate(BaseModel):
-    """Correccion manual de los metadatos que yt-dlp haya inferido mal."""
+    """Correccion manual de los metadatos y de la energia.
+
+    `energy` va de 1 a 5 como las estrellas que usan los DJ: 1 para el warm-up,
+    5 para el pico de la noche. No es una nota de calidad.
+    """
 
     title: str | None = Field(default=None, min_length=1, max_length=300)
     artist_text: str | None = Field(default=None, max_length=300)
+    energy: int | None = Field(default=None, ge=1, le=5)
 
 
 class TrackTagsUpdate(BaseModel):

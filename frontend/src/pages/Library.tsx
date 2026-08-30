@@ -9,7 +9,7 @@ import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
 import { Player } from '../components/Player'
 import { TrackRow } from '../components/TrackRow'
-import type { Tag, TagKind, Track } from '../types/api'
+import type { Tag, TagKind, Track, TrackSort } from '../types/api'
 
 const KIND_LABEL: Record<TagKind, string> = {
   mood: 'Mood',
@@ -28,6 +28,8 @@ export function LibraryPage() {
   const [search, setSearch] = useState('')
   const [activeSearch, setActiveSearch] = useState('')
   const [filterTagIds, setFilterTagIds] = useState<number[]>([])
+  const [energyMin, setEnergyMin] = useState<number | null>(null)
+  const [sort, setSort] = useState<TrackSort>('recent')
   const [playing, setPlaying] = useState<Track | null>(null)
   const [crateName, setCrateName] = useState('')
   const [savingCrate, setSavingCrate] = useState(false)
@@ -35,7 +37,12 @@ export function LibraryPage() {
 
   const load = useCallback(async () => {
     try {
-      const page = await tracksApi.listTracks({ search: activeSearch, tagIds: filterTagIds })
+      const page = await tracksApi.listTracks({
+        search: activeSearch,
+        tagIds: filterTagIds,
+        energyMin: energyMin ?? undefined,
+        sort,
+      })
       setTracks(page.items)
       setTotal(page.total)
       setError(null)
@@ -44,7 +51,7 @@ export function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeSearch, filterTagIds])
+  }, [activeSearch, filterTagIds, energyMin, sort])
 
   useEffect(() => {
     void load()
@@ -76,7 +83,7 @@ export function LibraryPage() {
     )
   }
 
-  const filtering = activeSearch !== '' || filterTagIds.length > 0
+  const filtering = activeSearch !== '' || filterTagIds.length > 0 || energyMin !== null
   // Solo tiene sentido guardar canciones utilizables: las que estan a medias
   // de descargar no se pueden pinchar.
   const readyTracks = tracks.filter((t) => t.status === 'ready')
@@ -122,6 +129,31 @@ export function LibraryPage() {
               Buscar
             </button>
           </form>
+
+          <div className="filters__group">
+            <span className="filters__label">Energia</span>
+            <div className="chips">
+              {[1, 2, 3, 4, 5].map((nivel) => (
+                <button
+                  key={nivel}
+                  type="button"
+                  className={energyMin === nivel ? 'chip chip--on' : 'chip'}
+                  aria-pressed={energyMin === nivel}
+                  title={`Solo temas de energia ${nivel} o mas`}
+                  onClick={() => setEnergyMin((actual) => (actual === nivel ? null : nivel))}
+                >
+                  {nivel}+
+                </button>
+              ))}
+            </div>
+            <span className="filters__label">Orden</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value as TrackSort)}>
+              <option value="recent">Mas recientes</option>
+              <option value="energy_asc">Energia: de menos a mas</option>
+              <option value="energy">Energia: de mas a menos</option>
+              <option value="title">Titulo</option>
+            </select>
+          </div>
 
           {allTags.length > 0 && (
             <div className="filters__tags">
