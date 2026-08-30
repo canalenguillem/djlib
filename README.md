@@ -11,6 +11,9 @@ etiquetas; fichas de artista con datos de MusicBrainz y Wikipedia.
 
 **Pendiente**: crates guardados con nombre y analisis de BPM.
 
+Para el estado detallado, las decisiones tomadas y los problemas que fueron
+apareciendo en uso real, ver [ESTADO.md](ESTADO.md).
+
 ## Puesta en marcha
 
 ### 1. Variables de entorno
