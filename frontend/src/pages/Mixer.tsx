@@ -191,6 +191,12 @@ export function MixerPage() {
     return estado.track?.bpm ? estado.track.bpm * estado.tempo : null
   }
 
+  /** Devuelve el plato a la velocidad a la que se grabo el tema. */
+  function tempoOriginal(indice: 0 | 1) {
+    decks.current?.[indice].setTempo(1)
+    actualizar(indice, { tempo: 1 })
+  }
+
   /** Ajusta el tempo de un plato para que suene al mismo BPM que el otro. */
   function igualar(indice: 0 | 1) {
     const propio = estados[indice].track?.bpm
@@ -220,6 +226,7 @@ export function MixerPage() {
           {...estados[0]}
           otherBpm={sonandoA(1)}
           onMatch={() => igualar(0)}
+          onResetTempo={() => tempoOriginal(0)}
           onPlayPause={() => alternar(0)}
           onSeek={(s) => {
             decks.current?.[0].seek(s)
@@ -277,6 +284,7 @@ export function MixerPage() {
           {...estados[1]}
           otherBpm={sonandoA(0)}
           onMatch={() => igualar(1)}
+          onResetTempo={() => tempoOriginal(1)}
           onPlayPause={() => alternar(1)}
           onSeek={(s) => {
             decks.current?.[1].seek(s)

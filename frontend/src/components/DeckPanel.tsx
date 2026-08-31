@@ -15,6 +15,7 @@ export interface DeckControls {
   /** BPM del otro plato con su tempo aplicado, para poder igualar. */
   otherBpm: number | null
   onMatch: () => void
+  onResetTempo: () => void
   onPlayPause: () => void
   onSeek: (segundos: number) => void
   onTempo: (valor: number) => void
@@ -140,6 +141,17 @@ export function DeckPanel(props: DeckControls) {
           {puedeIgualar && (
             <button type="button" className="deck__match" onClick={props.onMatch}>
               Igualar al otro plato
+            </button>
+          )}
+          {/* Solo tiene sentido si el tempo esta tocado */}
+          {tempo !== 1 && (
+            <button
+              type="button"
+              className="deck__match deck__match--reset"
+              title="Devuelve el plato a su velocidad original"
+              onClick={props.onResetTempo}
+            >
+              Tempo original{bpm ? ` (${bpm})` : ''}
             </button>
           )}
         </span>

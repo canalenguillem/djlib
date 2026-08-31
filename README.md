@@ -441,7 +441,8 @@ Decisiones tecnicas:
 Cada plato muestra **el BPM al que suena ahora**, con el tempo ya aplicado, y
 entre los dos se ve la diferencia. El boton "Igualar al otro plato" ajusta el
 tempo para que los dos suenen al mismo BPM, siempre que quepa en el +/-8% del
-fader.
+fader; el boton "Tempo original" lo devuelve a la velocidad del tema y solo
+aparece cuando el tempo esta tocado.
 
 **No sustituye a rekordbox ni a Mixxx**, y no lo pretende: no hay salida por
 tarjeta externa ni prescucha por auriculares.

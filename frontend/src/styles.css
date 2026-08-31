@@ -1535,3 +1535,14 @@ input[type='file'] {
   color: #8ce0b4;
   font-weight: 600;
 }
+
+/* El boton de volver al tempo original no compite con el de igualar */
+.deck__match--reset {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.deck__match--reset:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
