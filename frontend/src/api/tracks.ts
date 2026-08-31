@@ -7,6 +7,8 @@ export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
   if (filters.status) params.set('status', filters.status)
   for (const id of filters.tagIds ?? []) params.append('tag_id', String(id))
   if (filters.energyMin) params.set('energy_min', String(filters.energyMin))
+  if (filters.bpmMin) params.set('bpm_min', String(filters.bpmMin))
+  if (filters.bpmMax) params.set('bpm_max', String(filters.bpmMax))
   if (filters.sort && filters.sort !== 'recent') params.set('sort', filters.sort)
   const query = params.toString()
   return apiFetch<TrackPage>(`/tracks${query ? `?${query}` : ''}`)
@@ -45,13 +47,18 @@ export function uploadTrack(
 
 export function updateTrack(
   id: number,
-  payload: { title?: string; artist_text?: string | null; energy?: number },
+  payload: { title?: string; artist_text?: string | null; energy?: number; bpm?: number },
 ): Promise<Track> {
   return apiFetch<Track>(`/tracks/${id}`, { method: 'PATCH', body: payload })
 }
 
 export function setTrackTags(id: number, tagIds: number[]): Promise<Track> {
   return apiFetch<Track>(`/tracks/${id}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
+}
+
+/** Vuelve a medir el tempo, pisando el que hubiera. */
+export function analyzeTrack(id: number): Promise<Track> {
+  return apiFetch<Track>(`/tracks/${id}/analyze`, { method: 'POST' })
 }
 
 export function retryTrack(id: number): Promise<Track> {

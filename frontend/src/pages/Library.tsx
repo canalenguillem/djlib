@@ -29,6 +29,9 @@ export function LibraryPage() {
   const [activeSearch, setActiveSearch] = useState('')
   const [filterTagIds, setFilterTagIds] = useState<number[]>([])
   const [energyMin, setEnergyMin] = useState<number | null>(null)
+  const [bpmMin, setBpmMin] = useState('')
+  const [bpmMax, setBpmMax] = useState('')
+  const [bpmAplicado, setBpmAplicado] = useState<[string, string]>(['', ''])
   const [sort, setSort] = useState<TrackSort>('recent')
   const [playing, setPlaying] = useState<Track | null>(null)
   const [crateName, setCrateName] = useState('')
@@ -41,6 +44,8 @@ export function LibraryPage() {
         search: activeSearch,
         tagIds: filterTagIds,
         energyMin: energyMin ?? undefined,
+        bpmMin: bpmAplicado[0] ? Number(bpmAplicado[0]) : undefined,
+        bpmMax: bpmAplicado[1] ? Number(bpmAplicado[1]) : undefined,
         sort,
       })
       setTracks(page.items)
@@ -51,7 +56,7 @@ export function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeSearch, filterTagIds, energyMin, sort])
+  }, [activeSearch, filterTagIds, energyMin, bpmAplicado, sort])
 
   useEffect(() => {
     void load()
@@ -83,7 +88,12 @@ export function LibraryPage() {
     )
   }
 
-  const filtering = activeSearch !== '' || filterTagIds.length > 0 || energyMin !== null
+  const filtering =
+    activeSearch !== '' ||
+    filterTagIds.length > 0 ||
+    energyMin !== null ||
+    bpmAplicado[0] !== '' ||
+    bpmAplicado[1] !== ''
   // Solo tiene sentido guardar canciones utilizables: las que estan a medias
   // de descargar no se pueden pinchar.
   const readyTracks = tracks.filter((t) => t.status === 'ready')
@@ -146,11 +156,40 @@ export function LibraryPage() {
                 </button>
               ))}
             </div>
+            <span className="filters__label">BPM</span>
+            <form
+              className="filters__bpm"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setBpmAplicado([bpmMin, bpmMax])
+              }}
+            >
+              <input
+                type="number"
+                min={20}
+                max={400}
+                placeholder="desde"
+                value={bpmMin}
+                onChange={(e) => setBpmMin(e.target.value)}
+              />
+              <input
+                type="number"
+                min={20}
+                max={400}
+                placeholder="hasta"
+                value={bpmMax}
+                onChange={(e) => setBpmMax(e.target.value)}
+              />
+              <button type="submit" className="btn btn--ghost">
+                Aplicar
+              </button>
+            </form>
             <span className="filters__label">Orden</span>
             <select value={sort} onChange={(e) => setSort(e.target.value as TrackSort)}>
               <option value="recent">Mas recientes</option>
               <option value="energy_asc">Energia: de menos a mas</option>
               <option value="energy">Energia: de mas a menos</option>
+              <option value="bpm">BPM: de menos a mas</option>
               <option value="title">Titulo</option>
             </select>
           </div>

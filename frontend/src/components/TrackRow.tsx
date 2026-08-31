@@ -35,6 +35,8 @@ export function TrackRow({
   onError,
 }: Props) {
   const [editingTags, setEditingTags] = useState(false)
+  const [editingBpm, setEditingBpm] = useState(false)
+  const [bpmDraft, setBpmDraft] = useState('')
   const [busy, setBusy] = useState(false)
 
   const inProgress = track.status === 'pending' || track.status === 'downloading'
@@ -95,6 +97,46 @@ export function TrackRow({
             )}
             <span>·</span>
             <span>{formatDuration(track.duration_seconds)}</span>
+            {track.status === 'ready' && (
+              <>
+                <span>·</span>
+                {editingBpm ? (
+                  <input
+                    className="bpm__input"
+                    type="number"
+                    min={20}
+                    max={400}
+                    autoFocus
+                    value={bpmDraft}
+                    onChange={(e) => setBpmDraft(e.target.value)}
+                    onBlur={() => setEditingBpm(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setEditingBpm(false)
+                      if (e.key !== 'Enter') return
+                      const valor = Number(bpmDraft)
+                      if (!valor) return
+                      setEditingBpm(false)
+                      void guard(async () =>
+                        onChanged(await tracksApi.updateTrack(track.id, { bpm: valor })),
+                      )
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className={track.bpm ? 'bpm' : 'bpm bpm--empty'}
+                    title="Pulsa para corregir el tempo a mano"
+                    disabled={busy}
+                    onClick={() => {
+                      setBpmDraft(track.bpm ? String(track.bpm) : '')
+                      setEditingBpm(true)
+                    }}
+                  >
+                    {track.bpm ? `${track.bpm} BPM` : 'sin BPM'}
+                  </button>
+                )}
+              </>
+            )}
             {inProgress && (
               <>
                 <span>·</span>
@@ -147,6 +189,15 @@ export function TrackRow({
                 onClick={() => setEditingTags((v) => !v)}
               >
                 Etiquetas
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={busy}
+                title="Vuelve a medir el tempo"
+                onClick={() => guard(async () => onChanged(await tracksApi.analyzeTrack(track.id)))}
+              >
+                Medir
               </button>
             </>
           )}

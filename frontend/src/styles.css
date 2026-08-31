@@ -1458,3 +1458,80 @@ input[type='file'] {
   max-height: 46vh;
   overflow-y: auto;
 }
+
+/* --- Tempo --------------------------------------------------------------- */
+.bpm {
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--border);
+  color: var(--muted);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bpm:hover:not(:disabled) {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.bpm--empty {
+  opacity: 0.6;
+}
+
+.bpm__input {
+  width: 5rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85rem;
+}
+
+.filters__bpm {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.filters__bpm input {
+  width: 5.5rem;
+}
+
+/* En la mesa el BPM va grande: es el numero que se mira al mezclar */
+.deck__bpm {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.deck__bpm strong {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck__bpm span {
+  font-size: 0.7rem;
+}
+
+.deck__match {
+  margin-left: 0.5rem;
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent-hover);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.05rem 0.5rem;
+  cursor: pointer;
+}
+
+.crossfader__bpm {
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.crossfader__match {
+  color: #8ce0b4;
+  font-weight: 600;
+}

@@ -12,6 +12,9 @@ export interface DeckControls {
   tempo: number
   volume: number
   cues: Array<number | null>
+  /** BPM del otro plato con su tempo aplicado, para poder igualar. */
+  otherBpm: number | null
+  onMatch: () => void
   onPlayPause: () => void
   onSeek: (segundos: number) => void
   onTempo: (valor: number) => void
@@ -22,8 +25,16 @@ export interface DeckControls {
 
 export function DeckPanel(props: DeckControls) {
   const {
-    label, track, loading, playing, position, duration, tempo, volume, cues,
+    label, track, loading, playing, position, duration, tempo, volume, cues, otherBpm,
   } = props
+
+  // El tempo real al que suena ahora: es lo que hay que igualar entre platos,
+  // no el BPM original del tema.
+  const bpm = track?.bpm ?? null
+  const sonando = bpm === null ? null : bpm * tempo
+  // Se puede igualar solo si el ajuste cabe en el +/-8% del fader.
+  const ajuste = bpm && otherBpm ? otherBpm / bpm : null
+  const puedeIgualar = ajuste !== null && ajuste >= 0.92 && ajuste <= 1.08
 
   const avance = duration > 0 ? (position / duration) * 100 : 0
   // El porcentaje de tempo es lo que se lee en un plato: 0 % es la velocidad
@@ -61,6 +72,16 @@ export function DeckPanel(props: DeckControls) {
         <div className="deck__times">
           <span>{formatClock(position)}</span>
           <span className="muted">-{formatClock(Math.max(0, duration - position))}</span>
+        </div>
+        <div className="deck__bpm">
+          {bpm === null ? (
+            <span className="muted">sin BPM</span>
+          ) : (
+            <>
+              <strong>{sonando!.toFixed(1)}</strong>
+              <span className="muted">BPM{tempo !== 1 && ` · original ${bpm}`}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -116,6 +137,11 @@ export function DeckPanel(props: DeckControls) {
       <label className="deck__control">
         <span>
           Tempo <strong>{Number(porcentaje) > 0 ? `+${porcentaje}` : porcentaje} %</strong>
+          {puedeIgualar && (
+            <button type="button" className="deck__match" onClick={props.onMatch}>
+              Igualar al otro plato
+            </button>
+          )}
         </span>
         <input
           type="range"

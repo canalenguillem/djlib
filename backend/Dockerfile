@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential default-mysql-client ffmpeg \
+ && apt-get install -y --no-install-recommends build-essential default-mysql-client ffmpeg soundstretch \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

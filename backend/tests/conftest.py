@@ -16,6 +16,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
+from app.services import bpm as bpm_service
 from app.services import downloader, enrichment, recognition, screenshot, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
@@ -341,4 +342,25 @@ def fake_screenshot(monkeypatch) -> FakeScreenshot:
     fake = FakeScreenshot()
     monkeypatch.setattr(screenshot, "extract_songs", fake.extract_songs)
     monkeypatch.setattr(settings, "openai_api_key", "clave-de-prueba")
+    return fake
+
+
+class FakeBpm:
+    """Sustituye al detector de tempo, que llama a ffmpeg y a soundstretch."""
+
+    def __init__(self) -> None:
+        self.valor: int | None = 128
+        self.analizados: list[str] = []
+
+    def analyze(self, path):
+        self.analizados.append(str(path))
+        return self.valor
+
+
+@pytest.fixture(autouse=True)
+def fake_bpm(monkeypatch) -> FakeBpm:
+    """autouse: descargar una cancion dispara el analisis, y sin esto cada test
+    de la biblioteca lanzaria ffmpeg y soundstretch de verdad."""
+    fake = FakeBpm()
+    monkeypatch.setattr(bpm_service, "analyze", fake.analyze)
     return fake

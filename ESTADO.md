@@ -17,14 +17,14 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 170, en ~10 segundos |
+| Tests | 185, en ~13 segundos |
 | Migraciones | 8 |
 | Endpoints | 46 |
-| Commits | 23 |
+| Commits | 24 |
 
 ## Lo que hace
 
-Todo el MVP del briefing salvo el análisis de BPM, más varias cosas que
+Todo lo que pedía el briefing, incluidas las fases 2, más varias cosas que
 salieron de usarlo de verdad.
 
 **Cuatro vías de ingesta**, las tres desembocando en el mismo pipeline de
@@ -60,7 +60,11 @@ estrellas.
 numerado para llevar al USB, montadas guardando un filtro
 de golpe o añadiendo canciones a mano, y reordenables arrastrando o con flechas.
 
-**Mesa de mezclas**: dos platos con crossfader, pads de cue, tempo y volumen,
+**Tempo**: BPM detectado al descargar, corregible a mano, con filtro por
+horquilla y orden. Medidos 45 de 52 en la biblioteca real.
+
+**Mesa de mezclas**: dos platos con crossfader, BPM por plato y botón de igualar
+tempos,, pads de cue, tempo y volumen,
 para practicar transiciones desde la propia biblioteca. Es una herramienta de
 preparación, no de directo.
 
@@ -200,6 +204,10 @@ columna de energía y además el `Index` explícito en `__table_args__`, y
 entorno que tenía, así que una clave nueva no llega. Hace falta
 `up -d --force-recreate`. Cuesta un rato de desconcierto la primera vez.
 
+**InnoDB trabaja en REPEATABLE READ.** Tras analizar el tempo desde otra sesión,
+la de la petición seguía viendo su instantánea anterior y devolvía el valor
+viejo. Hay que cerrar la transacción antes de releer.
+
 **Los tests salían a internet.** Los de biblioteca no sustituían el enriquecido
 de artistas, así que cada uno consultaba MusicBrainz de verdad. Eso, más
 recrear el esquema de la base de datos en cada test, tenía la suite en 250
@@ -224,7 +232,6 @@ el micrófono simulado de Chromium alimentado con audio real.
 | | |
 | --- | --- |
 | **Editar título y artista desde la fila** | La API lo soporta (`PATCH /tracks/{id}`), la interfaz no. Serviría para corregir metadatos sucios de YouTube. |
-| **Análisis de BPM** | Fase 2 explícita del briefing. |
 
 ## Copias de seguridad
 

@@ -388,6 +388,34 @@ de pico, y `?sort=energy_asc` ordena de menos a mas para construir la subida.
 Las canciones sin energia asignada quedan siempre al final (MariaDB no admite
 `NULLS LAST`, asi que se emula con una clave de orden previa).
 
+## Tempo (BPM)
+
+Cada cancion se mide al descargarla. Se usa **soundstretch** (SoundTouch), que
+en una prueba contra metronomos exactos acerto 90, 110, 128 y 140 BPM con menos
+de un 0,1 % de error; solo fallo a 174, donde devolvio 58. La alternativa de
+derivar el tempo de `aubiotrack` fallaba a la mitad de tempo a partir de 128, y
+librosa habria anadido 400 MB a la imagen para este unico uso.
+
+Los errores de octava (mitad o doble del tempo real) se corrigen llevando el
+valor a la horquilla `BPM_MIN`-`BPM_MAX`, 70 a 180 por defecto, que es donde
+vive la musica de baile.
+
+**El BPM se puede corregir a mano** pulsando sobre el en la biblioteca, y esa
+correccion no se pisa: el analisis automatico solo rellena lo que esta vacio.
+El boton "Medir" vuelve a analizar a peticion.
+
+Se puede filtrar por horquilla (`?bpm_min=122&bpm_max=126`), que es como se
+busca un tema para encajar en una mezcla, y ordenar por tempo.
+
+Para las canciones anteriores al analisis:
+
+```bash
+docker compose exec backend python -m app.cli.analyze_bpm
+```
+
+Sobre la biblioteca real midio 45 de 52. Las siete restantes se quedan vacias
+para rellenarlas a mano.
+
 ## Mesa de mezclas
 
 Dos platos con crossfader para practicar transiciones con la propia biblioteca,
@@ -410,8 +438,13 @@ Decisiones tecnicas:
   80 MB por plato. En un portatil no es problema, en un movil si, y por eso la
   pantalla esta pensada para el escritorio.
 
-**No sustituye a rekordbox ni a Mixxx**, y no lo pretende: no hay deteccion de
-BPM, asi que el ajuste de tempo es a oido, y no hay salida por tarjeta externa.
+Cada plato muestra **el BPM al que suena ahora**, con el tempo ya aplicado, y
+entre los dos se ve la diferencia. El boton "Igualar al otro plato" ajusta el
+tempo para que los dos suenen al mismo BPM, siempre que quepa en el +/-8% del
+fader.
+
+**No sustituye a rekordbox ni a Mixxx**, y no lo pretende: no hay salida por
+tarjeta externa ni prescucha por auriculares.
 Sirve para practicar transiciones y preparar el set; para el bolo, exporta el
 crate a un USB.
 

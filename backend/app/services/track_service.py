@@ -16,7 +16,7 @@ from app.models.artist import EnrichmentStatus
 from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
-from app.services import artist_service, audio_file, downloader
+from app.services import artist_service, audio_file, bpm as bpm_service, downloader
 from app.services.downloader import DownloadError
 
 logger = logging.getLogger(__name__)
@@ -261,6 +261,8 @@ def run_download(session_factory, track_id: int) -> None:
     if pending_ids:
         artist_service.run_enrichment(session_factory, pending_ids)
 
+    analyze_bpm(session_factory, track_id)
+
 
 def _fail(session_factory, track_id: int, message: str) -> None:
     with session_factory() as db:
@@ -271,6 +273,45 @@ def _fail(session_factory, track_id: int, message: str) -> None:
         track.error_message = message
         track.updated_at = utcnow()
         db.commit()
+
+
+def analyze_bpm(session_factory, track_id: int, *, force: bool = False) -> int | None:
+    """Detecta el tempo y lo guarda. Pensado para tareas en segundo plano.
+
+    Sin `force` no toca un BPM ya existente: puede haberlo corregido el usuario,
+    que sabe mejor que ningun detector a que velocidad va su musica.
+    """
+    if not settings.bpm_analysis_enabled:
+        return None
+
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is None or not track.file_path or track.status != TrackStatus.ready:
+            return None
+        if track.bpm is not None and not force:
+            return track.bpm
+        ruta = Path(track.file_path)
+
+    try:
+        detectado = bpm_service.analyze(ruta)
+    except bpm_service.BpmError as exc:
+        logger.info("No se pudo analizar el tempo del track %s: %s", track_id, exc)
+        return None
+    except Exception:  # pragma: no cover - nunca tumbar la tarea de fondo
+        logger.exception("Fallo inesperado analizando el tempo del track %s", track_id)
+        return None
+
+    if detectado is None:
+        return None
+
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is None:
+            return None
+        track.bpm = detectado
+        track.updated_at = utcnow()
+        db.commit()
+    return detectado
 
 
 def recover_interrupted(db: Session) -> int:
@@ -304,6 +345,8 @@ def list_tracks(
     tag_ids: list[int] | None = None,
     energy_min: int | None = None,
     energy_max: int | None = None,
+    bpm_min: int | None = None,
+    bpm_max: int | None = None,
     sort: str = "recent",
     limit: int = 100,
     offset: int = 0,
@@ -319,6 +362,12 @@ def list_tracks(
         stmt = stmt.where(Track.energy >= energy_min)
     if energy_max is not None:
         stmt = stmt.where(Track.energy <= energy_max)
+    # Filtrar por horquilla de tempo es como se busca un tema para encajar en
+    # una mezcla: "algo entre 122 y 126".
+    if bpm_min is not None:
+        stmt = stmt.where(Track.bpm >= bpm_min)
+    if bpm_max is not None:
+        stmt = stmt.where(Track.bpm <= bpm_max)
 
     # Filtro combinado: la cancion debe llevar TODAS las etiquetas pedidas
     # ("warm-up" Y "britanica" Y "chill"), no cualquiera de ellas.
@@ -338,6 +387,7 @@ def list_tracks(
         "recent": (Track.created_at.desc(),),
         "energy": (sin_energia, Track.energy.desc(), Track.title),
         "energy_asc": (sin_energia, Track.energy.asc(), Track.title),
+        "bpm": (Track.bpm.is_(None), Track.bpm, Track.title),
         "title": (Track.title,),
     }
     rows = list(

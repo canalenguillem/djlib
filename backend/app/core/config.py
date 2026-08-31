@@ -59,6 +59,16 @@ class Settings(BaseSettings):
     # Cookies exportadas del navegador, si YouTube empieza a pedir verificacion.
     ytdlp_cookies_file: str | None = None
 
+    # --- Deteccion de tempo ---
+    bpm_analysis_enabled: bool = True
+    # Horquilla en la que vive la musica de baile. Sirve para corregir los
+    # errores de octava del detector (mitad o doble del tempo real).
+    bpm_min: int = 70
+    bpm_max: int = 180
+    # Con los primeros minutos basta para determinar el tempo.
+    bpm_analysis_seconds: int = 120
+    bpm_timeout_seconds: int = 120
+
     # --- Fichas de artista (MusicBrainz + Wikipedia) ---
     enrichment_enabled: bool = True
     musicbrainz_base_url: str = "https://musicbrainz.org/ws/2"

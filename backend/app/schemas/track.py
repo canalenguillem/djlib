@@ -76,6 +76,7 @@ class TrackUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     artist_text: str | None = Field(default=None, max_length=300)
     energy: int | None = Field(default=None, ge=1, le=5)
+    bpm: int | None = Field(default=None, ge=20, le=400)
 
 
 class TrackTagsUpdate(BaseModel):

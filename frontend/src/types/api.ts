@@ -73,13 +73,15 @@ export interface TrackPage {
   offset: number
 }
 
-export type TrackSort = 'recent' | 'energy' | 'energy_asc' | 'title'
+export type TrackSort = 'recent' | 'energy' | 'energy_asc' | 'bpm' | 'title'
 
 export interface TrackFilters {
   search?: string
   status?: TrackStatus
   tagIds?: number[]
   energyMin?: number
+  bpmMin?: number
+  bpmMax?: number
   sort?: TrackSort
 }
 

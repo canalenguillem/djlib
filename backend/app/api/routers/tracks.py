@@ -53,7 +53,9 @@ def list_tracks(
     tag_ids: list[int] = Query(default=[], alias="tag_id"),
     energy_min: int | None = Query(default=None, ge=1, le=5),
     energy_max: int | None = Query(default=None, ge=1, le=5),
-    sort: str = Query(default="recent", pattern="^(recent|energy|energy_asc|title)$"),
+    bpm_min: int | None = Query(default=None, ge=20, le=400),
+    bpm_max: int | None = Query(default=None, ge=20, le=400),
+    sort: str = Query(default="recent", pattern="^(recent|energy|energy_asc|bpm|title)$"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> TrackPage:
@@ -64,6 +66,8 @@ def list_tracks(
         tag_ids=tag_ids,
         energy_min=energy_min,
         energy_max=energy_max,
+        bpm_min=bpm_min,
+        bpm_max=bpm_max,
         sort=sort,
         limit=limit,
         offset=offset,
@@ -203,6 +207,7 @@ def upload_track(
     resultado = TrackOut.model_validate(track)
     if nuevos:
         background.add_task(artist_service.run_enrichment, session_factory, nuevos)
+    background.add_task(track_service.analyze_bpm, session_factory, track.id)
     return resultado
 
 
@@ -229,6 +234,8 @@ def update_track(
         track.artist_text = payload.artist_text.strip() or None
     if payload.energy is not None:
         track.energy = payload.energy
+    if payload.bpm is not None:
+        track.bpm = payload.bpm
     track.updated_at = utcnow()
     db.commit()
     db.refresh(track)
@@ -274,6 +281,30 @@ def set_track_artists(
     if nuevos:
         background.add_task(artist_service.run_enrichment, session_factory, nuevos)
     return result
+
+
+@router.post("/{track_id}/analyze", response_model=TrackOut)
+def analyze_track_bpm(
+    track_id: int, current_user: CurrentUser, db: DbSession, session_factory: SessionFactory
+) -> TrackOut:
+    """Vuelve a medir el tempo, pisando el que hubiera.
+
+    Sincrono a proposito: lo lanza el usuario desde la fila y quiere ver el
+    numero. Tarda unos segundos.
+    """
+    track = _get_or_404(db, track_id)
+    if track.status != TrackStatus.ready:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La cancion todavia no esta descargada.",
+        )
+    track_service.analyze_bpm(session_factory, track_id, force=True)
+    # El analisis escribe desde otra sesion. InnoDB trabaja en REPEATABLE READ,
+    # asi que esta seguiria viendo su instantanea anterior: hay que cerrar la
+    # transaccion para leer el valor nuevo.
+    db.commit()
+    db.refresh(track)
+    return TrackOut.model_validate(track)
 
 
 @router.post("/{track_id}/retry", response_model=TrackOut, status_code=status.HTTP_202_ACCEPTED)

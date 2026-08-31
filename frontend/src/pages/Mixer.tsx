@@ -185,6 +185,22 @@ export function MixerPage() {
     platos[1].crossfade.gain.setTargetAtTime(gb, ctx.currentTime, 0.01)
   }
 
+  /** BPM al que suena cada plato ahora mismo, con su tempo aplicado. */
+  function sonandoA(indice: 0 | 1): number | null {
+    const estado = estados[indice]
+    return estado.track?.bpm ? estado.track.bpm * estado.tempo : null
+  }
+
+  /** Ajusta el tempo de un plato para que suene al mismo BPM que el otro. */
+  function igualar(indice: 0 | 1) {
+    const propio = estados[indice].track?.bpm
+    const objetivo = sonandoA(indice === 0 ? 1 : 0)
+    if (!propio || !objetivo) return
+    const ratio = Math.max(0.92, Math.min(1.08, objetivo / propio))
+    decks.current?.[indice].setTempo(ratio)
+    actualizar(indice, { tempo: ratio })
+  }
+
   const listaVisible = crateTracks ?? tracks
 
   return (
@@ -202,6 +218,8 @@ export function MixerPage() {
         <DeckPanel
           label="A"
           {...estados[0]}
+          otherBpm={sonandoA(1)}
+          onMatch={() => igualar(0)}
           onPlayPause={() => alternar(0)}
           onSeek={(s) => {
             decks.current?.[0].seek(s)
@@ -234,6 +252,17 @@ export function MixerPage() {
             aria-label="Crossfader"
             onChange={(e) => moverCrossfader(Number(e.target.value))}
           />
+          {sonandoA(0) !== null && sonandoA(1) !== null && (
+            <div className="crossfader__bpm">
+              {Math.abs(sonandoA(0)! - sonandoA(1)!) < 0.5 ? (
+                <span className="crossfader__match">Platos igualados</span>
+              ) : (
+                <span className="muted">
+                  {Math.abs(sonandoA(0)! - sonandoA(1)!).toFixed(1)} BPM de diferencia
+                </span>
+              )}
+            </div>
+          )}
           <div className="crossfader__ends">
             <span>A</span>
             <button type="button" className="btn btn--ghost" onClick={() => moverCrossfader(0.5)}>
@@ -246,6 +275,8 @@ export function MixerPage() {
         <DeckPanel
           label="B"
           {...estados[1]}
+          otherBpm={sonandoA(0)}
+          onMatch={() => igualar(1)}
           onPlayPause={() => alternar(1)}
           onSeek={(s) => {
             decks.current?.[1].seek(s)
