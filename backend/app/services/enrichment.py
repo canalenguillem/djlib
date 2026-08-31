@@ -84,6 +84,7 @@ class ArtistFacts:
     artist_type: str | None = None
     bio: str | None = None
     wikipedia_url: str | None = None
+    image_url: str | None = None
     relations: list[RelationFact] = field(default_factory=list)
 
 
@@ -261,8 +262,15 @@ def _resolve_via_wikidata(name: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _wikipedia_from_wikidata(wikidata_id: str) -> tuple[str | None, str | None]:
-    """Devuelve (extracto, url) del articulo, prefiriendo el idioma configurado."""
+def _wikipedia_from_wikidata(
+    wikidata_id: str,
+) -> tuple[str | None, str | None, str | None]:
+    """Devuelve (extracto, url, imagen) del articulo.
+
+    La imagen viene en la misma respuesta que el resumen, asi que no cuesta una
+    peticion extra. Se prefiere la miniatura sobre el original: para una ficha
+    no hace falta traerse una foto de varios megabytes.
+    """
     data = _get_json(
         "https://www.wikidata.org/w/api.php",
         {
@@ -287,9 +295,12 @@ def _wikipedia_from_wikidata(wikidata_id: str) -> tuple[str | None, str | None]:
         )
         extract = (summary.get("extract") or "").strip()
         url = ((summary.get("content_urls") or {}).get("desktop") or {}).get("page")
-        if extract:
-            return extract, url
-    return None, None
+        imagen = (summary.get("thumbnail") or {}).get("source") or (
+            summary.get("originalimage") or {}
+        ).get("source")
+        if extract or imagen:
+            return extract or None, url, imagen
+    return None, None, None
 
 
 def lookup(name: str) -> ArtistFacts | None:
@@ -323,8 +334,9 @@ def lookup(name: str) -> ArtistFacts | None:
 
     bio: str | None = None
     wikipedia_url: str | None = None
+    image_url: str | None = None
     if wikidata_id:
-        bio, wikipedia_url = _wikipedia_from_wikidata(wikidata_id)
+        bio, wikipedia_url, image_url = _wikipedia_from_wikidata(wikidata_id)
     # Sin articulo de Wikipedia, la coletilla de MusicBrainz ("UK alternative
     # rock band") es mejor que dejar la ficha en blanco.
     if not bio and details.get("disambiguation"):
@@ -339,5 +351,6 @@ def lookup(name: str) -> ArtistFacts | None:
         artist_type=details.get("type"),
         bio=bio,
         wikipedia_url=wikipedia_url,
+        image_url=image_url,
         relations=relations,
     )

@@ -56,6 +56,9 @@ class Artist(Base):
 
     musicbrainz_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
     wikipedia_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Foto del artista, de Wikipedia. Se guarda la URL, no la imagen: es una
+    # miniatura publica y no tiene sentido duplicarla en el disco.
+    image_url: Mapped[str | None] = mapped_column(String(700), nullable=True)
 
     enrichment_status: Mapped[EnrichmentStatus] = mapped_column(
         Enum(

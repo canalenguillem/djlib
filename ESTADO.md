@@ -18,9 +18,9 @@ relaciones entre artistas.
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
 | Tests | 165, en ~10 segundos |
-| Migraciones | 5 |
+| Migraciones | 6 |
 | Endpoints | 46 |
-| Commits | 19 |
+| Commits | 20 |
 
 ## Lo que hace
 
@@ -45,9 +45,9 @@ descarga:
 **Biblioteca**: listado con búsqueda, filtrado combinado por etiquetas
 (mood / estilo / momento de la noche), reproductor, descarga del mp3 y borrado.
 
-**Artistas**: ficha creada automáticamente al descargar, con país, años de
-actividad, biografía de Wikipedia y relaciones entre artistas de MusicBrainz.
-Editable a mano.
+**Artistas**: ficha creada automáticamente al descargar, con foto y biografía de
+Wikipedia, país, años de actividad y relaciones entre artistas de MusicBrainz.
+Sus canciones se escuchan desde la propia ficha. Editable a mano.
 
 **Energía 1-5**: intensidad por canción, filtrable y ordenable, para montar la
 curva de una noche. No es una nota de calidad, y por eso son puntos y no

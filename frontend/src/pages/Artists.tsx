@@ -125,9 +125,18 @@ export function ArtistsPage() {
             <ul className="artistlist">
               {artists.map((artist) => (
                 <li key={artist.id} className="artistcard">
-                  <Link to={`/artists/${artist.id}`} className="artistcard__name">
-                    {artist.name}
-                  </Link>
+                  <div className="artistcard__head">
+                    {artist.image_url ? (
+                      <img className="artistcard__photo" src={artist.image_url} alt="" loading="lazy" />
+                    ) : (
+                      <span className="artistcard__photo artistcard__photo--empty" aria-hidden="true">
+                        {artist.name.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                    <Link to={`/artists/${artist.id}`} className="artistcard__name">
+                      {artist.name}
+                    </Link>
+                  </div>
                   <span className="muted">{origin(artist)}</span>
                   <span className="muted">
                     {artist.track_count}{' '}

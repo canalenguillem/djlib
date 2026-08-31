@@ -37,6 +37,7 @@ class ArtistOut(BaseModel):
     artist_type: str | None = None
     musicbrainz_id: str | None = None
     wikipedia_url: str | None = None
+    image_url: str | None = None
     enrichment_status: EnrichmentStatus
     enrichment_error: str | None = None
     enriched_at: datetime | None = None
@@ -67,6 +68,7 @@ class ArtistUpdate(BaseModel):
     begin_year: int | None = Field(default=None, ge=1000, le=2999)
     end_year: int | None = Field(default=None, ge=1000, le=2999)
     wikipedia_url: str | None = Field(default=None, max_length=500)
+    image_url: str | None = Field(default=None, max_length=700)
 
 
 class TrackArtistsUpdate(BaseModel):

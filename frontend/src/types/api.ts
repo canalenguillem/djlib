@@ -57,6 +57,7 @@ export interface Track {
   file_size: number | null
   bpm: number | null
   energy: number | null
+  thumbnail_url: string | null
   added_by_user_id: number | null
   downloaded_at: string | null
   created_at: string
@@ -108,6 +109,7 @@ export interface Artist {
   artist_type: string | null
   musicbrainz_id: string | null
   wikipedia_url: string | null
+  image_url: string | null
   enrichment_status: EnrichmentStatus
   enrichment_error: string | null
   enriched_at: string | null

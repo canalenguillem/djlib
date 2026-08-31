@@ -25,6 +25,7 @@ export interface ArtistEdit {
   begin_year?: number | null
   end_year?: number | null
   wikipedia_url?: string | null
+  image_url?: string | null
 }
 
 export function updateArtist(id: number, payload: ArtistEdit): Promise<Artist> {

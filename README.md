@@ -470,6 +470,19 @@ identificador del artista se resuelve por **Wikidata** (que guarda el mismo id
 en su propiedad P434) y los datos se leen del lookup directo de MusicBrainz,
 que si es estable. Se respeta el limite de una peticion por segundo.
 
+**La foto sale de Wikipedia**, de la misma respuesta que ya trae la biografia,
+asi que no cuesta una peticion extra. Se guarda la URL de la miniatura, no la
+imagen: es publica y no tiene sentido duplicarla en el disco. Si Wikipedia no
+tiene foto, se puede pegar una URL a mano desde la ficha. Para rellenar las
+fichas antiguas de una vez:
+
+```bash
+docker compose exec backend python -m app.cli.refresh_artists
+```
+
+**Las caratulas de las canciones** se deducen del id del video de YouTube, asi
+que tampoco hay nada que guardar. Los ficheros subidos por el usuario no tienen.
+
 Las relaciones guardan el nombre del otro artista aunque no este en la
 biblioteca; cuando mas adelante aparece, la relacion pasa a ser un enlace
 navegable en los dos sentidos.

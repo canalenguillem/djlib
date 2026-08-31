@@ -5,6 +5,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import * as artistsApi from '../api/artists'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
+import { Player } from '../components/Player'
+import { PauseIcon, PlayIcon } from '../components/icons'
 import { formatDuration } from '../lib/format'
 import type { Artist, EnrichmentStatus, Track } from '../types/api'
 
@@ -28,8 +30,16 @@ export function ArtistDetailPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [playing, setPlaying] = useState<Track | null>(null)
 
-  const [form, setForm] = useState({ name: '', bio: '', country: '', begin_year: '', end_year: '' })
+  const [form, setForm] = useState({
+    name: '',
+    bio: '',
+    country: '',
+    begin_year: '',
+    end_year: '',
+    image_url: '',
+  })
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +55,7 @@ export function ArtistDetailPage() {
         country: ficha.country ?? '',
         begin_year: ficha.begin_year ? String(ficha.begin_year) : '',
         end_year: ficha.end_year ? String(ficha.end_year) : '',
+        image_url: ficha.image_url ?? '',
       })
       setError(null)
     } catch (err) {
@@ -96,6 +107,7 @@ export function ArtistDetailPage() {
         country: form.country.trim() || null,
         begin_year: form.begin_year ? Number(form.begin_year) : null,
         end_year: form.end_year ? Number(form.end_year) : null,
+        image_url: form.image_url.trim() || null,
       })
       setArtist(actualizado)
       setEditing(false)
@@ -135,6 +147,9 @@ export function ArtistDetailPage() {
 
       <section className="card">
         <div className="artist__head">
+          {artist.image_url && (
+            <img className="artist__photo" src={artist.image_url} alt={artist.name} />
+          )}
           <dl className="datalist">
             {artist.country && (
               <div>
@@ -223,6 +238,15 @@ export function ArtistDetailPage() {
                 />
               </label>
               <label className="field">
+                <span>Foto (URL)</span>
+                <input
+                  type="url"
+                  value={form.image_url}
+                  placeholder="https://..."
+                  onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
+                />
+              </label>
+              <label className="field">
                 <span>Ano de fin</span>
                 <input
                   type="number"
@@ -291,6 +315,20 @@ export function ArtistDetailPage() {
             {tracks.map((track) => (
               <li key={track.id} className="track">
                 <div className="track__main">
+                  <button
+                    type="button"
+                    className="track__play"
+                    disabled={track.status !== 'ready'}
+                    aria-label={`Reproducir ${track.title}`}
+                    onClick={() =>
+                      setPlaying((actual) => (actual?.id === track.id ? null : track))
+                    }
+                  >
+                    {playing?.id === track.id ? <PauseIcon /> : <PlayIcon />}
+                  </button>
+                  {track.thumbnail_url && (
+                    <img className="track__thumb" src={track.thumbnail_url} alt="" loading="lazy" />
+                  )}
                   <div className="track__info">
                     <div className="track__title">{track.title}</div>
                     <div className="track__meta">
@@ -308,6 +346,8 @@ export function ArtistDetailPage() {
           </ul>
         )}
       </section>
+
+      <Player track={playing} onClose={() => setPlaying(null)} onError={setError} />
     </div>
   )
 }

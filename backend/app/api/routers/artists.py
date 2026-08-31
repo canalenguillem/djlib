@@ -92,7 +92,7 @@ def update_artist(
         artist.name = data["name"].strip()
         artist.slug = nuevo_slug
 
-    for campo in ("bio", "country", "wikipedia_url"):
+    for campo in ("bio", "country", "wikipedia_url", "image_url"):
         if campo in data:
             valor = (data[campo] or "").strip()
             setattr(artist, campo, valor or None)

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.models.track import TrackSource, TrackStatus
 from app.schemas.artist import ArtistBrief
@@ -9,6 +9,15 @@ from app.schemas.tag import TagOut
 
 class TrackOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def thumbnail_url(self) -> str | None:
+        """La caratula sale del id del video, asi que no hay nada que guardar.
+        Los ficheros subidos por el usuario no tienen."""
+        if self.source_site == "youtube" and self.source_video_id:
+            return f"https://i.ytimg.com/vi/{self.source_video_id}/mqdefault.jpg"
+        return None
 
     id: int
     title: str
