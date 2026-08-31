@@ -388,6 +388,33 @@ de pico, y `?sort=energy_asc` ordena de menos a mas para construir la subida.
 Las canciones sin energia asignada quedan siempre al final (MariaDB no admite
 `NULLS LAST`, asi que se emula con una clave de orden previa).
 
+## Mesa de mezclas
+
+Dos platos con crossfader para practicar transiciones con la propia biblioteca,
+sin salir del navegador. Cada plato tiene reproduccion, barra de posicion con
+salto, cuatro pads de cue, tempo de +/-8% y volumen; en medio, un crossfader con
+curva de potencia constante (en el centro suenan los dos sin que baje el
+volumen general, cosa que si pasaria con una mezcla lineal).
+
+Se carga desde toda la biblioteca o filtrando por un crate, con botones "a A" y
+"a B" en cada cancion.
+
+Decisiones tecnicas:
+
+- Se usa `AudioBufferSourceNode` y no un `<audio>`. Los saltos a un cue tienen
+  que ser inmediatos y exactos, y con un elemento `<audio>` dependen del buffer
+  de red. Ademas, al cambiar el tempo **el tono cambia con el**, como en un
+  plato de verdad; los elementos `<audio>` corrigen el tono por defecto, que es
+  justo lo contrario de lo que espera un DJ.
+- El precio es la memoria: un tema de cuatro minutos descodificado ocupa unos
+  80 MB por plato. En un portatil no es problema, en un movil si, y por eso la
+  pantalla esta pensada para el escritorio.
+
+**No sustituye a rekordbox ni a Mixxx**, y no lo pretende: no hay deteccion de
+BPM, asi que el ajuste de tempo es a oido, y no hay salida por tarjeta externa.
+Sirve para practicar transiciones y preparar el set; para el bolo, exporta el
+crate a un USB.
+
 ## Crates
 
 Un **crate** es una seleccion de canciones con nombre y orden propio: "warm-up

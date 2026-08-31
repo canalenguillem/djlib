@@ -9,6 +9,7 @@ import { ArtistsPage } from './pages/Artists'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
 import { LibraryPage } from './pages/Library'
+import { MixerPage } from './pages/Mixer'
 import { LoginPage } from './pages/Login'
 import { NotFoundPage } from './pages/NotFound'
 import { RecognizePage } from './pages/Recognize'
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
           { path: '/recognize', element: <RecognizePage /> },
           { path: '/artists', element: <ArtistsPage /> },
           { path: '/artists/:artistId', element: <ArtistDetailPage /> },
+          { path: '/mixer', element: <MixerPage /> },
           { path: '/crates', element: <CratesPage /> },
           { path: '/crates/:crateId', element: <CrateDetailPage /> },
           { path: '/tags', element: <TagsPage /> },

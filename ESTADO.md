@@ -20,7 +20,7 @@ relaciones entre artistas.
 | Tests | 170, en ~10 segundos |
 | Migraciones | 8 |
 | Endpoints | 46 |
-| Commits | 22 |
+| Commits | 23 |
 
 ## Lo que hace
 
@@ -59,6 +59,10 @@ estrellas.
 **Crates**: selecciones con nombre y orden propio, descargables en un zip
 numerado para llevar al USB, montadas guardando un filtro
 de golpe o añadiendo canciones a mano, y reordenables arrastrando o con flechas.
+
+**Mesa de mezclas**: dos platos con crossfader, pads de cue, tempo y volumen,
+para practicar transiciones desde la propia biblioteca. Es una herramienta de
+preparación, no de directo.
 
 **Usuarios**: login con JWT, roles admin y user, alta y gestión desde el panel.
 
