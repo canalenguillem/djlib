@@ -480,6 +480,15 @@ fichas antiguas de una vez:
 docker compose exec backend python -m app.cli.refresh_artists
 ```
 
+**Desde la ficha se puede seguir descubriendo.** MusicBrainz devuelve una
+veintena de enlaces por artista (VIAF, IMDb, songkick...); se guardan solo los
+que llevan a mas musica suya o a comprarsela: Bandcamp, su web, SoundCloud,
+YouTube, Spotify, Discogs y Last.fm. Ademas hay un boton que busca mas temas
+suyos en YouTube y marca los que ya tienes.
+
+Un enlace de Bandcamp se puede pegar directamente en "Desde un enlace": yt-dlp
+tiene extractor para Bandcamp, asi que la ingesta no es solo de YouTube.
+
 **Cuando las bases musicales no llegan, se mira el canal de YouTube.**
 MusicBrainz y Wikipedia documentan artistas publicados, no a quien monta un
 mashup, un edit o una transicion y lo sube a su canal. Pero ese canal si existe

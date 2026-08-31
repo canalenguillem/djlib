@@ -112,6 +112,7 @@ export interface Artist {
   image_url: string | null
   channel_url: string | null
   follower_count: number | null
+  links: Record<string, string>
   enrichment_status: EnrichmentStatus
   enrichment_error: string | null
   enriched_at: string | null

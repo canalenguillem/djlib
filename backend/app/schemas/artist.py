@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.artist import EnrichmentStatus
 
@@ -40,6 +40,13 @@ class ArtistOut(BaseModel):
     image_url: str | None = None
     channel_url: str | None = None
     follower_count: int | None = None
+    links: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("links", mode="before")
+    @classmethod
+    def sin_enlaces_es_diccionario_vacio(cls, valor):
+        """En la base de datos la columna es nula mientras no haya enlaces."""
+        return valor or {}
     enrichment_status: EnrichmentStatus
     enrichment_error: str | None = None
     enriched_at: datetime | None = None

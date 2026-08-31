@@ -238,6 +238,10 @@ class FakeEnrichment:
                 bio="Blur es un grupo britanico de rock formado en Londres en 1988.",
                 wikipedia_url="https://es.wikipedia.org/wiki/Blur",
                 image_url="https://upload.wikimedia.org/blur.jpg",
+                links={
+                    "bandcamp": "https://blur.bandcamp.com/",
+                    "official homepage": "https://blur.co.uk/",
+                },
                 relations=[
                     enrichment.RelationFact("Damon Albarn", "miembros"),
                     enrichment.RelationFact("Gorillaz", "colaboracion"),

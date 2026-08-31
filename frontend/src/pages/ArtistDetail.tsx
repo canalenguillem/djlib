@@ -3,12 +3,28 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import * as artistsApi from '../api/artists'
+import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
 import { Player } from '../components/Player'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { formatDuration } from '../lib/format'
-import type { Artist, EnrichmentStatus, Track } from '../types/api'
+import { SearchCandidates } from '../components/SearchCandidates'
+import type { Artist, EnrichmentStatus, SearchCandidate, Track } from '../types/api'
+
+// Como se llama cada enlace de MusicBrainz de cara al usuario. Bandcamp
+// primero: es donde el dinero llega al artista y donde hay material que no
+// esta en ningun otro sitio.
+const LINK_LABELS: Array<[string, string]> = [
+  ['bandcamp', 'Bandcamp'],
+  ['official homepage', 'Web oficial'],
+  ['soundcloud', 'SoundCloud'],
+  ['youtube', 'YouTube'],
+  ['free streaming', 'Spotify'],
+  ['purchase for download', 'Comprar'],
+  ['discogs', 'Discogs'],
+  ['last.fm', 'Last.fm'],
+]
 
 const STATUS_TEXT: Record<EnrichmentStatus, string> = {
   pending: 'Consultando MusicBrainz y Wikipedia...',
@@ -32,6 +48,10 @@ export function ArtistDetailPage() {
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
   const [playing, setPlaying] = useState<Track | null>(null)
+  const [more, setMore] = useState<SearchCandidate[] | null>(null)
+  const [searchingMore, setSearchingMore] = useState(false)
+  const [addedIds, setAddedIds] = useState<string[]>([])
+  const [addingId, setAddingId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     name: '',
@@ -120,6 +140,35 @@ export function ArtistDetailPage() {
     }
   }
 
+  /** Busca mas temas suyos en YouTube, marcando los que ya tienes. */
+  async function buscarMas() {
+    if (!artist) return
+    setSearchingMore(true)
+    setError(null)
+    try {
+      const resultado = await tracksApi.previewSearch(null, artist.name)
+      setMore(resultado.candidates)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
+    } finally {
+      setSearchingMore(false)
+    }
+  }
+
+  async function anadirMas(candidate: SearchCandidate) {
+    setAddingId(candidate.video_id)
+    setError(null)
+    try {
+      await tracksApi.addFromUrl(candidate.url)
+      setAddedIds((prev) => [...prev, candidate.video_id])
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo anadir la cancion.')
+    } finally {
+      setAddingId(null)
+    }
+  }
+
   async function handleDelete() {
     setBusy(true)
     try {
@@ -135,6 +184,7 @@ export function ArtistDetailPage() {
   if (!artist) return <Alert kind="error">{error ?? 'Artista no encontrado.'}</Alert>
 
   const years = [artist.begin_year, artist.end_year].filter(Boolean).join(' – ')
+  const enlaces = LINK_LABELS.filter(([clave]) => artist.links?.[clave])
 
   return (
     <div className="stack">
@@ -301,6 +351,52 @@ export function ArtistDetailPage() {
             </p>
           </>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Mas de {artist.name}</h2>
+        {enlaces.length > 0 && (
+          <>
+            <p className="muted">
+              Donde encontrar el resto de su musica. En Bandcamp suele haber material
+              que no esta en ningun otro sitio, y ahi el dinero llega al artista.
+            </p>
+            <div className="chips">
+              {enlaces.map(([clave, etiqueta]) => (
+                <a
+                  key={clave}
+                  className="chip"
+                  href={artist.links[clave]}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {etiqueta}
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+        <div>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={searchingMore}
+            onClick={buscarMas}
+          >
+            {searchingMore ? 'Buscando...' : 'Buscar mas temas suyos en YouTube'}
+          </button>
+        </div>
+        {more !== null &&
+          (more.length === 0 ? (
+            <p className="muted">YouTube no ha devuelto resultados.</p>
+          ) : (
+            <SearchCandidates
+              candidates={more}
+              addedIds={addedIds}
+              addingId={addingId}
+              onAdd={anadirMas}
+            />
+          ))}
       </section>
 
       {artist.relations.length > 0 && (

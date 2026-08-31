@@ -63,6 +63,20 @@ _RELATION_PRIORITY = {
 }
 
 
+# MusicBrainz devuelve veinte enlaces por artista (VIAF, IMDb, songkick...).
+# Se guardan solo los que sirven para descubrir mas musica suya o comprarsela.
+ENLACES_UTILES = {
+    "bandcamp": "Bandcamp",
+    "official homepage": "Web oficial",
+    "soundcloud": "SoundCloud",
+    "youtube": "YouTube",
+    "discogs": "Discogs",
+    "free streaming": "Spotify",
+    "purchase for download": "Comprar",
+    "last.fm": "Last.fm",
+}
+
+
 class EnrichmentError(RuntimeError):
     """Fallo consultando las fuentes externas. No es culpa del artista."""
 
@@ -85,6 +99,7 @@ class ArtistFacts:
     bio: str | None = None
     wikipedia_url: str | None = None
     image_url: str | None = None
+    links: dict[str, str] = field(default_factory=dict)
     relations: list[RelationFact] = field(default_factory=list)
 
 
@@ -174,9 +189,12 @@ def _artist_details(mbid: str) -> dict:
     )
 
 
-def _relations_from(details: dict) -> tuple[list[RelationFact], str | None]:
+def _relations_from(
+    details: dict,
+) -> tuple[list[RelationFact], str | None, dict[str, str]]:
     relations: list[RelationFact] = []
     wikidata_id: str | None = None
+    enlaces: dict[str, str] = {}
     seen: set[tuple[str, str]] = set()
 
     for relation in details.get("relations") or []:
@@ -187,6 +205,8 @@ def _relations_from(details: dict) -> tuple[list[RelationFact], str | None]:
             url = (relation.get("url") or {}).get("resource") or ""
             if kind == "wikidata" and "/wiki/" in url:
                 wikidata_id = url.rsplit("/wiki/", 1)[-1]
+            elif kind in ENLACES_UTILES and url:
+                enlaces.setdefault(kind, url)
             continue
 
         if target != "artist":
@@ -209,7 +229,7 @@ def _relations_from(details: dict) -> tuple[list[RelationFact], str | None]:
         )
 
     relations.sort(key=lambda r: (_RELATION_PRIORITY.get(r.relation_type, 90), r.name))
-    return relations, wikidata_id
+    return relations, wikidata_id, enlaces
 
 
 def _resolve_via_wikidata(name: str) -> tuple[str | None, str | None]:
@@ -328,7 +348,7 @@ def lookup(name: str) -> ArtistFacts | None:
     if not details:
         return None
 
-    relations, wikidata_from_mb = _relations_from(details)
+    relations, wikidata_from_mb, enlaces = _relations_from(details)
     wikidata_id = wikidata_id or wikidata_from_mb
     life_span = details.get("life-span") or {}
 
@@ -352,5 +372,6 @@ def lookup(name: str) -> ArtistFacts | None:
         bio=bio,
         wikipedia_url=wikipedia_url,
         image_url=image_url,
+        links=enlaces,
         relations=relations,
     )

@@ -2,6 +2,7 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     Enum,
@@ -64,6 +65,9 @@ class Artist(Base):
     # que hay: no aparecen en MusicBrainz ni en Wikipedia.
     channel_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     follower_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Enlaces externos utiles para descubrir mas musica suya: Bandcamp,
+    # SoundCloud, su web, Discogs. Vienen de MusicBrainz.
+    links: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     enrichment_status: Mapped[EnrichmentStatus] = mapped_column(
         Enum(

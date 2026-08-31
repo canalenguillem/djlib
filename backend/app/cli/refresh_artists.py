@@ -1,4 +1,4 @@
-"""Vuelve a consultar las fuentes para las fichas a las que les falta la foto.
+"""Vuelve a consultar las fuentes para las fichas incompletas.
 
 Las fichas creadas antes de que se guardara la imagen no la tienen. Este
 comando las repasa. No toca las que estan en estado `manual`: esas las ha
@@ -9,7 +9,7 @@ Uso:  docker compose exec backend python -m app.cli.refresh_artists
 
 import sys
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.db.session import SessionLocal
 from app.models.artist import Artist, EnrichmentStatus
@@ -21,13 +21,13 @@ def main() -> int:
         pendientes = list(
             db.scalars(
                 select(Artist).where(
-                    Artist.image_url.is_(None),
+                    or_(Artist.image_url.is_(None), Artist.links.is_(None)),
                     Artist.enrichment_status != EnrichmentStatus.manual,
                 )
             )
         )
 
-    print(f"[refresh_artists] {len(pendientes)} fichas sin foto.")
+    print(f"[refresh_artists] {len(pendientes)} fichas incompletas.")
     con_foto = 0
     for artist in pendientes:
         with SessionLocal() as db:
@@ -48,6 +48,8 @@ def main() -> int:
                 print(f"  {actual.name}: foto de {origen}")
             else:
                 print(f"  {actual.name}: sin foto en ninguna fuente")
+            if actual.links:
+                print(f"      enlaces: {', '.join(sorted(actual.links))}")
 
     print(f"[refresh_artists] {con_foto} fichas con foto nueva.")
     return 0

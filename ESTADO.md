@@ -17,10 +17,10 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 168, en ~10 segundos |
-| Migraciones | 7 |
+| Tests | 170, en ~10 segundos |
+| Migraciones | 8 |
 | Endpoints | 46 |
-| Commits | 21 |
+| Commits | 22 |
 
 ## Lo que hace
 
@@ -49,7 +49,8 @@ descarga:
 Wikipedia, país, años de actividad y relaciones entre artistas de MusicBrainz.
 Para los creadores de mashups y edits, que no están en ninguna base musical, se
 usa su canal de YouTube: avatar, enlace y suscriptores. Sus canciones se
-escuchan desde la propia ficha. Editable a mano.
+escuchan desde la propia ficha, que ademas enlaza a Bandcamp, SoundCloud,
+Discogs y su web, y permite buscar mas temas suyos en YouTube. Editable a mano.
 
 **Energía 1-5**: intensidad por canción, filtrable y ordenable, para montar la
 curva de una noche. No es una nota de calidad, y por eso son puntos y no

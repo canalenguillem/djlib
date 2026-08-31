@@ -144,6 +144,8 @@ def apply_facts(db: Session, artist: Artist, facts: ArtistFacts) -> Artist:
     artist.bio = facts.bio or artist.bio
     artist.wikipedia_url = facts.wikipedia_url or artist.wikipedia_url
     artist.image_url = artist.image_url or facts.image_url
+    if facts.links:
+        artist.links = {**(artist.links or {}), **facts.links}
 
     existing = {(r.related_name.lower(), r.relation_type) for r in artist.relations}
     for relation in facts.relations:

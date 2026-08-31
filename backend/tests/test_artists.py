@@ -313,3 +313,33 @@ def test_el_canal_tapa_el_hueco_de_la_foto(
     # ...pero la foto la pone el canal
     assert ficha["image_url"] == "https://yt3.googleusercontent.com/avatar.jpg"
     assert ficha["follower_count"] == 1920
+
+
+def test_se_guardan_los_enlaces_para_descubrir_mas_musica(
+    client: TestClient, admin_user, fake_downloader, fake_enrichment
+) -> None:
+    """MusicBrainz devuelve veinte enlaces por artista; solo interesan los que
+    llevan a mas musica suya o a comprarsela."""
+    h = headers(client)
+    add_track(client, h)
+
+    ficha = client.get("/artists", headers=h).json()["items"][0]
+    assert ficha["links"] == {
+        "bandcamp": "https://blur.bandcamp.com/",
+        "official homepage": "https://blur.co.uk/",
+    }
+
+
+def test_los_enlaces_se_suman_sin_perder_los_anteriores(
+    client: TestClient, admin_user, fake_downloader, fake_enrichment
+) -> None:
+    h = headers(client)
+    add_track(client, h)
+    artist_id = client.get("/artists", headers=h).json()["items"][0]["id"]
+
+    # Una consulta posterior descubre un enlace nuevo
+    fake_enrichment.facts["Blur"] = fake_enrichment.facts["Blur"].__class__(
+        name="Blur", links={"soundcloud": "https://soundcloud.com/blur"}
+    )
+    ficha = client.post(f"/artists/{artist_id}/enrich?force=true", headers=h).json()
+    assert set(ficha["links"]) == {"bandcamp", "official homepage", "soundcloud"}
