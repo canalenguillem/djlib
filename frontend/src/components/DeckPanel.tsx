@@ -14,6 +14,9 @@ export interface DeckControls {
   cues: Array<number | null>
   /** BPM del otro plato con su tempo aplicado, para poder igualar. */
   otherBpm: number | null
+  /** Recorrido del fader en por ciento, como el selector de un CDJ. */
+  range: number
+  onRange: (valor: number) => void
   onMatch: () => void
   onResetTempo: () => void
   onPlayPause: () => void
@@ -26,16 +29,21 @@ export interface DeckControls {
 
 export function DeckPanel(props: DeckControls) {
   const {
-    label, track, loading, playing, position, duration, tempo, volume, cues, otherBpm,
+    label, track, loading, playing, position, duration, tempo, volume, cues, otherBpm, range,
   } = props
 
   // El tempo real al que suena ahora: es lo que hay que igualar entre platos,
   // no el BPM original del tema.
   const bpm = track?.bpm ?? null
   const sonando = bpm === null ? null : bpm * tempo
-  // Se puede igualar solo si el ajuste cabe en el +/-8% del fader.
+  // El ajuste tiene que caber en el recorrido del fader. Ojo con la asimetria:
+  // subir 10 BPM desde 118 son +8,5%, pero bajarlos desde 128 son -7,8%. Por eso
+  // el recorrido es seleccionable, igual que en un plato de verdad.
+  const limite = range / 100
   const ajuste = bpm && otherBpm ? otherBpm / bpm : null
-  const puedeIgualar = ajuste !== null && ajuste >= 0.92 && ajuste <= 1.08
+  const puedeIgualar = ajuste !== null && Math.abs(ajuste - 1) <= limite + 1e-9
+  // Cuanto haria falta, para poder explicarlo cuando no cabe
+  const necesario = ajuste === null ? null : (ajuste - 1) * 100
 
   const avance = duration > 0 ? (position / duration) * 100 : 0
   // El porcentaje de tempo es lo que se lee en un plato: 0 % es la velocidad
@@ -157,12 +165,31 @@ export function DeckPanel(props: DeckControls) {
         </span>
         <input
           type="range"
-          min={0.92}
-          max={1.08}
+          min={1 - limite}
+          max={1 + limite}
           step={0.001}
           value={tempo}
           onChange={(e) => props.onTempo(Number(e.target.value))}
         />
+        <div className="deck__range">
+          <span className="muted">Recorrido</span>
+          {[8, 16, 50].map((opcion) => (
+            <button
+              key={opcion}
+              type="button"
+              className={opcion === range ? 'rangebtn rangebtn--on' : 'rangebtn'}
+              onClick={() => props.onRange(opcion)}
+            >
+              ±{opcion}%
+            </button>
+          ))}
+          {!puedeIgualar && necesario !== null && (
+            <span className="muted deck__needed">
+              igualar pide {necesario > 0 ? '+' : ''}
+              {necesario.toFixed(1)} %
+            </span>
+          )}
+        </div>
       </label>
 
       <label className="deck__control">

@@ -20,6 +20,7 @@ interface EstadoPlato {
   duration: number
   tempo: number
   volume: number
+  range: number
   cues: Array<number | null>
 }
 
@@ -31,6 +32,7 @@ const PLATO_INICIAL: EstadoPlato = {
   duration: 0,
   tempo: 1,
   volume: 0.8,
+  range: 8,
   cues: Array(PADS).fill(null),
 }
 
@@ -202,9 +204,22 @@ export function MixerPage() {
     const propio = estados[indice].track?.bpm
     const objetivo = sonandoA(indice === 0 ? 1 : 0)
     if (!propio || !objetivo) return
-    const ratio = Math.max(0.92, Math.min(1.08, objetivo / propio))
+    const limite = estados[indice].range / 100
+    const ratio = Math.max(1 - limite, Math.min(1 + limite, objetivo / propio))
     decks.current?.[indice].setTempo(ratio)
     actualizar(indice, { tempo: ratio })
+  }
+
+  /** Cambiar el recorrido del fader no debe mover el tempo, salvo que el valor
+   *  actual se salga del nuevo rango. */
+  function cambiarRango(indice: 0 | 1, valor: number) {
+    const limite = valor / 100
+    const actual = estados[indice].tempo
+    const ajustado = Math.max(1 - limite, Math.min(1 + limite, actual))
+    if (ajustado !== actual) {
+      decks.current?.[indice].setTempo(ajustado)
+    }
+    actualizar(indice, { range: valor, tempo: ajustado })
   }
 
   const listaVisible = crateTracks ?? tracks
@@ -226,6 +241,7 @@ export function MixerPage() {
           {...estados[0]}
           otherBpm={sonandoA(1)}
           onMatch={() => igualar(0)}
+          onRange={(v) => cambiarRango(0, v)}
           onResetTempo={() => tempoOriginal(0)}
           onPlayPause={() => alternar(0)}
           onSeek={(s) => {
@@ -284,6 +300,7 @@ export function MixerPage() {
           {...estados[1]}
           otherBpm={sonandoA(0)}
           onMatch={() => igualar(1)}
+          onRange={(v) => cambiarRango(1, v)}
           onResetTempo={() => tempoOriginal(1)}
           onPlayPause={() => alternar(1)}
           onSeek={(s) => {

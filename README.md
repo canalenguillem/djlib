@@ -440,9 +440,15 @@ Decisiones tecnicas:
 
 Cada plato muestra **el BPM al que suena ahora**, con el tempo ya aplicado, y
 entre los dos se ve la diferencia. El boton "Igualar al otro plato" ajusta el
-tempo para que los dos suenen al mismo BPM, siempre que quepa en el +/-8% del
-fader; el boton "Tempo original" lo devuelve a la velocidad del tema y solo
+tempo para que los dos suenen al mismo BPM, siempre que quepa en el recorrido
+del fader; el boton "Tempo original" lo devuelve a la velocidad del tema y solo
 aparece cuando el tempo esta tocado.
+
+**El recorrido del fader es seleccionable** (+/-8, 16 o 50 %), como el de un
+CDJ. Hace falta porque el ajuste no es simetrico: entre 128 y 118 BPM hay 10 de
+diferencia, pero bajarlos desde 128 son -7,8 % y subirlos desde 118 son +8,5 %.
+Con un unico recorrido de +/-8 % un plato podia igualar al otro y el otro no, lo
+que desconcierta con razon. Cuando no cabe, se dice cuanto haria falta.
 
 **No sustituye a rekordbox ni a Mixxx**, y no lo pretende: no hay salida por
 tarjeta externa ni prescucha por auriculares.

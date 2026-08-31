@@ -1546,3 +1546,39 @@ input[type='file'] {
   border-color: var(--accent);
   color: var(--text);
 }
+
+/* Selector de recorrido del fader, como el de un CDJ */
+.deck__range {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.rangebtn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.05rem 0.45rem;
+  cursor: pointer;
+}
+
+.rangebtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.rangebtn--on {
+  background: rgba(111, 92, 255, 0.2);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.deck__needed {
+  margin-left: auto;
+}
