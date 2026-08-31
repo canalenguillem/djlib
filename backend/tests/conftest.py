@@ -156,7 +156,17 @@ class FakeDownloader:
         self.resolved_queries: list[str] = []
         self.downloaded_queries: list[str] = []
         self.searched: list[tuple[str, str | None]] = []
+        self.channel_queries: list[str] = []
         self.extension = "m4a"
+        # El canal del que subio el video: la unica documentacion que hay de
+        # quien monta un edit o un mashup.
+        self.channel = downloader.ChannelInfo(
+            name="DJ Nardini",
+            url="https://www.youtube.com/@djnardini",
+            avatar_url="https://yt3.googleusercontent.com/avatar.jpg",
+            description="Edits y transiciones para pista.",
+            follower_count=1920,
+        )
         # Lo que devuelve una busqueda: un mix largo primero, como hace YouTube
         self.results = [
             downloader.SearchResult(
@@ -183,6 +193,12 @@ class FakeDownloader:
             raise self.error
         return self.info
 
+    def channel_info(self, video_url: str):
+        self.channel_queries.append(video_url)
+        if self.error is not None:
+            raise self.error
+        return self.channel
+
     def search(self, title: str, artist: str | None):
         self.searched.append((title, artist))
         if self.error is not None:
@@ -204,6 +220,7 @@ def fake_downloader(music_dir, monkeypatch) -> FakeDownloader:
     monkeypatch.setattr(downloader, "resolve", fake.resolve)
     monkeypatch.setattr(downloader, "download", fake.download)
     monkeypatch.setattr(downloader, "search", fake.search)
+    monkeypatch.setattr(downloader, "channel_info", fake.channel_info)
     return fake
 
 
@@ -220,6 +237,7 @@ class FakeEnrichment:
                 artist_type="Group",
                 bio="Blur es un grupo britanico de rock formado en Londres en 1988.",
                 wikipedia_url="https://es.wikipedia.org/wiki/Blur",
+                image_url="https://upload.wikimedia.org/blur.jpg",
                 relations=[
                     enrichment.RelationFact("Damon Albarn", "miembros"),
                     enrichment.RelationFact("Gorillaz", "colaboracion"),

@@ -33,8 +33,9 @@ class EnrichmentStatus(str, enum.Enum):
     """Como fue la ultima consulta a las fuentes externas."""
 
     pending = "pending"      # creado, aun sin consultar
-    ok = "ok"                # se encontro y se relleno
-    not_found = "not_found"  # existe el artista pero las fuentes no lo conocen
+    ok = "ok"                # se encontro en MusicBrainz/Wikipedia
+    youtube = "youtube"      # solo se encontro su canal de YouTube
+    not_found = "not_found"  # no esta en ninguna de las fuentes
     error = "error"          # fallo de red o de la API
     manual = "manual"        # editado a mano: no se pisa automaticamente
 
@@ -59,6 +60,10 @@ class Artist(Base):
     # Foto del artista, de Wikipedia. Se guarda la URL, no la imagen: es una
     # miniatura publica y no tiene sentido duplicarla en el disco.
     image_url: Mapped[str | None] = mapped_column(String(700), nullable=True)
+    # Para los creadores de edits y mashups, su canal es toda la documentacion
+    # que hay: no aparecen en MusicBrainz ni en Wikipedia.
+    channel_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    follower_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     enrichment_status: Mapped[EnrichmentStatus] = mapped_column(
         Enum(

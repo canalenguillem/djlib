@@ -150,7 +150,13 @@ export function ArtistsPage() {
                         ? 'Consultando MusicBrainz y Wikipedia...'
                         : artist.enrichment_status === 'error'
                           ? 'No se pudieron consultar las fuentes.'
-                          : 'Sin biografia todavia.'}
+                          : artist.enrichment_status === 'youtube'
+                            ? `Canal de YouTube${
+                                artist.follower_count
+                                  ? ` · ${artist.follower_count.toLocaleString('es-ES')} suscriptores`
+                                  : ''
+                              }`
+                            : 'Sin biografia todavia.'}
                     </p>
                   )}
                 </li>

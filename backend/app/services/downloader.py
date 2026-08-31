@@ -48,6 +48,19 @@ class SearchResult:
 
 
 @dataclass(frozen=True)
+class ChannelInfo:
+    """Quien subio el video. Para los mashups, edits y transiciones es la unica
+    documentacion que existe del que los hizo: no estan en MusicBrainz ni en
+    Wikipedia, pero su canal si esta ahi."""
+
+    name: str
+    url: str
+    avatar_url: str | None
+    description: str | None
+    follower_count: int | None
+
+
+@dataclass(frozen=True)
 class MediaInfo:
     video_id: str
     title: str
@@ -271,6 +284,61 @@ def search(title: str | None, artist: str | None) -> list[SearchResult]:
             )
         )
     return resultados
+
+
+def _avatar(thumbnails: list[dict]) -> str | None:
+    """El avatar es la miniatura cuadrada; las demas son el banner, que es
+    ancho y no sirve como foto de ficha."""
+    cuadradas = [
+        t
+        for t in thumbnails
+        if t.get("url") and t.get("width") and t.get("height")
+        and abs(int(t["width"]) - int(t["height"])) <= 2
+    ]
+    if not cuadradas:
+        return None
+    return max(cuadradas, key=lambda t: int(t["width"]))["url"]
+
+
+def channel_info(video_url: str) -> ChannelInfo | None:
+    """Datos del canal que subio un video: nombre, avatar y suscriptores."""
+    datos = _candidates(_run(_base_args() + ["--dump-json", "--skip-download", video_url]))
+    if not datos:
+        return None
+    video = datos[0]
+
+    canal_url = video.get("channel_url") or video.get("uploader_url")
+    nombre = (video.get("channel") or video.get("uploader") or "").strip()
+    if not canal_url or not nombre:
+        return None
+
+    # El avatar y la descripcion no vienen en el JSON del video: hay que pedir
+    # el canal. --playlist-items 0 trae solo su ficha, sin listar los videos.
+    avatar = None
+    descripcion = None
+    seguidores = video.get("channel_follower_count")
+    try:
+        # -J (un unico objeto) y no --dump-json (una linea por video): lo que
+        # interesa son los datos del canal, y con --playlist-items 0 no hay
+        # ningun video que listar.
+        salida = _run(
+            _base_args()
+            + ["-J", "--flat-playlist", "--playlist-items", "0", canal_url]
+        )
+        canal = json.loads(salida) if salida.strip() else {}
+        avatar = _avatar(canal.get("thumbnails") or [])
+        descripcion = (canal.get("description") or "").strip() or None
+        seguidores = canal.get("channel_follower_count") or seguidores
+    except (DownloadError, ValueError) as exc:
+        logger.info("No se pudo leer el canal %s: %s", canal_url, exc)
+
+    return ChannelInfo(
+        name=nombre,
+        url=video.get("uploader_url") or canal_url,
+        avatar_url=avatar,
+        description=descripcion,
+        follower_count=int(seguidores) if seguidores else None,
+    )
 
 
 def resolve(query: str) -> MediaInfo:

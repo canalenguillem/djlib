@@ -12,8 +12,8 @@ from app.core.config import settings
 from app.core.text import slugify
 from app.core.time import utcnow
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus
-from app.models.track import Track
-from app.services import enrichment
+from app.models.track import Track, TrackStatus
+from app.services import downloader, enrichment
 from app.services.enrichment import ArtistFacts, EnrichmentError
 
 logger = logging.getLogger(__name__)
@@ -170,6 +170,48 @@ def apply_facts(db: Session, artist: Artist, facts: ArtistFacts) -> Artist:
     return artist
 
 
+def apply_channel(db: Session, artist: Artist, *, set_status: bool = True) -> bool:
+    """Respaldo para los creadores de mashups, edits y transiciones.
+
+    MusicBrainz y Wikipedia documentan artistas publicados, no a quien monta un
+    edit y lo sube a YouTube. Pero ese canal SI existe y tiene nombre, avatar y
+    suscriptores, que es exactamente la informacion que falta en esas fichas.
+    """
+    video = next(
+        (
+            t.source_url
+            for t in artist.tracks
+            if t.source_url and t.source_site == "youtube" and t.status == TrackStatus.ready
+        ),
+        None,
+    )
+    if video is None:
+        return False
+
+    try:
+        canal = downloader.channel_info(video)
+    except downloader.DownloadError as exc:
+        logger.info("No se pudo leer el canal de %s: %s", artist.name, exc)
+        return False
+    if canal is None:
+        return False
+
+    # Solo se rellena lo que este vacio: si Wikipedia dio algo, manda Wikipedia.
+    artist.image_url = artist.image_url or canal.avatar_url
+    artist.bio = artist.bio or canal.description
+    artist.channel_url = canal.url
+    artist.follower_count = canal.follower_count
+    # Cuando el canal es lo unico que hay, el estado lo refleja. Si solo se ha
+    # usado para tapar un hueco (una foto que faltaba), el estado no cambia:
+    # los datos siguen siendo de MusicBrainz.
+    if set_status:
+        artist.enrichment_status = EnrichmentStatus.youtube
+        artist.enrichment_error = None
+    artist.enriched_at = utcnow()
+    artist.updated_at = utcnow()
+    return True
+
+
 def enrich(db: Session, artist: Artist, *, force: bool = False) -> Artist:
     """Consulta las fuentes externas y actualiza la ficha."""
     if artist.enrichment_status == EnrichmentStatus.manual and not force:
@@ -188,13 +230,24 @@ def enrich(db: Session, artist: Artist, *, force: bool = False) -> Artist:
         return artist
 
     if facts is None:
+        # Las bases de datos musicales no lo conocen. Antes de darlo por
+        # perdido, se mira su canal de YouTube.
+        if apply_channel(db, artist):
+            return artist
         artist.enrichment_status = EnrichmentStatus.not_found
         artist.enrichment_error = None
         artist.enriched_at = utcnow()
         artist.updated_at = utcnow()
         return artist
 
-    return apply_facts(db, artist, facts)
+    apply_facts(db, artist, facts)
+
+    # Las bases musicales conocen a muchos artistas de los que Wikipedia no
+    # tiene articulo, y por tanto tampoco foto. Su canal de YouTube casi
+    # siempre la tiene, asi que se usa para tapar ese hueco concreto.
+    if not artist.image_url:
+        apply_channel(db, artist, set_status=False)
+    return artist
 
 
 def run_enrichment(session_factory, artist_ids: list[int]) -> None:
@@ -206,6 +259,7 @@ def run_enrichment(session_factory, artist_ids: list[int]) -> None:
                 artist = db.get(Artist, artist_id)
                 if artist is None or artist.enrichment_status in (
                     EnrichmentStatus.ok,
+                    EnrichmentStatus.youtube,
                     EnrichmentStatus.manual,
                 ):
                     continue

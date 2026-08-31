@@ -480,6 +480,18 @@ fichas antiguas de una vez:
 docker compose exec backend python -m app.cli.refresh_artists
 ```
 
+**Cuando las bases musicales no llegan, se mira el canal de YouTube.**
+MusicBrainz y Wikipedia documentan artistas publicados, no a quien monta un
+mashup, un edit o una transicion y lo sube a su canal. Pero ese canal si existe
+y tiene nombre, avatar y suscriptores, que es justo lo que falta en esas fichas.
+Se usa en dos casos: cuando las fuentes no conocen al artista (la ficha queda
+marcada como datos del canal) y cuando si lo conocen pero no hay foto, que pasa
+mucho con artistas sin articulo en Wikipedia (ahi solo tapa ese hueco y los
+datos siguen siendo de MusicBrainz).
+
+De 43 fichas: 34 con foto, 22 de canales y 12 de Wikipedia. Las 9 restantes son
+canales que ni siquiera tienen avatar propio.
+
 **Las caratulas de las canciones** se deducen del id del video de YouTube, asi
 que tampoco hay nada que guardar. Los ficheros subidos por el usuario no tienen.
 

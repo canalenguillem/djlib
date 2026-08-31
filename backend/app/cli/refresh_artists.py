@@ -38,9 +38,16 @@ def main() -> int:
             db.commit()
             if actual.image_url:
                 con_foto += 1
-                print(f"  {actual.name}: foto encontrada")
+                # El estado no basta: cuando el canal solo tapa el hueco de la
+                # foto, la ficha sigue siendo "ok" con datos de MusicBrainz.
+                origen = (
+                    "canal de YouTube"
+                    if "yt3.googleusercontent.com" in (actual.image_url or "")
+                    else "Wikipedia"
+                )
+                print(f"  {actual.name}: foto de {origen}")
             else:
-                print(f"  {actual.name}: sin foto en Wikipedia")
+                print(f"  {actual.name}: sin foto en ninguna fuente")
 
     print(f"[refresh_artists] {con_foto} fichas con foto nueva.")
     return 0

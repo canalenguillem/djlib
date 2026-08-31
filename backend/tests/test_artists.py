@@ -54,16 +54,49 @@ def test_la_ficha_se_rellena_desde_las_fuentes_externas(
     assert {r["related_name"] for r in ficha["relations"]} == {"Damon Albarn", "Gorillaz"}
 
 
-def test_artista_desconocido_para_las_fuentes(
+def test_si_las_bases_musicales_no_lo_conocen_se_mira_su_canal(
     client: TestClient, admin_user, fake_downloader, fake_enrichment
 ) -> None:
+    """Los mashups, edits y transiciones no estan en MusicBrainz ni en
+    Wikipedia, pero el canal de quien los monta si existe."""
     fake_enrichment.facts = {}  # MusicBrainz no lo encuentra
+    h = headers(client)
+    add_track(client, h)
+
+    ficha = client.get("/artists", headers=h).json()["items"][0]
+    assert ficha["enrichment_status"] == "youtube"
+    assert ficha["image_url"] == "https://yt3.googleusercontent.com/avatar.jpg"
+    assert ficha["channel_url"] == "https://www.youtube.com/@djnardini"
+    assert ficha["follower_count"] == 1920
+    assert ficha["bio"] == "Edits y transiciones para pista."
+
+
+def test_si_tampoco_hay_canal_queda_como_no_encontrado(
+    client: TestClient, admin_user, fake_downloader, fake_enrichment
+) -> None:
+    fake_enrichment.facts = {}
+    fake_downloader.channel = None
     h = headers(client)
     add_track(client, h)
 
     ficha = client.get("/artists", headers=h).json()["items"][0]
     assert ficha["enrichment_status"] == "not_found"
     assert ficha["bio"] is None
+
+
+def test_si_no_falta_nada_no_se_consulta_el_canal(
+    client: TestClient, admin_user, fake_downloader, fake_enrichment
+) -> None:
+    """Consultar el canal cuesta dos llamadas a yt-dlp: solo se hace cuando
+    hace falta tapar un hueco."""
+    h = headers(client)
+    add_track(client, h)  # Blur, que esta en las fuentes y con foto
+
+    ficha = client.get("/artists", headers=h).json()["items"][0]
+    assert ficha["enrichment_status"] == "ok"
+    assert ficha["image_url"] == "https://upload.wikimedia.org/blur.jpg"
+    assert ficha["channel_url"] is None
+    assert fake_downloader.channel_queries == []
 
 
 def test_si_falla_la_red_la_cancion_sigue_estando_lista(
@@ -258,3 +291,25 @@ def test_una_relacion_se_enlaza_cuando_el_otro_artista_aparece_despues(
 
     de_vuelta = client.get(f"/artists/{take_that['id']}", headers=h).json()["relations"]
     assert any(r["related_artist_id"] == robbie["id"] for r in de_vuelta)
+
+
+def test_el_canal_tapa_el_hueco_de_la_foto(
+    client: TestClient, admin_user, fake_downloader, fake_enrichment
+) -> None:
+    """MusicBrainz conoce a muchos artistas de los que Wikipedia no tiene
+    articulo, y por tanto tampoco foto. El canal si la tiene."""
+    fake_enrichment.facts = {
+        "Blur": fake_enrichment.facts["Blur"].__class__(
+            name="Blur", country="GB", begin_year=1988, bio="Grupo britanico.",
+        )  # encontrado, pero sin imagen
+    }
+    h = headers(client)
+    add_track(client, h)
+
+    ficha = client.get("/artists", headers=h).json()["items"][0]
+    # Los datos siguen siendo de MusicBrainz...
+    assert ficha["enrichment_status"] == "ok"
+    assert ficha["bio"] == "Grupo britanico."
+    # ...pero la foto la pone el canal
+    assert ficha["image_url"] == "https://yt3.googleusercontent.com/avatar.jpg"
+    assert ficha["follower_count"] == 1920

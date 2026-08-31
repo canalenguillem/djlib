@@ -83,7 +83,7 @@ export interface TrackFilters {
   sort?: TrackSort
 }
 
-export type EnrichmentStatus = 'pending' | 'ok' | 'not_found' | 'error' | 'manual'
+export type EnrichmentStatus = 'pending' | 'ok' | 'youtube' | 'not_found' | 'error' | 'manual'
 
 export interface ArtistBrief {
   id: number
@@ -110,6 +110,8 @@ export interface Artist {
   musicbrainz_id: string | null
   wikipedia_url: string | null
   image_url: string | null
+  channel_url: string | null
+  follower_count: number | null
   enrichment_status: EnrichmentStatus
   enrichment_error: string | null
   enriched_at: string | null

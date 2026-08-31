@@ -38,6 +38,8 @@ class ArtistOut(BaseModel):
     musicbrainz_id: str | None = None
     wikipedia_url: str | None = None
     image_url: str | None = None
+    channel_url: str | None = None
+    follower_count: int | None = None
     enrichment_status: EnrichmentStatus
     enrichment_error: str | None = None
     enriched_at: datetime | None = None

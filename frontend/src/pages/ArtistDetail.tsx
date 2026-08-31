@@ -13,6 +13,7 @@ import type { Artist, EnrichmentStatus, Track } from '../types/api'
 const STATUS_TEXT: Record<EnrichmentStatus, string> = {
   pending: 'Consultando MusicBrainz y Wikipedia...',
   ok: 'Datos de MusicBrainz y Wikipedia',
+  youtube: 'Datos del canal de YouTube: las bases musicales no lo tienen',
   not_found: 'Las fuentes externas no lo conocen',
   error: 'Fallo al consultar las fuentes',
   manual: 'Ficha editada a mano',
@@ -163,6 +164,12 @@ export function ArtistDetailPage() {
                 <dd>{years}</dd>
               </div>
             )}
+            {artist.follower_count !== null && (
+              <div>
+                <dt>Suscriptores</dt>
+                <dd>{artist.follower_count.toLocaleString('es-ES')}</dd>
+              </div>
+            )}
             {artist.artist_type && (
               <div>
                 <dt>Tipo</dt>
@@ -280,6 +287,14 @@ export function ArtistDetailPage() {
                   {' · '}
                   <a href={artist.wikipedia_url} target="_blank" rel="noreferrer">
                     Wikipedia
+                  </a>
+                </>
+              )}
+              {artist.channel_url && (
+                <>
+                  {' · '}
+                  <a href={artist.channel_url} target="_blank" rel="noreferrer">
+                    Canal de YouTube
                   </a>
                 </>
               )}
