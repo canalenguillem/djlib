@@ -189,6 +189,10 @@ asignar en medio; se emula con una clave de orden previa.
 columna de energía y además el `Index` explícito en `__table_args__`, y
 `create_all` intentaba crearlo dos veces: 147 tests en error por una línea.
 
+**`docker compose restart` no relee el `.env`.** Reutiliza el contenedor con el
+entorno que tenía, así que una clave nueva no llega. Hace falta
+`up -d --force-recreate`. Cuesta un rato de desconcierto la primera vez.
+
 **Los tests salían a internet.** Los de biblioteca no sustituían el enriquecido
 de artistas, así que cada uno consultaba MusicBrainz de verdad. Eso, más
 recrear el esquema de la base de datos en cada test, tenía la suite en 250

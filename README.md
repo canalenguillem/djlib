@@ -433,6 +433,27 @@ Necesita una clave de OpenAI en `OPENAI_API_KEY` y un modelo con vision en
 `GET /recognize/status`, igual que hace con el microfono. Las dos cosas son
 independientes: se puede tener una sin la otra.
 
+Probado con una captura que imita la lista de Shazam, con cuatro canciones,
+acentos, y una cabecera que dice "3 canciones" para ver si el modelo cuenta lo
+que ve o se cree el texto. Los cuatro modelos probados acertaron:
+
+| modelo | tiempo | resultado |
+| --- | --- | --- |
+| gpt-4o-mini | 2,6 s | 4 de 4 |
+| gpt-4.1-mini | 2,2 s | 4 de 4 |
+| gpt-5-mini | 5,5 s | 4 de 4 |
+| gpt-5-nano | 4,9 s | 4 de 4 |
+
+Se deja `gpt-4o-mini` por defecto, que es el mas barato. Si con capturas reales
+se atasca, subir a `gpt-4.1-mini` o `gpt-5-mini` es cambiar una linea del `.env`.
+
+**Cuidado al cambiar cualquier variable del `.env`**: `docker compose restart`
+reutiliza el contenedor con su entorno anterior y no la lee. Hay que recrearlo:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --force-recreate backend
+```
+
 ## Fichas de artista
 
 Al descargar una cancion se crea sola la ficha de su artista y se rellena
