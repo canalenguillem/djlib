@@ -16,7 +16,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
-from app.services import downloader, enrichment, recognition, user_service
+from app.services import downloader, enrichment, recognition, screenshot, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
@@ -292,4 +292,31 @@ def fake_recognition(monkeypatch) -> FakeRecognition:
     monkeypatch.setattr(recognition, "recognize", fake.recognize)
     monkeypatch.setattr(settings, "recognition_provider", "audd")
     monkeypatch.setattr(settings, "recognition_api_key", "clave-de-prueba")
+    return fake
+
+
+class FakeScreenshot:
+    """Sustituye al modelo de vision de OpenAI."""
+
+    def __init__(self) -> None:
+        self.songs = [
+            screenshot.DetectedSong(title="Song 2", artist="Blur"),
+            screenshot.DetectedSong(title="Parklife", artist="Blur"),
+            screenshot.DetectedSong(title="Sin artista", artist=None),
+        ]
+        self.error: Exception | None = None
+        self.recibido: list[tuple[int, str]] = []  # (tamano, tipo mime)
+
+    def extract_songs(self, image: bytes, mime_type: str = "image/png"):
+        self.recibido.append((len(image), mime_type))
+        if self.error is not None:
+            raise self.error
+        return self.songs
+
+
+@pytest.fixture
+def fake_screenshot(monkeypatch) -> FakeScreenshot:
+    fake = FakeScreenshot()
+    monkeypatch.setattr(screenshot, "extract_songs", fake.extract_songs)
+    monkeypatch.setattr(settings, "openai_api_key", "clave-de-prueba")
     return fake

@@ -143,6 +143,16 @@ export interface SearchResults {
 export interface RecognitionStatus {
   enabled: boolean
   provider: string | null
+  screenshot_enabled: boolean
+}
+
+export interface DetectedSong {
+  title: string
+  artist: string | null
+}
+
+export interface ScreenshotResult {
+  songs: DetectedSong[]
 }
 
 export interface RecognitionResult {

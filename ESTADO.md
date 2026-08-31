@@ -17,17 +17,17 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 147, en ~10 segundos |
+| Tests | 165, en ~10 segundos |
 | Migraciones | 5 |
-| Endpoints | 45 |
-| Commits | 18 |
+| Endpoints | 46 |
+| Commits | 19 |
 
 ## Lo que hace
 
 Todo el MVP del briefing salvo el análisis de BPM, más varias cosas que
 salieron de usarlo de verdad.
 
-**Tres vías de ingesta**, las tres desembocando en el mismo pipeline de
+**Cuatro vías de ingesta**, las tres desembocando en el mismo pipeline de
 descarga:
 
 0. **Fichero propio** subido desde el ordenador: compras de Bandcamp o
@@ -39,6 +39,8 @@ descarga:
    su catálogo.
 3. **Reconocimiento de audio**: grabas 11 segundos de lo que suena, AudD lo
    identifica y ofrece las versiones de YouTube para elegir.
+4. **Captura de pantalla**: subes una imagen (la lista de Shazam, por ejemplo) y
+   un modelo de visión extrae las canciones, para no teclearlas una a una.
 
 **Biblioteca**: listado con búsqueda, filtrado combinado por etiquetas
 (mood / estilo / momento de la noche), reproductor, descarga del mp3 y borrado.
@@ -194,7 +196,7 @@ segundos. Ahora son 6.
 
 ## Pruebas
 
-147 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
+165 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
 dobles. Corren contra una base MariaDB aparte, no contra SQLite, para probar el
 mismo motor que producción.
 

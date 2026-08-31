@@ -71,6 +71,14 @@ class Settings(BaseSettings):
     # tiene que dar sitio a los formatos sin perdida que compra un DJ.
     upload_max_bytes: int = 200 * 1024 * 1024
 
+    # --- Lectura de capturas de pantalla (OpenAI) ---
+    openai_api_key: str = ""
+    # Tiene que ser un modelo con vision. Se deja configurable porque el
+    # catalogo de OpenAI cambia y no todas las cuentas tienen los mismos.
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout_seconds: int = 90
+    screenshot_max_bytes: int = 20 * 1024 * 1024
+
     # --- Reconocimiento de audio ---
     recognition_provider: str = ""  # "audd" | vacio = desactivado
     recognition_api_key: str = ""

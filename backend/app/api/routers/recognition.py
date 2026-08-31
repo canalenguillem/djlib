@@ -4,11 +4,17 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.config import settings
-from app.schemas.recognition import RecognitionResult, RecognitionStatus
+from app.schemas.recognition import (
+    DetectedSong,
+    RecognitionResult,
+    RecognitionStatus,
+    ScreenshotResult,
+)
 from app.schemas.track import SearchCandidate
-from app.services import downloader, recognition, track_service
+from app.services import downloader, recognition, screenshot, track_service
 from app.services.downloader import DownloadError
 from app.services.recognition import RecognitionError, RecognitionNotConfigured
+from app.services.screenshot import ScreenshotError, ScreenshotNotConfigured
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +27,7 @@ def recognition_status(current_user: CurrentUser) -> RecognitionStatus:
     return RecognitionStatus(
         enabled=habilitado,
         provider=recognition.provider_name() if habilitado else None,
+        screenshot_enabled=screenshot.is_enabled(),
     )
 
 
@@ -98,4 +105,66 @@ def recognize_audio(
         release_date=encontrada.release_date,
         song_link=encontrada.song_link,
         candidates=candidatos,
+    )
+
+
+# Formatos que admite la API de vision de OpenAI.
+IMAGENES_ADMITIDAS = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+
+
+@router.post("/screenshot", response_model=ScreenshotResult)
+def recognize_screenshot(
+    current_user: CurrentUser,
+    image: UploadFile = File(..., description="Captura con canciones visibles"),
+) -> ScreenshotResult:
+    """Lee las canciones que aparecen en una captura de pantalla.
+
+    Pensado para la lista de Shazam: si lo dejas identificando solo durante la
+    noche, al dia siguiente subes la captura y salen todas de una vez, en vez
+    de teclearlas una por una.
+    """
+    if not screenshot.is_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="La lectura de capturas no esta configurada en el servidor.",
+        )
+
+    tipo = (image.content_type or "").split(";")[0].strip().lower()
+    if tipo not in IMAGENES_ADMITIDAS:
+        admitidos = ", ".join(sorted(e.lstrip(".") for e in IMAGENES_ADMITIDAS.values()))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Formato de imagen no admitido. Se aceptan: {admitidos}.",
+        )
+
+    contenido = image.file.read(settings.screenshot_max_bytes + 1)
+    if len(contenido) > settings.screenshot_max_bytes:
+        limite = settings.screenshot_max_bytes // (1024 * 1024)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"La imagen supera el limite de {limite} MB.",
+        )
+    if not contenido:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="La imagen esta vacia."
+        )
+
+    try:
+        canciones = screenshot.extract_songs(contenido, tipo)
+    except ScreenshotNotConfigured as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)
+        ) from exc
+    except ScreenshotError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+
+    return ScreenshotResult(
+        songs=[DetectedSong(title=c.title, artist=c.artist) for c in canciones]
     )

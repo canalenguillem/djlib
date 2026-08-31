@@ -31,8 +31,12 @@ def test_reconocer_requiere_sesion(client: TestClient) -> None:
 def test_el_estado_dice_si_esta_configurado(
     client: TestClient, admin_user, fake_recognition
 ) -> None:
-    respuesta = client.get("/recognize/status", headers=headers(client))
-    assert respuesta.json() == {"enabled": True, "provider": "audd"}
+    """Grabar y leer capturas dependen de claves distintas, y el estado informa
+    de cada una por separado para que el frontend ofrezca solo lo que hay."""
+    estado = client.get("/recognize/status", headers=headers(client)).json()
+    assert estado["enabled"] is True
+    assert estado["provider"] == "audd"
+    assert "screenshot_enabled" in estado
 
 
 def test_sin_clave_configurada_se_avisa(client: TestClient, admin_user, monkeypatch) -> None:

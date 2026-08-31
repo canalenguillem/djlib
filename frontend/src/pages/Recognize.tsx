@@ -5,6 +5,7 @@ import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
+import { ScreenshotReader } from '../components/ScreenshotReader'
 import { SearchCandidates } from '../components/SearchCandidates'
 import { RecorderError, SILENCE_THRESHOLD, checkSupport, record } from '../lib/recorder'
 import type { RecognitionResult, SearchCandidate } from '../types/api'
@@ -20,6 +21,7 @@ type Phase = 'idle' | 'recording' | 'identifying' | 'done'
 
 export function RecognizePage() {
   const [available, setAvailable] = useState<boolean | null>(null)
+  const [screenshotAvailable, setScreenshotAvailable] = useState(false)
   const [support, setSupport] = useState<RecorderError | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [elapsed, setElapsed] = useState(0)
@@ -44,7 +46,10 @@ export function RecognizePage() {
   useEffect(() => {
     recognitionApi
       .getRecognitionStatus()
-      .then((estado) => setAvailable(estado.enabled))
+      .then((estado) => {
+        setAvailable(estado.enabled)
+        setScreenshotAvailable(estado.screenshot_enabled)
+      })
       .catch(() => setAvailable(false))
     setSupport(checkSupport())
   }, [])
@@ -142,9 +147,10 @@ export function RecognizePage() {
       <div className="stack">
         <h1>Reconocer</h1>
         <Alert kind="info">
-          El reconocimiento de audio no esta configurado en el servidor. Hace falta
-          una clave de AudD en <code>RECOGNITION_API_KEY</code>.
+          El reconocimiento por microfono no esta configurado. Hace falta una clave
+          de AudD en <code>RECOGNITION_API_KEY</code>.
         </Alert>
+        {screenshotAvailable && <ScreenshotReader />}
       </div>
     )
   }
@@ -236,6 +242,8 @@ export function RecognizePage() {
           </button>
         </section>
       )}
+
+      {screenshotAvailable && <ScreenshotReader />}
 
       {result?.recognized && (
         <section className="card">

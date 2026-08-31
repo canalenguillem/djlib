@@ -1174,3 +1174,27 @@ input[type='file'] {
   padding: 0.4rem;
   cursor: pointer;
 }
+
+/* --- Canciones leidas de una captura -------------------------------------- */
+.detected {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detected__item {
+  border-top: 1px solid var(--border);
+  padding: 0.6rem 0;
+}
+
+.detected__item:first-child {
+  border-top: none;
+}
+
+.detected__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}

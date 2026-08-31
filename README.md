@@ -298,6 +298,7 @@ Biblioteca (todo requiere sesion):
 | PUT | `/crates/{id}/order` | Fijar el orden mandando la lista completa |
 | GET | `/recognize/status` | Si el servidor tiene el reconocimiento configurado |
 | POST | `/recognize` | Identifica un fragmento de audio y devuelve candidatos |
+| POST | `/recognize/screenshot` | Extrae las canciones que se lean en una imagen |
 | GET | `/tags` | Catalogo, filtrable por `kind` |
 | POST | `/tags` | Crear etiqueta (`mood`, `style` o `moment`) |
 | PATCH | `/tags/{id}` | Renombrar |
@@ -415,6 +416,22 @@ para pinchar.
 /crates/{id}/order` con la lista completa). Asi dos reordenaciones seguidas no
 pueden dejar el crate en un estado a medias, y el frontend puede pintar el
 cambio al instante y deshacerlo si el servidor lo rechaza.
+
+## Leer capturas de pantalla
+
+Se puede subir una captura y extraer de ella las canciones que se lean. El caso
+para el que esta pensado: dejar **Shazam identificando solo** durante la noche y
+al dia siguiente subir la captura de la lista, en vez de teclear diez canciones
+a mano. Cada una lleva su boton para buscarla en YouTube y elegir version, igual
+que en el resto de la aplicacion.
+
+Vale para cualquier captura donde se lean titulos, no solo para Shazam. En el
+ordenador se puede **pegar con Ctrl+V** sin pasar por guardar la imagen.
+
+Necesita una clave de OpenAI en `OPENAI_API_KEY` y un modelo con vision en
+`OPENAI_MODEL`. **Sin clave, la seccion no aparece**: el frontend lo consulta en
+`GET /recognize/status`, igual que hace con el microfono. Las dos cosas son
+independientes: se puede tener una sin la otra.
 
 ## Fichas de artista
 
