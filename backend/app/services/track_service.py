@@ -261,6 +261,14 @@ def run_download(session_factory, track_id: int) -> None:
     if pending_ids:
         artist_service.run_enrichment(session_factory, pending_ids)
 
+    # Los generos llegan con el enriquecido, asi que las etiquetas de estilo se
+    # ponen despues, no antes.
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is not None:
+            artist_service.apply_style_tags(db, track)
+            db.commit()
+
     analyze_bpm(session_factory, track_id)
 
 

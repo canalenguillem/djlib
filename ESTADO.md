@@ -17,10 +17,10 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 185, en ~13 segundos |
-| Migraciones | 8 |
+| Tests | 193, en ~15 segundos |
+| Migraciones | 9 |
 | Endpoints | 46 |
-| Commits | 24 |
+| Commits | 26 |
 
 ## Lo que hace
 
@@ -51,6 +51,9 @@ Para los creadores de mashups y edits, que no están en ninguna base musical, se
 usa su canal de YouTube: avatar, enlace y suscriptores. Sus canciones se
 escuchan desde la propia ficha, que ademas enlaza a Bandcamp, SoundCloud,
 Discogs y su web, y permite buscar mas temas suyos en YouTube. Editable a mano.
+
+**Estilos automáticos**: al descargar, la canción hereda los géneros de su
+artista desde MusicBrainz, convertidos en etiquetas del catálogo de estilo.
 
 **Energía 1-5**: intensidad por canción, filtrable y ordenable, para montar la
 curva de una noche. No es una nota de calidad, y por eso son puntos y no

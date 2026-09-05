@@ -68,6 +68,9 @@ class Artist(Base):
     # Enlaces externos utiles para descubrir mas musica suya: Bandcamp,
     # SoundCloud, su web, Discogs. Vienen de MusicBrainz.
     links: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Generos de MusicBrainz, ordenados por votos. De aqui salen las etiquetas
+    # de estilo de sus canciones.
+    genres: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     enrichment_status: Mapped[EnrichmentStatus] = mapped_column(
         Enum(

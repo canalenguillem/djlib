@@ -214,6 +214,12 @@ export function ArtistDetailPage() {
                 <dd>{years}</dd>
               </div>
             )}
+            {artist.genres.length > 0 && (
+              <div>
+                <dt>Estilos</dt>
+                <dd>{artist.genres.slice(0, 4).join(', ')}</dd>
+              </div>
+            )}
             {artist.follower_count !== null && (
               <div>
                 <dt>Suscriptores</dt>

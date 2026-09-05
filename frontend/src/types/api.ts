@@ -115,6 +115,7 @@ export interface Artist {
   channel_url: string | null
   follower_count: number | null
   links: Record<string, string>
+  genres: string[]
   enrichment_status: EnrichmentStatus
   enrichment_error: string | null
   enriched_at: string | null

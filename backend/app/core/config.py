@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     enrichment_user_agent: str = "DJLibrary/0.3 (self-hosted; https://github.com/canalenguillem/djlib)"
     enrichment_timeout_seconds: int = 15
     wikipedia_lang: str = "es"
+    # Etiquetar las canciones con los generos de su artista al descargarlas.
+    auto_style_tags: bool = True
+    # Cuantos generos se convierten en etiqueta. Mas de tres empieza a ser
+    # ruido: "latin", "latin pop", "latin urban" no anaden nada util.
+    max_genres_per_artist: int = 3
 
     # Un wav de cuatro minutos ronda los 40 MB, y un aiff parecido: el tope
     # tiene que dar sitio a los formatos sin perdida que compra un DJ.

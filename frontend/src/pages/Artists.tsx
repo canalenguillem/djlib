@@ -8,7 +8,12 @@ import { Loading } from '../components/Loading'
 import type { Artist } from '../types/api'
 
 function origin(artist: Artist): string {
-  const parts = [artist.country, artist.begin_year ? `desde ${artist.begin_year}` : null]
+  // El estilo primero: buscando musica para un set dice mas que el pais
+  const parts = [
+    artist.genres?.[0],
+    artist.country,
+    artist.begin_year ? `desde ${artist.begin_year}` : null,
+  ]
   return parts.filter(Boolean).join(' · ') || 'sin datos'
 }
 

@@ -40,7 +40,13 @@ class ArtistOut(BaseModel):
     image_url: str | None = None
     channel_url: str | None = None
     follower_count: int | None = None
+    genres: list[str] = Field(default_factory=list)
     links: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("genres", mode="before")
+    @classmethod
+    def sin_generos_es_lista_vacia(cls, valor):
+        return valor or []
 
     @field_validator("links", mode="before")
     @classmethod

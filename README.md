@@ -388,6 +388,34 @@ de pico, y `?sort=energy_asc` ordena de menos a mas para construir la subida.
 Las canciones sin energia asignada quedan siempre al final (MariaDB no admite
 `NULLS LAST`, asi que se emula con una clave de orden previa).
 
+## Clasificacion automatica por estilo
+
+Al descargar una cancion se le ponen las etiquetas de estilo de su artista,
+sacadas de los **generos de MusicBrainz**, que vienen en la misma llamada que ya
+se hace para la ficha y no cuestan ninguna peticion extra. Si el artista no
+tiene generos asignados se cae a sus etiquetas libres, mas ruidosas pero con
+mejor cobertura.
+
+Se toman los tres generos mas votados (`MAX_GENRES_PER_ARTIST`) y se crean como
+etiquetas normales del catalogo, asi que se pueden renombrar o borrar a mano.
+**No se toca una cancion que ya tenga alguna etiqueta de estilo**: lo que decide
+el usuario manda sobre lo que diga MusicBrainz.
+
+Para las canciones anteriores:
+
+```bash
+docker compose exec backend python -m app.cli.apply_styles
+```
+
+Sobre la biblioteca real etiqueto 39 canciones y dejo 35 estilos en el
+catalogo. La cobertura tiene el hueco de siempre: 27 de 92 artistas tienen
+generos en MusicBrainz; los canales de edits y mashups no estan.
+
+**Ojo con los falsos positivos**: la busqueda es por nombre, asi que un artista
+con nombre corto puede casar con otro. "MAGNET" se resolvio como Monster Magnet
+y sus canciones salieron como *Stoner Rock*. Se corrige quitando la etiqueta a
+mano.
+
 ## Tempo (BPM)
 
 Cada cancion se mide al descargarla. Se usa **soundstretch** (SoundTouch), que

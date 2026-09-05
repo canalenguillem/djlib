@@ -99,6 +99,9 @@ class ArtistFacts:
     bio: str | None = None
     wikipedia_url: str | None = None
     image_url: str | None = None
+    # Generos ordenados por votos de la comunidad de MusicBrainz. El primero
+    # es el que mejor describe al artista.
+    genres: list[str] = field(default_factory=list)
     links: dict[str, str] = field(default_factory=dict)
     relations: list[RelationFact] = field(default_factory=list)
 
@@ -184,9 +187,29 @@ def _search_musicbrainz(name: str) -> dict | None:
 def _artist_details(mbid: str) -> dict:
     return _get_json(
         f"{settings.musicbrainz_base_url}/artist/{mbid}",
-        {"inc": "artist-rels url-rels", "fmt": "json"},
+        # Los generos vienen en la misma llamada que las relaciones: no cuesta
+        # ninguna peticion extra.
+        {"inc": "artist-rels url-rels genres tags", "fmt": "json"},
         throttle=True,
     )
+
+
+def _genres_from(details: dict) -> list[str]:
+    """Los generos que mas votos tienen, en orden.
+
+    Si el artista no tiene generos asignados se cae a las etiquetas libres, que
+    son mas ruidosas pero cubren a artistas menos documentados.
+    """
+    votados = sorted(
+        (g for g in (details.get("genres") or []) if g.get("name")),
+        key=lambda g: -(g.get("count") or 0),
+    )
+    if not votados:
+        votados = sorted(
+            (t for t in (details.get("tags") or []) if t.get("name")),
+            key=lambda t: -(t.get("count") or 0),
+        )
+    return [g["name"].strip().lower() for g in votados if g.get("name")]
 
 
 def _relations_from(
@@ -349,6 +372,7 @@ def lookup(name: str) -> ArtistFacts | None:
         return None
 
     relations, wikidata_from_mb, enlaces = _relations_from(details)
+    generos = _genres_from(details)
     wikidata_id = wikidata_id or wikidata_from_mb
     life_span = details.get("life-span") or {}
 
@@ -372,6 +396,7 @@ def lookup(name: str) -> ArtistFacts | None:
         bio=bio,
         wikipedia_url=wikipedia_url,
         image_url=image_url,
+        genres=generos,
         links=enlaces,
         relations=relations,
     )

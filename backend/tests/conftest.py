@@ -243,6 +243,7 @@ class FakeEnrichment:
                     "bandcamp": "https://blur.bandcamp.com/",
                     "official homepage": "https://blur.co.uk/",
                 },
+                genres=["britpop", "alternative rock", "indie rock", "art rock"],
                 relations=[
                     enrichment.RelationFact("Damon Albarn", "miembros"),
                     enrichment.RelationFact("Gorillaz", "colaboracion"),

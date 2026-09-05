@@ -12,8 +12,9 @@ from app.core.config import settings
 from app.core.text import slugify
 from app.core.time import utcnow
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus
+from app.models.tag import Tag, TagKind
 from app.models.track import Track, TrackStatus
-from app.services import downloader, enrichment
+from app.services import downloader, enrichment, tag_service
 from app.services.enrichment import ArtistFacts, EnrichmentError
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,73 @@ def split_artist_names(artist_text: str | None) -> list[str]:
         seen.add(key)
         names.append(part)
     return names
+
+
+# Siglas que .title() dejaria mal: "Edm", "Idm", "Dnb"...
+SIGLAS = {"edm", "idm", "dnb", "ukg", "nrg", "r&b", "uk", "us", "hi-nrg", "adhd"}
+
+
+def genre_label(genero: str) -> str:
+    """"r&b" -> "R&B", "electro house" -> "Electro House", "edm" -> "EDM"."""
+    palabras = []
+    for palabra in genero.split():
+        if palabra.lower() in SIGLAS:
+            palabras.append(palabra.upper())
+        else:
+            palabras.append(palabra.title())
+    return " ".join(palabras)
+
+
+def style_tags_for(db: Session, artist: Artist) -> list[Tag]:
+    """Convierte los generos del artista en etiquetas de estilo.
+
+    Se crean en el catalogo como cualquier otra etiqueta, asi que despues se
+    pueden renombrar o borrar a mano igual que las que escribe el usuario.
+    """
+    etiquetas: list[Tag] = []
+    for genero in (artist.genres or [])[: settings.max_genres_per_artist]:
+        nombre = genero.strip()
+        if not nombre:
+            continue
+        slug = slugify(nombre)
+        if not slug:
+            continue
+        etiqueta = tag_service.get_by_slug(db, TagKind.style, slug)
+        if etiqueta is None:
+            try:
+                etiqueta = tag_service.create_tag(
+                    db, kind=TagKind.style, name=genre_label(nombre)
+                )
+            except tag_service.TagError:
+                continue
+        etiquetas.append(etiqueta)
+    return etiquetas
+
+
+def apply_style_tags(db: Session, track: Track) -> list[Tag]:
+    """Etiqueta una cancion con los estilos de sus artistas.
+
+    Solo actua si la cancion no tiene ya alguna etiqueta de estilo: lo que haya
+    puesto el usuario manda sobre lo que diga MusicBrainz.
+    """
+    if not settings.auto_style_tags:
+        return []
+    if any(t.kind == TagKind.style for t in track.tags):
+        return []
+
+    nuevas: list[Tag] = []
+    vistas: set[int] = set()
+    for artist in track.artists:
+        for etiqueta in style_tags_for(db, artist):
+            if etiqueta.id not in vistas:
+                vistas.add(etiqueta.id)
+                nuevas.append(etiqueta)
+    # Con varios artistas se acumulaban hasta seis estilos por cancion, que ya
+    # no clasifica nada. Se corta en el mismo tope que por artista.
+    nuevas = nuevas[: settings.max_genres_per_artist]
+    if nuevas:
+        track.tags = [*track.tags, *nuevas]
+    return nuevas
 
 
 def get_by_id(db: Session, artist_id: int) -> Artist | None:
@@ -146,6 +214,8 @@ def apply_facts(db: Session, artist: Artist, facts: ArtistFacts) -> Artist:
     artist.image_url = artist.image_url or facts.image_url
     if facts.links:
         artist.links = {**(artist.links or {}), **facts.links}
+    if facts.genres:
+        artist.genres = facts.genres
 
     existing = {(r.related_name.lower(), r.relation_type) for r in artist.relations}
     for relation in facts.relations:
