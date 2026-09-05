@@ -45,6 +45,20 @@ def _access_token(db, cuenta: SpotifyAccount) -> str:
 @router.get("/status", response_model=SpotifyStatus)
 def spotify_status(current_user: CurrentUser, db: DbSession) -> SpotifyStatus:
     cuenta = _cuenta(db, current_user.id)
+
+    # Si al conectar no se pudo leer el perfil (pasa si la cuenta aun no estaba
+    # dada de alta en la app), se reintenta ahora. Ver que cuenta es de verdad
+    # importa: es lo que delata haber autorizado la equivocada.
+    if cuenta is not None and not cuenta.display_name:
+        try:
+            perfil = spotify._get("/me", _access_token(db, cuenta))
+            cuenta.display_name = perfil.get("display_name") or perfil.get("id")
+            cuenta.spotify_user_id = perfil.get("id")
+            cuenta.updated_at = utcnow()
+            db.commit()
+        except SpotifyError as exc:
+            logger.info("No se pudo leer el perfil de Spotify: %s", exc)
+
     return SpotifyStatus(
         enabled=spotify.is_enabled(),
         connected=cuenta is not None,

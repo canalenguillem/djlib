@@ -176,7 +176,13 @@ export function SpotifyPage() {
         <section className="card">
           <h2>Ultimas reproducciones</h2>
           {played.length === 0 ? (
-            <p className="muted">Spotify no ha devuelto reproducciones recientes.</p>
+            <Alert kind="info">
+              Spotify no ha devuelto ninguna reproduccion para esta cuenta. Suele
+              significar que no es la cuenta en la que escuchas musica: comprueba el
+              nombre de arriba, y si no es la tuya, desconecta y vuelve a conectar
+              con la correcta. Tambien sale vacio si no has escuchado nada en Spotify
+              ultimamente, porque solo cuenta lo reproducido en la propia aplicacion.
+            </Alert>
           ) : (
             <ul className="detected">
               {played.map((cancion, indice) => (
