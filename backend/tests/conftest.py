@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.main import app as fastapi_app
 from app.models.user import User, UserRole
 from app.services import bpm as bpm_service
+from app.services import spotify as spotify_service
 from app.services import downloader, enrichment, recognition, screenshot, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
@@ -365,3 +366,58 @@ def fake_bpm(monkeypatch) -> FakeBpm:
     fake = FakeBpm()
     monkeypatch.setattr(bpm_service, "analyze", fake.analyze)
     return fake
+
+
+class FakeSpotify:
+    """Sustituye a Spotify: ni red ni credenciales."""
+
+    def __init__(self) -> None:
+        self.genres: dict[str, list[str]] = {"Rels B": ["urbano latino", "trap latino"]}
+        self.played = [
+            spotify_service.PlayedTrack(
+                title="Song 2", artist="Blur", album="Blur",
+                played_at="2026-08-31T22:10:00Z",
+                spotify_url="https://open.spotify.com/track/abc",
+                image_url="https://i.scdn.co/image/abc",
+            ),
+            spotify_service.PlayedTrack(
+                title="Parklife", artist="Blur", album="Parklife",
+                played_at="2026-08-31T22:05:00Z", spotify_url=None, image_url=None,
+            ),
+        ]
+        self.error: Exception | None = None
+        self.consultados: list[str] = []
+
+    def artist_genres(self, nombre: str) -> list[str]:
+        self.consultados.append(nombre)
+        if self.error is not None:
+            raise self.error
+        return self.genres.get(nombre, [])
+
+    def recently_played(self, token, limit=None):
+        if self.error is not None:
+            raise self.error
+        return self.played
+
+
+@pytest.fixture
+def fake_spotify(monkeypatch) -> FakeSpotify:
+    fake = FakeSpotify()
+    monkeypatch.setattr(spotify_service, "artist_genres", fake.artist_genres)
+    monkeypatch.setattr(spotify_service, "recently_played", fake.recently_played)
+    monkeypatch.setattr(settings, "spotify_client_id", "id-de-prueba")
+    monkeypatch.setattr(settings, "spotify_client_secret", "secreto")
+    monkeypatch.setattr(
+        settings, "spotify_redirect_uri", "https://ejemplo/api/spotify/callback"
+    )
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def spotify_apagado(monkeypatch, request):
+    """Por defecto Spotify esta desconfigurado en los tests, para que el
+    respaldo de generos no salga a la red sin querer."""
+    if "fake_spotify" in request.fixturenames:
+        return
+    monkeypatch.setattr(settings, "spotify_client_id", "")
+    monkeypatch.setattr(settings, "spotify_client_secret", "")

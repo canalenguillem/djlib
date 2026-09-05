@@ -4,7 +4,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routers import artists, auth, crates, recognition, tags, tracks, users
+from app.api.routers import (
+    artists,
+    auth,
+    crates,
+    recognition,
+    spotify,
+    tags,
+    tracks,
+    users,
+)
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -26,7 +35,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DJ Library API",
-    version="0.5.0",
+    version="0.6.0",
     description="Autenticacion, usuarios, biblioteca, artistas, reconocimiento y crates.",
     root_path=settings.api_root_path,
     lifespan=lifespan,
@@ -50,6 +59,7 @@ app.include_router(tracks.router)
 app.include_router(crates.router)
 app.include_router(artists.router)
 app.include_router(recognition.router)
+app.include_router(spotify.router)
 app.include_router(tags.router)
 
 

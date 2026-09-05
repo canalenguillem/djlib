@@ -17,10 +17,10 @@ relaciones entre artistas.
 | --- | --- |
 | Backend | 58 ficheros Python, ~5.500 líneas |
 | Frontend | 37 ficheros, ~4.200 líneas |
-| Tests | 193, en ~15 segundos |
-| Migraciones | 9 |
+| Tests | 208, en ~15 segundos |
+| Migraciones | 10 |
 | Endpoints | 46 |
-| Commits | 26 |
+| Commits | 27 |
 
 ## Lo que hace
 
@@ -70,6 +70,9 @@ horquilla y orden. Medidos 45 de 52 en la biblioteca real.
 tempos,, pads de cue, tempo y volumen,
 para practicar transiciones desde la propia biblioteca. Es una herramienta de
 preparación, no de directo.
+
+**Spotify**: importa lo ultimo escuchado para buscarlo en YouTube, y sus géneros
+rellenan las fichas de artista que MusicBrainz no cataloga.
 
 **Usuarios**: login con JWT, roles admin y user, alta y gestión desde el panel.
 
@@ -210,6 +213,10 @@ entorno que tenía, así que una clave nueva no llega. Hace falta
 **InnoDB trabaja en REPEATABLE READ.** Tras analizar el tempo desde otra sesión,
 la de la petición seguía viendo su instantánea anterior y devolvía el valor
 viejo. Hay que cerrar la transacción antes de releer.
+
+**Dos tests escribían en la base de datos real.** Importaban `SessionLocal` de
+`app.db.session` en vez de la de conftest, así que operaban sobre producción y
+pasaban por accidente al encontrar allí filas con el mismo id.
 
 **Los tests salían a internet.** Los de biblioteca no sustituían el enriquecido
 de artistas, así que cada uno consultaba MusicBrainz de verdad. Eso, más

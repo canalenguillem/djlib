@@ -94,6 +94,14 @@ class Settings(BaseSettings):
     openai_timeout_seconds: int = 90
     screenshot_max_bytes: int = 20 * 1024 * 1024
 
+    # --- Spotify ---
+    spotify_client_id: str = ""
+    spotify_client_secret: str = ""
+    spotify_redirect_uri: str = ""
+    spotify_timeout_seconds: int = 20
+    # Cuantas reproducciones recientes se piden (el maximo de Spotify es 50).
+    spotify_recent_limit: int = 50
+
     # --- Reconocimiento de audio ---
     recognition_provider: str = ""  # "audd" | vacio = desactivado
     recognition_api_key: str = ""
@@ -118,6 +126,16 @@ class Settings(BaseSettings):
     @property
     def test_database_url(self) -> str:
         return self.database_url(f"{self.mariadb_database}_test")
+
+    @property
+    def spotify_return_url(self) -> str:
+        """A donde vuelve el navegador tras autorizar en Spotify.
+
+        Se deduce de la redirect URI para no tener que configurar dos cosas que
+        siempre apuntan al mismo sitio.
+        """
+        base = self.spotify_redirect_uri.split("/api/spotify/callback")[0]
+        return f"{base}/spotify" if base else "/spotify"
 
     @property
     def cors_origin_list(self) -> list[str]:

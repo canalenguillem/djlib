@@ -1582,3 +1582,10 @@ input[type='file'] {
 .deck__needed {
   margin-left: auto;
 }
+
+.spotify__cuenta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}

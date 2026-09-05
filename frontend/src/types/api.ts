@@ -188,3 +188,19 @@ export interface CrateSummary {
 export interface Crate extends CrateSummary {
   tracks: Track[]
 }
+
+export interface SpotifyStatus {
+  enabled: boolean
+  connected: boolean
+  display_name: string | null
+}
+
+export interface PlayedTrack {
+  title: string
+  artist: string
+  album: string | null
+  played_at: string | null
+  spotify_url: string | null
+  image_url: string | null
+  already_in_library: boolean
+}

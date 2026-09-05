@@ -76,10 +76,11 @@ def test_el_bpm_corregido_a_mano_no_se_pisa(
 
     fake_bpm.valor = 128
     fake_bpm.analizados.clear()
-    from app.db.session import SessionLocal
+    # La de conftest, NO la de app.db.session: esa apunta a la base real
     from app.services import track_service
+    from tests.conftest import TestingSessionLocal
 
-    track_service.analyze_bpm(SessionLocal, track_id)  # sin forzar
+    track_service.analyze_bpm(TestingSessionLocal, track_id)  # sin forzar
     assert client.get(f"/tracks/{track_id}", headers=h).json()["bpm"] == 174
 
 

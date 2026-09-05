@@ -1,6 +1,7 @@
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus, track_artists
 from app.models.crate import Crate, CrateTrack
 from app.models.refresh_token import RefreshToken
+from app.models.spotify import SpotifyAccount
 from app.models.tag import Tag, TagKind
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User, UserRole
@@ -21,4 +22,5 @@ __all__ = [
     "track_artists",
     "Crate",
     "CrateTrack",
+    "SpotifyAccount",
 ]

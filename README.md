@@ -388,6 +388,34 @@ de pico, y `?sort=energy_asc` ordena de menos a mas para construir la subida.
 Las canciones sin energia asignada quedan siempre al final (MariaDB no admite
 `NULLS LAST`, asi que se emula con una clave de orden previa).
 
+## Spotify
+
+Trae lo ultimo que has escuchado y lo busca en YouTube para anadirlo, marcando
+lo que ya esta en la biblioteca. Se configura con `SPOTIFY_CLIENT_ID`,
+`SPOTIFY_CLIENT_SECRET` y `SPOTIFY_REDIRECT_URI`; sin eso, la pantalla no
+aparece en el menu.
+
+La Redirect URI tiene que estar registrada en el panel de Spotify **exactamente
+igual** que en el `.env`: Spotify la compara caracter a caracter.
+
+Se piden solo dos permisos de lectura (`user-read-recently-played`,
+`user-top-read`). Se guarda el refresh token para no volver a pedir permiso; el
+access token dura una hora y se renueva solo.
+
+**El `state` de OAuth ata la vuelta de Spotify al usuario que la pidio**, porque
+el navegador llega al callback siguiendo una redireccion, sin cabecera de
+autenticacion. Cada estado sirve una sola vez y caduca a los diez minutos.
+
+Ademas, los **generos de Spotify** rellenan las fichas de artista que MusicBrainz
+no cataloga, que son justo las urbanas recientes: Rels B sale como *urbano
+latino, trap latino* y Ryan Castro como *reggaeton*, donde MusicBrainz no tenia
+nada. Eso usa credenciales de aplicacion, asi que funciona sin que nadie haya
+conectado su cuenta.
+
+**Lo que no se puede**: `audio-features` (danceability, energy, tempo) quedo
+restringido para las apps registradas desde noviembre de 2024. El tempo lo
+seguimos midiendo nosotros.
+
 ## Clasificacion automatica por estilo
 
 Al descargar una cancion se le ponen las etiquetas de estilo de su artista,

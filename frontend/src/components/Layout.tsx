@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import * as recognitionApi from '../api/recognition'
+import * as spotifyApi from '../api/spotify'
 import { useAuth } from '../auth/useAuth'
 
 export function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [recognitionEnabled, setRecognitionEnabled] = useState(false)
+  const [spotifyEnabled, setSpotifyEnabled] = useState(false)
 
   // El enlace solo aparece si el servidor tiene clave de reconocimiento.
   useEffect(() => {
@@ -15,6 +17,10 @@ export function Layout() {
       .getRecognitionStatus()
       .then((estado) => setRecognitionEnabled(estado.enabled))
       .catch(() => setRecognitionEnabled(false))
+    spotifyApi
+      .getSpotifyStatus()
+      .then((estado) => setSpotifyEnabled(estado.enabled))
+      .catch(() => setSpotifyEnabled(false))
   }, [])
 
   async function handleSignOut() {
@@ -33,6 +39,7 @@ export function Layout() {
           <NavLink to="/library">Biblioteca</NavLink>
           {recognitionEnabled && <NavLink to="/recognize">Reconocer</NavLink>}
           <NavLink to="/mixer">Mezclar</NavLink>
+          {spotifyEnabled && <NavLink to="/spotify">Spotify</NavLink>}
           <NavLink to="/crates">Crates</NavLink>
           <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>

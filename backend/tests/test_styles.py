@@ -75,16 +75,17 @@ def test_no_se_pisan_los_estilos_que_ha_puesto_el_usuario(
     client: TestClient, admin_user, fake_downloader, fake_enrichment
 ) -> None:
     """Lo que decide el usuario manda sobre lo que diga MusicBrainz."""
-    from app.db.session import SessionLocal
+    # La de conftest, NO la de app.db.session: esa apunta a la base real
     from app.models.track import Track
     from app.services import artist_service
+    from tests.conftest import TestingSessionLocal
 
     h = headers(client)
     track = add_track(client, h)
     mio = client.post("/tags", json={"kind": "style", "name": "Britanico noventero"}, headers=h).json()
     client.put(f"/tracks/{track['id']}/tags", json={"tag_ids": [mio["id"]]}, headers=h)
 
-    with SessionLocal() as db:
+    with TestingSessionLocal() as db:
         artist_service.apply_style_tags(db, db.get(Track, track["id"]))
         db.commit()
 

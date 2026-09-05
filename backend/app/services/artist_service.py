@@ -14,7 +14,7 @@ from app.core.time import utcnow
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus
 from app.models.tag import Tag, TagKind
 from app.models.track import Track, TrackStatus
-from app.services import downloader, enrichment, tag_service
+from app.services import downloader, enrichment, spotify, tag_service
 from app.services.enrichment import ArtistFacts, EnrichmentError
 
 logger = logging.getLogger(__name__)
@@ -284,6 +284,27 @@ def apply_channel(db: Session, artist: Artist, *, set_status: bool = True) -> bo
     return True
 
 
+def apply_spotify_genres(artist: Artist) -> bool:
+    """Rellena los generos desde Spotify cuando MusicBrainz no los tiene.
+
+    Es justo el hueco de MusicBrainz: los urbanos recientes no estan
+    catalogados alli, pero en Spotify si. No hace falta que nadie haya
+    conectado su cuenta: los generos son catalogo publico.
+    """
+    if artist.genres or not spotify.is_enabled():
+        return False
+    try:
+        generos = spotify.artist_genres(artist.name)
+    except spotify.SpotifyError as exc:
+        logger.info("No se pudieron pedir generos de %s a Spotify: %s", artist.name, exc)
+        return False
+    if not generos:
+        return False
+    artist.genres = generos
+    artist.updated_at = utcnow()
+    return True
+
+
 def enrich(db: Session, artist: Artist, *, force: bool = False) -> Artist:
     """Consulta las fuentes externas y actualiza la ficha."""
     if artist.enrichment_status == EnrichmentStatus.manual and not force:
@@ -305,6 +326,7 @@ def enrich(db: Session, artist: Artist, *, force: bool = False) -> Artist:
         # Las bases de datos musicales no lo conocen. Antes de darlo por
         # perdido, se mira su canal de YouTube.
         if apply_channel(db, artist):
+            apply_spotify_genres(artist)
             return artist
         artist.enrichment_status = EnrichmentStatus.not_found
         artist.enrichment_error = None
@@ -319,6 +341,8 @@ def enrich(db: Session, artist: Artist, *, force: bool = False) -> Artist:
     # siempre la tiene, asi que se usa para tapar ese hueco concreto.
     if not artist.image_url:
         apply_channel(db, artist, set_status=False)
+    # MusicBrainz cataloga poco lo urbano reciente; Spotify si.
+    apply_spotify_genres(artist)
     return artist
 
 
