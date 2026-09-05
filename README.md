@@ -185,6 +185,14 @@ canal y duracion, marcando los que ya estan en la biblioteca y los que duran
 demasiado para ser una cancion. El usuario elige, y la descarga va por la misma
 puerta que un enlace pegado a mano.
 
+**Antes de decidir se puede escuchar.** Cada candidato tiene un boton de play:
+`GET /tracks/preview?url=` baja **solo 30 segundos** desde el segundo 60 (donde
+una cancion ya ha arrancado, no en la intro) con `yt-dlp --download-sections`, y
+los sirve como `audio/mp4`. Tarda unos 3 segundos porque no descarga el video
+entero. Los fragmentos se guardan en `<music_dir>/previews/` y se reutilizan;
+la carpeta se poda sola a los 60 ficheros mas recientes, asi que auditar
+candidatos no llena el disco. Es audio y nada mas: ni video ni ventana aparte.
+
 Basta con rellenar uno de los dos campos:
 
 - **Titulo y artista**: busqueda concreta, cinco candidatos
@@ -279,6 +287,7 @@ Biblioteca (todo requiere sesion):
 | GET | `/tracks` | Listado con `search`, `status`, `tag_id` (repetible) y paginacion |
 | POST | `/tracks/from-url` | Alta desde un enlace |
 | POST | `/tracks/search/preview` | Candidatos de YouTube para elegir, sin descargar |
+| GET | `/tracks/preview` | 30 segundos de un candidato para escucharlo antes de bajarlo |
 | POST | `/tracks/search` | Alta por titulo + artista eligiendo automaticamente |
 | GET | `/tracks/{id}` | Detalle, util para seguir el estado de la descarga |
 | PATCH | `/tracks/{id}` | Corregir titulo y artista a mano |

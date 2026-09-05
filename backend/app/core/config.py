@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     openai_timeout_seconds: int = 90
     screenshot_max_bytes: int = 20 * 1024 * 1024
 
+    # --- Fragmentos para escuchar antes de descargar ---
+    preview_seconds: int = 30
+    # Se empieza pasado el minuto: las intros no dicen si la version es la buena.
+    preview_start_seconds: int = 60
+    preview_cache_files: int = 60
+
     # --- Spotify ---
     spotify_client_id: str = ""
     spotify_client_secret: str = ""

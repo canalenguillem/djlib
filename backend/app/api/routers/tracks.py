@@ -29,7 +29,7 @@ from app.schemas.track import (
     TrackTagsUpdate,
     TrackUpdate,
 )
-from app.services import artist_service, downloader, tag_service, track_service
+from app.services import artist_service, downloader, preview, tag_service, track_service
 from app.services.audio_file import AudioFileError
 from app.services.downloader import DownloadError
 from app.services.tag_service import TagError
@@ -157,6 +157,31 @@ def add_from_search(
     result = TrackOut.model_validate(track)
     _schedule(background, session_factory, track.id)
     return result
+
+
+@router.get("/preview")
+def preview_candidate(
+    current_user: CurrentUser, url: str = Query(..., description="URL del video")
+):
+    """Un fragmento de audio del candidato, para saber si es la version buena
+    sin descargar la cancion entera."""
+    if not downloader.is_supported_url(url):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="URL no valida."
+        )
+    try:
+        fragmento = preview.build(url)
+    except DownloadError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+
+    return FileResponse(
+        fragmento,
+        media_type="audio/mp4",
+        filename="fragmento.m4a",
+        content_disposition_type="inline",
+    )
 
 
 @router.post("/upload", response_model=TrackOut, status_code=status.HTTP_201_CREATED)

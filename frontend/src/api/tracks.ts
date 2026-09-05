@@ -69,6 +69,11 @@ export function deleteTrack(id: number): Promise<void> {
   return apiFetch<void>(`/tracks/${id}`, { method: 'DELETE' })
 }
 
+/** Fragmento de 30 s de un candidato, para saber si es la version buena. */
+export function previewCandidate(url: string): Promise<Blob> {
+  return apiFetchBlob(`/tracks/preview?url=${encodeURIComponent(url)}`)
+}
+
 export function fetchTrackFile(id: number): Promise<Blob> {
   return apiFetchBlob(`/tracks/${id}/file`)
 }

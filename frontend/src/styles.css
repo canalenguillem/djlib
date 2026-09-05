@@ -1589,3 +1589,34 @@ input[type='file'] {
   gap: 0.6rem;
   flex-wrap: wrap;
 }
+
+/* Escuchar un candidato antes de bajarlo */
+.candidate__play {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #0b0e13;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.candidate__play:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.candidate__play:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.candidate__fallo {
+  color: #ffb4ae;
+  font-size: 0.85rem;
+  margin: 0.4rem 0 0;
+}

@@ -36,7 +36,10 @@ descarga:
 1. **Enlace de YouTube** pegado a mano.
 2. **Título y/o artista**: muestra los candidatos de YouTube con miniatura,
    canal y duración, y eliges. Solo con el artista, muestra diez para explorar
-   su catálogo.
+   su catálogo. Cada candidato se puede **escuchar antes de bajarlo**: un botón
+   de play trae 30 segundos (desde el segundo 60, ya dentro de la canción) en
+   unos 3 segundos, sin descargar el tema entero. Sirve para distinguir el
+   original del remix, o una subida con la ecualización destrozada.
 3. **Reconocimiento de audio**: grabas 11 segundos de lo que suena, AudD lo
    identifica y ofrece las versiones de YouTube para elegir.
 4. **Captura de pantalla**: subes una imagen (la lista de Shazam, por ejemplo) y
@@ -214,6 +217,12 @@ entorno que tenía, así que una clave nueva no llega. Hace falta
 la de la petición seguía viendo su instantánea anterior y devolvía el valor
 viejo. Hay que cerrar la transacción antes de releer.
 
+**Un test de navegador buscaba un `<audio>` que nunca existe.** La preescucha
+crea el reproductor con `new Audio(blob)`, que no se inserta en el documento, así
+que `document.querySelector('audio')` daba `null` para siempre y la prueba dio
+por roto algo que funcionaba. Se comprueba por el estado del botón (pasa a
+"Parar") y por `paused` / `currentTime` del elemento instrumentado.
+
 **Dos tests escribían en la base de datos real.** Importaban `SessionLocal` de
 `app.db.session` en vez de la de conftest, así que operaban sobre producción y
 pasaban por accidente al encontrar allí filas con el mismo id.
@@ -225,8 +234,8 @@ segundos. Ahora son 6.
 
 ## Pruebas
 
-165 tests de backend, con yt-dlp, MusicBrainz/Wikipedia y AudD sustituidos por
-dobles. Corren contra una base MariaDB aparte, no contra SQLite, para probar el
+215 tests de backend, con yt-dlp, MusicBrainz/Wikipedia, AudD, OpenAI y Spotify
+sustituidos por dobles. Corren contra una base MariaDB aparte, no contra SQLite, para probar el
 mismo motor que producción.
 
 ```bash

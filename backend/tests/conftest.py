@@ -18,7 +18,8 @@ from app.main import app as fastapi_app
 from app.models.user import User, UserRole
 from app.services import bpm as bpm_service
 from app.services import spotify as spotify_service
-from app.services import downloader, enrichment, recognition, screenshot, user_service
+from app.services import downloader, enrichment, preview as preview_service
+from app.services import recognition, screenshot, user_service
 
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
@@ -421,3 +422,26 @@ def spotify_apagado(monkeypatch, request):
         return
     monkeypatch.setattr(settings, "spotify_client_id", "")
     monkeypatch.setattr(settings, "spotify_client_secret", "")
+
+
+@pytest.fixture
+def fake_preview(monkeypatch, tmp_path) -> dict:
+    """El fragmento se prepara con yt-dlp: en los tests se sustituye por un
+    fichero de mentira para no salir a la red.
+
+    No es autouse a proposito: los tests que prueban la construccion del
+    fragmento necesitan la funcion de verdad, y un doble autouse se la
+    sustituiria sin que se notase, dejandolos verdes sin probar nada.
+    """
+    estado: dict = {"construidos": [], "error": None}
+
+    def build(url: str):
+        estado["construidos"].append(url)
+        if estado["error"] is not None:
+            raise estado["error"]
+        ruta = tmp_path / "fragmento.m4a"
+        ruta.write_bytes(b"\x00\x00\x00\x20ftypM4A fragmento-de-mentira")
+        return ruta
+
+    monkeypatch.setattr(preview_service, "build", build)
+    return estado
