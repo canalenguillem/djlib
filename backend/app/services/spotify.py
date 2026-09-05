@@ -199,6 +199,17 @@ def _get(ruta: str, token: str, params: dict | None = None) -> dict:
     if respuesta.status_code == 401:
         raise SpotifyError("El permiso de Spotify ha caducado. Vuelve a conectar la cuenta.")
     if respuesta.status_code == 403:
+        detalle = respuesta.text or ""
+        # Una app nueva nace en modo desarrollo: solo pueden usarla las cuentas
+        # anadidas a mano en el panel. Es la causa habitual de este 403, y el
+        # mensaje generico mandaba a mirar los permisos, que no es el problema.
+        if "not registered" in detalle:
+            raise SpotifyError(
+                "Tu cuenta de Spotify no esta dada de alta en la aplicacion. La app "
+                "esta en modo desarrollo: entra en developer.spotify.com/dashboard, "
+                "abre la app, ve a Settings > User Management y anade el nombre y el "
+                "correo de tu cuenta de Spotify."
+            )
         raise SpotifyError(
             "Spotify ha denegado el acceso. Puede que el permiso pedido no este "
             "concedido para esta cuenta."

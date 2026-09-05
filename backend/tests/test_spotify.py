@@ -173,3 +173,27 @@ def test_no_se_pregunta_a_spotify_si_musicbrainz_ya_tiene_generos(
     h = headers(client)
     client.post("/tracks/from-url", json={"url": URL}, headers=h)  # Blur, con generos
     assert fake_spotify.consultados == []
+
+
+def test_el_403_de_modo_desarrollo_explica_que_hacer(monkeypatch) -> None:
+    """Es el 403 mas habitual con una app recien creada, y el mensaje generico
+    mandaba a mirar los permisos, que no es el problema."""
+    import httpx
+    import pytest
+
+    from app.core.config import settings
+    from app.services import spotify
+
+    monkeypatch.setattr(settings, "spotify_client_id", "id")
+    monkeypatch.setattr(settings, "spotify_client_secret", "secreto")
+
+    def fake_get(*args, **kwargs):
+        return httpx.Response(
+            403,
+            text="The user is not registered for this application.",
+            request=httpx.Request("GET", "https://api.spotify.com/v1/me"),
+        )
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    with pytest.raises(spotify.SpotifyError, match="User Management"):
+        spotify._get("/me", "token")
