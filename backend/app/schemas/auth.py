@@ -2,7 +2,8 @@ from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=50)
+    # Usuario o correo, por eso admite la longitud de un correo
+    username: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=1, max_length=128)
 
 

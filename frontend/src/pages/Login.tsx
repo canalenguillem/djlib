@@ -55,7 +55,7 @@ export function LoginPage() {
         {error && <Alert kind="error">{error}</Alert>}
 
         <label className="field">
-          <span>Usuario</span>
+          <span>Usuario o correo</span>
           <input
             type="text"
             value={username}

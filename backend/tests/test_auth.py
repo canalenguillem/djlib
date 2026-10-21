@@ -13,6 +13,15 @@ def test_login_correcto_devuelve_par_de_tokens(client: TestClient, admin_user) -
     assert data["expires_in"] == settings.access_token_expire_minutes * 60
 
 
+def test_login_con_el_correo_en_vez_del_usuario(client: TestClient, admin_user) -> None:
+    for correo in ("admin@example.com", " Admin@Example.com "):
+        assert login(client, correo, ADMIN_PASSWORD)["access_token"]
+    respuesta = client.post(
+        "/auth/login", json={"username": "admin@example.com", "password": "noEsLaBuena123"}
+    )
+    assert respuesta.status_code == 401
+
+
 def test_login_con_contrasena_incorrecta(client: TestClient, admin_user) -> None:
     response = client.post(
         "/auth/login", json={"username": "enguillem", "password": "noEsLaBuena123"}

@@ -81,10 +81,18 @@ def create_user(
 def authenticate(db: Session, username: str, password: str) -> User | None:
     """Devuelve el usuario si las credenciales son validas y esta activo.
 
+    Vale el nombre de usuario o el correo: es facil escribir el correo entero
+    sin acordarse de que el usuario es otra cosa. Primero se mira el nombre,
+    por si alguno lleva arroba.
+
     Siempre se verifica un hash (aunque el usuario no exista) para que el
     tiempo de respuesta no revele que usernames estan dados de alta.
     """
-    user = get_by_username(db, username)
+    identificador = username.strip()
+    user = get_by_username(db, identificador)
+    if user is None and "@" in identificador:
+        # La colacion de MariaDB no distingue mayusculas: Admin@ vale igual
+        user = get_by_email(db, identificador)
     candidate_hash = user.password_hash if user else _DUMMY_HASH
     password_ok = verify_password(password, candidate_hash)
     if user is None or not password_ok or not user.is_active:
