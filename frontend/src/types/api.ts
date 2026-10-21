@@ -213,6 +213,19 @@ export interface PlayedTrack {
   already_in_library: boolean
 }
 
+export interface SpotifyPlaylist {
+  id: string
+  name: string
+  total: number
+  owner: string | null
+  image_url: string | null
+}
+
+export interface SpotifyPlaylistTracks {
+  name: string
+  items: PlayedTrack[]
+}
+
 export interface ShazamTracks {
   /** Nombre de la playlist; null si la cuenta no tiene ninguna de Shazam. */
   playlist: string | null
@@ -225,4 +238,40 @@ export interface Waveform {
   low: number[]
   mid: number[]
   high: number[]
+}
+
+export type BatchItemStatus =
+  | 'pending'
+  | 'searching'
+  | 'downloading'
+  | 'done'
+  | 'already'
+  | 'not_found'
+  | 'error'
+  | 'cancelled'
+
+export interface BatchItem {
+  id: number
+  position: number
+  title: string
+  artist: string | null
+  status: BatchItemStatus
+  video_title: string | null
+  track_id: number | null
+  message: string | null
+}
+
+export interface BatchSummary {
+  id: number
+  name: string
+  crate_id: number | null
+  crate_name: string | null
+  status: 'active' | 'done' | 'cancelled'
+  created_at: string
+  total: number
+  counts: Partial<Record<BatchItemStatus, number>>
+}
+
+export interface Batch extends BatchSummary {
+  items: BatchItem[]
 }

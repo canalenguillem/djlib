@@ -43,6 +43,9 @@ SCOPES = f"user-read-recently-played user-top-read {PLAYLIST_SCOPE}"
 SHAZAM_PLAYLIST = "my shazam tracks"
 # Basta con lo ultimo: la playlist crece sin fin y lo viejo ya se habra mirado
 SHAZAM_LIMITE = 100
+# Tope de canciones al leer una lista entera: de sobra para un set, y acota
+# las llamadas (100 por pagina)
+PLAYLIST_LIMITE = 500
 
 
 class SpotifyError(RuntimeError):
@@ -53,12 +56,25 @@ class SpotifyNotConfigured(SpotifyError):
     pass
 
 
+class SpotifyNotFound(SpotifyError):
+    pass
+
+
 @dataclass(frozen=True)
 class Tokens:
     access_token: str
     refresh_token: str | None
     expires_in: int
     scope: str | None
+
+
+@dataclass(frozen=True)
+class PlaylistInfo:
+    id: str
+    name: str
+    total: int
+    owner: str | None
+    image_url: str | None
 
 
 @dataclass(frozen=True)
@@ -220,6 +236,8 @@ def _get(ruta: str, token: str, params: dict | None = None) -> dict:
             "Spotify ha denegado el acceso. Puede que el permiso pedido no este "
             "concedido para esta cuenta."
         )
+    if respuesta.status_code == 404:
+        raise SpotifyNotFound("Spotify no encuentra lo pedido.")
     if respuesta.status_code == 429:
         raise SpotifyError("Spotify esta limitando las peticiones. Prueba en un minuto.")
     if respuesta.status_code >= 400:
@@ -273,57 +291,62 @@ def recently_played(token: str, limit: int | None = None) -> list[PlayedTrack]:
     return canciones
 
 
-def _buscar_playlist_shazam(token: str) -> dict | None:
-    """La playlist de Shazam entre las de la cuenta. Se prefiere la que se
-    llama exactamente como la crea Shazam; si no, cualquiera con "shazam"."""
-    parecida = None
+def _mis_playlists(token: str):
+    """Las playlists de la cuenta, propias y seguidas, pagina a pagina."""
     ruta: str | None = "/me/playlists"
     params: dict | None = {"limit": 50}
     # Diez paginas son 500 playlists: de sobra, y acota las llamadas
     for _ in range(10):
         if ruta is None:
-            break
+            return
         datos = _get(ruta, token, params)
         for playlist in datos.get("items") or []:
-            if not playlist:
-                continue
-            nombre = (playlist.get("name") or "").strip().lower()
-            if nombre == SHAZAM_PLAYLIST:
-                return playlist
-            if parecida is None and "shazam" in nombre:
-                parecida = playlist
+            if playlist:
+                yield playlist
         siguiente = datos.get("next")
         ruta = siguiente.removeprefix(API) if siguiente else None
         params = None  # la URL siguiente ya lleva los suyos
-    return parecida
 
 
-def shazam_tracks(token: str) -> tuple[str | None, list[PlayedTrack]]:
-    """Lo reconocido con Shazam, si la cuenta lo guarda en Spotify: el nombre
-    de la playlist y sus canciones, de la mas reciente a la mas antigua.
-    Sin playlist devuelve (None, [])."""
-    playlist = _buscar_playlist_shazam(token)
-    if playlist is None:
-        return None, []
+def _total(playlist: dict) -> int | None:
+    return (playlist.get("tracks") or {}).get("total")
 
-    ruta = f"/playlists/{playlist['id']}/tracks"
-    total = (playlist.get("tracks") or {}).get("total")
-    if total is None:
-        # Sin el total en el listado, se pregunta con una pagina minima
-        total = _get(ruta, token, {"limit": 1}).get("total") or 0
-    # Shazam las va anadiendo al final: se piden las ultimas
-    desde = max(0, total - SHAZAM_LIMITE)
+
+def list_playlists(token: str) -> list[PlaylistInfo]:
+    """Las listas de la cuenta, en el orden en que las muestra Spotify."""
+    listas: list[PlaylistInfo] = []
+    for playlist in _mis_playlists(token):
+        imagenes = playlist.get("images") or []
+        listas.append(
+            PlaylistInfo(
+                id=playlist["id"],
+                name=(playlist.get("name") or "").strip() or "Sin nombre",
+                total=_total(playlist) or 0,
+                owner=(playlist.get("owner") or {}).get("display_name"),
+                # La ultima es la mas pequena
+                image_url=imagenes[-1]["url"] if imagenes else None,
+            )
+        )
+    return listas
+
+
+def _entradas(token: str, playlist_id: str, desde: int, hasta: int) -> list[dict]:
+    """Las entradas de la lista entre dos posiciones, pidiendo de 100 en 100."""
+    ruta = f"/playlists/{playlist_id}/tracks"
     entradas: list[dict] = []
-    while desde < total:
-        datos = _get(ruta, token, {"limit": 100, "offset": desde})
+    while desde < hasta:
+        datos = _get(ruta, token, {"limit": min(100, hasta - desde), "offset": desde})
         lote = datos.get("items") or []
         if not lote:
             break
         entradas.extend(lote)
         desde += len(lote)
+    return entradas
 
-    # Por fecha, por si el orden de la playlist no es el de alta
-    entradas.sort(key=lambda e: e.get("added_at") or "", reverse=True)
+
+def _canciones(entradas: list[dict]) -> list[PlayedTrack]:
+    """Pasa las entradas de una lista a canciones, sin repetidas ni huecos
+    (podcasts o temas retirados vienen sin nombre)."""
     canciones: list[PlayedTrack] = []
     vistas: set[str] = set()
     for entrada in entradas:
@@ -346,7 +369,56 @@ def shazam_tracks(token: str) -> tuple[str | None, list[PlayedTrack]]:
                 image_url=_portada(pista),
             )
         )
-    return playlist.get("name"), canciones[:SHAZAM_LIMITE]
+    return canciones
+
+
+def playlist_tracks(token: str, playlist_id: str) -> tuple[str, list[PlayedTrack]]:
+    """El nombre de una lista y sus canciones, en el orden de la lista."""
+    try:
+        cabecera = _get(f"/playlists/{playlist_id}", token, {"fields": "name,tracks.total"})
+    except SpotifyNotFound as exc:
+        # Desde finales de 2024 Spotify no deja a las apps nuevas leer sus
+        # listas automaticas: es la causa habitual de este 404
+        raise SpotifyError(
+            "Spotify no deja leer esta lista. Pasa con las que genera el propio "
+            "Spotify (Descubrimiento semanal, Radar de novedades, los mixes...): "
+            "copia sus canciones a una lista tuya y abre esa."
+        ) from exc
+    total = _total(cabecera) or 0
+    entradas = _entradas(token, playlist_id, 0, min(total, PLAYLIST_LIMITE))
+    return (cabecera.get("name") or "").strip() or "Sin nombre", _canciones(entradas)
+
+
+def _buscar_playlist_shazam(token: str) -> dict | None:
+    """La playlist de Shazam entre las de la cuenta. Se prefiere la que se
+    llama exactamente como la crea Shazam; si no, cualquiera con "shazam"."""
+    parecida = None
+    for playlist in _mis_playlists(token):
+        nombre = (playlist.get("name") or "").strip().lower()
+        if nombre == SHAZAM_PLAYLIST:
+            return playlist
+        if parecida is None and "shazam" in nombre:
+            parecida = playlist
+    return parecida
+
+
+def shazam_tracks(token: str) -> tuple[str | None, list[PlayedTrack]]:
+    """Lo reconocido con Shazam, si la cuenta lo guarda en Spotify: el nombre
+    de la playlist y sus canciones, de la mas reciente a la mas antigua.
+    Sin playlist devuelve (None, [])."""
+    playlist = _buscar_playlist_shazam(token)
+    if playlist is None:
+        return None, []
+
+    total = _total(playlist)
+    if total is None:
+        # Sin el total en el listado, se pregunta con una pagina minima
+        total = _get(f"/playlists/{playlist['id']}/tracks", token, {"limit": 1}).get("total") or 0
+    # Shazam las va anadiendo al final: se piden las ultimas
+    entradas = _entradas(token, playlist["id"], max(0, total - SHAZAM_LIMITE), total)
+    # Por fecha, por si el orden de la playlist no es el de alta
+    entradas.sort(key=lambda e: e.get("added_at") or "", reverse=True)
+    return playlist.get("name"), _canciones(entradas)[:SHAZAM_LIMITE]
 
 
 def artist_genres(nombre: str) -> list[str]:

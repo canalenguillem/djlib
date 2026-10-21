@@ -22,6 +22,10 @@ from app.services import waveform as waveform_service
 from app.services import downloader, enrichment, preview as preview_service
 from app.services import recognition, screenshot, user_service
 
+# Sin esto, al crear el cliente de pruebas la app recuperaria descargas y
+# arrancaria los hilos de tandas contra la base de datos de verdad
+settings.startup_tasks_enabled = False
+
 # Los tests corren contra una base MariaDB aparte ("<db>_test"), creada por el
 # script de init del contenedor de MariaDB. Asi se prueba el mismo motor que
 # usa produccion (ENUM, colaciones, unicidad) y no un SQLite parecido.
@@ -438,6 +442,20 @@ class FakeSpotify:
             raise self.error
         return self.shazam
 
+    def list_playlists(self, token):
+        if self.error is not None:
+            raise self.error
+        return [
+            spotify_service.PlaylistInfo(
+                id="pl1", name="Warm-up", total=2, owner="enguillem", image_url=None
+            )
+        ]
+
+    def playlist_tracks(self, token, playlist_id):
+        if self.error is not None:
+            raise self.error
+        return "Warm-up", self.played
+
 
 @pytest.fixture
 def fake_spotify(monkeypatch) -> FakeSpotify:
@@ -445,6 +463,8 @@ def fake_spotify(monkeypatch) -> FakeSpotify:
     monkeypatch.setattr(spotify_service, "artist_genres", fake.artist_genres)
     monkeypatch.setattr(spotify_service, "recently_played", fake.recently_played)
     monkeypatch.setattr(spotify_service, "shazam_tracks", fake.shazam_tracks)
+    monkeypatch.setattr(spotify_service, "list_playlists", fake.list_playlists)
+    monkeypatch.setattr(spotify_service, "playlist_tracks", fake.playlist_tracks)
     monkeypatch.setattr(settings, "spotify_client_id", "id-de-prueba")
     monkeypatch.setattr(settings, "spotify_client_secret", "secreto")
     monkeypatch.setattr(

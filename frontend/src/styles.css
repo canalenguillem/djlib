@@ -2108,3 +2108,396 @@ input[type='file'] {
   flex-wrap: wrap;
   gap: 0.4rem;
 }
+
+/* Al arrastrar capturas sobre la tarjeta */
+.card--drop {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+
+.detected__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.detected__head p {
+  margin: 0;
+}
+
+/* Descarga automatica de lo leido en las capturas */
+.autoload {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0b0e13;
+}
+
+.autoload__crate {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.autoload__crate select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.autoload__estado--buscando,
+.autoload__estado--descargando {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.autoload__estado--ya_estaba,
+.autoload__estado--lista {
+  border-color: #2fd36b;
+  color: #2fd36b;
+}
+
+.autoload__estado--sin_resultado,
+.autoload__estado--error {
+  border-color: #ff6b5e;
+  color: #ffb4ae;
+}
+
+/* Reproductor de crates, pensado para el movil */
+.listen {
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.listen__crate {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.listen__crate select {
+  font-size: 1rem;
+  padding: 0.6rem;
+}
+
+.listen__now {
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+}
+
+.listen__cover {
+  width: min(100%, 320px);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: #0b0e13;
+}
+
+.listen__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 100%;
+}
+
+.listen__titles strong {
+  font-size: 1.15rem;
+}
+
+.listen__titles strong,
+.listen__titles span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen__seek {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.listen__times {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.listen__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.listen__btn {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #0b0e13;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.listen__btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.listen__btn--play {
+  width: 76px;
+  height: 76px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.listen__btn--play svg {
+  width: 30px;
+  height: 30px;
+}
+
+.listen__btn--small {
+  width: 42px;
+  height: 42px;
+}
+
+.listen__btn--on {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.listen__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.listen__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.listen__item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listen__item--on {
+  border-color: var(--accent);
+}
+
+.listen__item--on .listen__num {
+  color: var(--accent-hover);
+}
+
+.listen__num {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.listen__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.listen__info strong,
+.listen__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.listen__dur {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Listas de Spotify */
+.spotify__lista {
+  margin: 0;
+}
+
+.playlists {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.5rem;
+}
+
+.playlists__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0b0e13;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.playlists__item:hover {
+  border-color: var(--accent);
+}
+
+.playlists__item img,
+.playlists__noimg {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--border);
+}
+
+.playlists__info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.playlists__info strong,
+.playlists__info span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autoload__crate input {
+  min-width: 0;
+  flex: 1 1 10rem;
+}
+
+.autoload__progreso {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--accent-hover);
+}
+
+.autoload__estado--en_cola {
+  color: var(--muted);
+}
+
+/* Descargas en segundo plano (tandas del servidor) */
+.batches__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.batches__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.batches__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.batches__name {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.batches__bar {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.batches__counts {
+  font-size: 0.8rem;
+}
+
+.batches__items {
+  margin: 0;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.batches__items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.batches__status--done,
+.batches__status--already {
+  border-color: #2fd36b;
+  color: #2fd36b;
+}
+
+.batches__status--searching,
+.batches__status--downloading {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.batches__status--not_found,
+.batches__status--error {
+  border-color: #ff6b5e;
+  color: #ffb4ae;
+}

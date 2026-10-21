@@ -1,4 +1,10 @@
-import type { PlayedTrack, ShazamTracks, SpotifyStatus } from '../types/api'
+import type {
+  PlayedTrack,
+  ShazamTracks,
+  SpotifyPlaylist,
+  SpotifyPlaylistTracks,
+  SpotifyStatus,
+} from '../types/api'
 import { apiFetch } from './client'
 
 export function getSpotifyStatus(): Promise<SpotifyStatus> {
@@ -12,6 +18,14 @@ export function startAuthorization(): Promise<{ url: string }> {
 
 export function disconnectSpotify(): Promise<void> {
   return apiFetch<void>('/spotify/connection', { method: 'DELETE' })
+}
+
+export function listPlaylists(): Promise<SpotifyPlaylist[]> {
+  return apiFetch<SpotifyPlaylist[]>('/spotify/playlists')
+}
+
+export function playlistTracks(id: string): Promise<SpotifyPlaylistTracks> {
+  return apiFetch<SpotifyPlaylistTracks>(`/spotify/playlists/${encodeURIComponent(id)}`)
 }
 
 /** Lo que Shazam guarda en la playlist "My Shazam Tracks" de Spotify. */

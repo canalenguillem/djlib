@@ -4,11 +4,19 @@ import { useSearchParams } from 'react-router-dom'
 import * as spotifyApi from '../api/spotify'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from '../components/AutoDownload'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
-import type { PlayedTrack, SearchCandidate, ShazamTracks, SpotifyStatus } from '../types/api'
+import type {
+  PlayedTrack,
+  SearchCandidate,
+  ShazamTracks,
+  SpotifyPlaylist,
+  SpotifyPlaylistTracks,
+  SpotifyStatus,
+} from '../types/api'
 
-type Vista = 'recientes' | 'shazam'
+type Vista = 'recientes' | 'shazam' | 'listas'
 
 const ERRORES: Record<string, string> = {
   access_denied: 'Has cancelado el permiso en Spotify.',
@@ -36,6 +44,13 @@ export function SpotifyPage() {
   const [vista, setVista] = useState<Vista>('recientes')
   const [shazam, setShazam] = useState<ShazamTracks | null>(null)
   const [cargandoShazam, setCargandoShazam] = useState(false)
+  const [listas, setListas] = useState<SpotifyPlaylist[] | null>(null)
+  const [listaAbierta, setListaAbierta] = useState<(SpotifyPlaylistTracks & { id: string }) | null>(null)
+  const [cargandoListas, setCargandoListas] = useState(false)
+  // Cada lista guarda sus propias tandas, para ver como van al volver a ella
+  const auto = useAutoDownload(
+    vista === 'listas' && listaAbierta ? `spotify-lista:${listaAbierta.id}` : `spotify-${vista}`,
+  )
   // La cancion con los candidatos abiertos: vista e indice, p. ej. "shazam-3"
   const [abierta, setAbierta] = useState<string | null>(null)
   const [candidatos, setCandidatos] = useState<SearchCandidate[] | null>(null)
@@ -112,6 +127,35 @@ export function SpotifyPage() {
     }
   }
 
+  async function verListas() {
+    setVista('listas')
+    setAbierta(null)
+    if (listas !== null || cargandoListas) return
+    setCargandoListas(true)
+    setError(null)
+    try {
+      setListas(await spotifyApi.listPlaylists())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron leer tus listas.')
+      setVista('recientes')
+    } finally {
+      setCargandoListas(false)
+    }
+  }
+
+  async function abrirLista(lista: SpotifyPlaylist) {
+    setAbierta(null)
+    setCargandoListas(true)
+    setError(null)
+    try {
+      setListaAbierta({ ...(await spotifyApi.playlistTracks(lista.id)), id: lista.id })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo leer la lista.')
+    } finally {
+      setCargandoListas(false)
+    }
+  }
+
   async function buscar(indice: string, cancion: PlayedTrack) {
     setAbierta(indice)
     setCandidatos(null)
@@ -168,6 +212,7 @@ export function SpotifyPage() {
                     {cancion.already_in_library && (
                       <span className="badge badge--ok">ya en la biblioteca</span>
                     )}
+                    <EstadoDescarga estado={auto.estados[claveCancion(cancion)]} />
                   </div>
                 </div>
                 <button
@@ -272,8 +317,73 @@ export function SpotifyPage() {
             >
               Shazam
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={vista === 'listas'}
+              className={vista === 'listas' ? 'rangebtn rangebtn--on' : 'rangebtn'}
+              onClick={() => void verListas()}
+            >
+              Listas
+            </button>
           </div>
-          {vista === 'shazam' ? (
+          {vista === 'listas' ? (
+            cargandoListas ? (
+              <Loading />
+            ) : listaAbierta ? (
+              <>
+                <div className="detected__head">
+                  <h3 className="spotify__lista">{listaAbierta.name}</h3>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => {
+                      setListaAbierta(null)
+                      setAbierta(null)
+                    }}
+                  >
+                    ← Todas las listas
+                  </button>
+                </div>
+                {listaAbierta.items.length === 0 ? (
+                  <Alert kind="info">Esta lista no tiene canciones.</Alert>
+                ) : (
+                  <>
+                    <AutoDownloadBar
+                      canciones={listaAbierta.items}
+                      auto={auto}
+                      nombreTanda={`Spotify: ${listaAbierta.name}`}
+                      nombreSugerido={listaAbierta.name}
+                    />
+                    {lista(listaAbierta.items, 'listas')}
+                  </>
+                )}
+              </>
+            ) : listas === null || listas.length === 0 ? (
+              <Alert kind="info">No hay ninguna lista en esta cuenta de Spotify.</Alert>
+            ) : (
+              <ul className="playlists">
+                {listas.map((l) => (
+                  <li key={l.id}>
+                    <button type="button" className="playlists__item" onClick={() => void abrirLista(l)}>
+                      {l.image_url ? (
+                        <img src={l.image_url} alt="" loading="lazy" />
+                      ) : (
+                        <span className="playlists__noimg" aria-hidden="true" />
+                      )}
+                      <span className="playlists__info">
+                        <strong>{l.name}</strong>
+                        <span className="muted">
+                          {l.total} {l.total === 1 ? 'canción' : 'canciones'}
+                          {l.owner ? ` · ${l.owner}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )
+          ) : vista === 'shazam' ? (
             cargandoShazam ? (
               <Loading />
             ) : shazam?.playlist == null ? (
@@ -290,6 +400,12 @@ export function SpotifyPage() {
                   Las últimas {shazam.items.length} de «{shazam.playlist}», de la más
                   reciente a la más antigua.
                 </p>
+                <AutoDownloadBar
+                  canciones={shazam.items}
+                  auto={auto}
+                  nombreTanda="Shazam"
+                  nombreSugerido="Shazam"
+                />
                 {lista(shazam.items, 'shazam')}
               </>
             )

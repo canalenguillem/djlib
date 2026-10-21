@@ -8,6 +8,8 @@ import type { CrateSummary } from '../types/api'
 // a pedir, por si se ha creado alguno.
 const VIGENCIA_MS = 30_000
 let cache: { cuando: number; lista: Promise<CrateSummary[]> } | null = null
+// Desplegables montados, para avisarles cuando se crea un crate
+const oyentes = new Set<(lista: CrateSummary[]) => void>()
 
 function cargar(): Promise<CrateSummary[]> {
   if (!cache || Date.now() - cache.cuando > VIGENCIA_MS) {
@@ -20,14 +22,24 @@ function cargar(): Promise<CrateSummary[]> {
   return cache.lista
 }
 
+/** Vuelve a pedir los crates y actualiza todos los desplegables, p. ej. tras
+ *  crear uno. */
+export async function refrescarCrates(): Promise<void> {
+  cache = null
+  const lista = await cargar()
+  oyentes.forEach((oyente) => oyente(lista))
+}
+
 /** Los crates para elegir en un desplegable. */
 export function useCrates(): CrateSummary[] {
   const [crates, setCrates] = useState<CrateSummary[]>([])
   useEffect(() => {
     let vivo = true
     void cargar().then((lista) => vivo && setCrates(lista))
+    oyentes.add(setCrates)
     return () => {
       vivo = false
+      oyentes.delete(setCrates)
     }
   }, [])
   return crates

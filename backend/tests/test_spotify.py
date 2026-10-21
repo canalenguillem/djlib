@@ -274,3 +274,72 @@ def test_lee_las_ultimas_de_la_playlist_de_mas_nueva_a_mas_vieja(monkeypatch) ->
     assert nombre == "My Shazam Tracks"
     assert [c.title for c in canciones] == ["Nueva", "Vieja"]
     assert canciones[0].played_at == "2026-10-20T00:00:00Z"
+
+
+# --- Listas -----------------------------------------------------------------
+
+PERMISOS = "user-read-recently-played playlist-read-private"
+
+
+def test_lista_las_listas_de_la_cuenta(client: TestClient, admin_user, fake_spotify) -> None:
+    conectar(admin_user.id, fake_spotify, scope=PERMISOS)
+    listas = client.get("/spotify/playlists", headers=headers(client)).json()
+    assert listas == [
+        {"id": "pl1", "name": "Warm-up", "total": 2, "owner": "enguillem", "image_url": None}
+    ]
+
+
+def test_canciones_de_una_lista_marcando_las_que_ya_estan(
+    client: TestClient, admin_user, fake_spotify, fake_downloader
+) -> None:
+    h = headers(client)
+    client.post("/tracks/from-url", json={"url": URL}, headers=h)  # descarga Song 2
+    conectar(admin_user.id, fake_spotify, scope=PERMISOS)
+    datos = client.get("/spotify/playlists/pl1", headers=h).json()
+    assert datos["name"] == "Warm-up"
+    assert {i["title"]: i["already_in_library"] for i in datos["items"]} == {
+        "Song 2": True,
+        "Parklife": False,
+    }
+
+
+def test_las_listas_piden_el_permiso_nuevo(client: TestClient, admin_user, fake_spotify) -> None:
+    conectar(admin_user.id, fake_spotify, scope="user-read-recently-played user-top-read")
+    assert client.get("/spotify/playlists", headers=headers(client)).status_code == 409
+
+
+def test_una_lista_de_spotify_que_no_se_deja_leer_se_explica(monkeypatch) -> None:
+    from app.services import spotify
+
+    def fake_get(ruta, token, params=None):
+        raise spotify.SpotifyNotFound("no")
+
+    monkeypatch.setattr(spotify, "_get", fake_get)
+    try:
+        spotify.playlist_tracks("token", "37i9dQZEVXcQ9COmYvdajy")
+    except spotify.SpotifyError as exc:
+        assert "Descubrimiento semanal" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("tenia que fallar")
+
+
+def test_lee_una_lista_entera_en_su_orden(monkeypatch) -> None:
+    from app.services import spotify
+
+    def fake_get(ruta, token, params=None):
+        if ruta == "/playlists/pl1":
+            return {"name": "Warm-up", "tracks": {"total": 150}}
+        assert ruta == "/playlists/pl1/tracks"
+        inicio = params["offset"]
+        return {
+            "items": [
+                {"track": {"name": f"Tema {i}", "artists": [{"name": "X"}]}}
+                for i in range(inicio, min(inicio + params["limit"], 150))
+            ]
+        }
+
+    monkeypatch.setattr(spotify, "_get", fake_get)
+    nombre, canciones = spotify.playlist_tracks("token", "pl1")
+    assert nombre == "Warm-up"
+    assert len(canciones) == 150
+    assert canciones[0].title == "Tema 0" and canciones[-1].title == "Tema 149"

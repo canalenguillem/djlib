@@ -9,6 +9,7 @@ import { ArtistsPage } from './pages/Artists'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
 import { LibraryPage } from './pages/Library'
+import { ListenPage } from './pages/Listen'
 import { MixerPage } from './pages/Mixer'
 import { SpotifyPage } from './pages/Spotify'
 import { LoginPage } from './pages/Login'
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
           { path: '/spotify', element: <SpotifyPage /> },
           { path: '/crates', element: <CratesPage /> },
           { path: '/crates/:crateId', element: <CrateDetailPage /> },
+          { path: '/listen', element: <ListenPage /> },
           { path: '/tags', element: <TagsPage /> },
           { path: '/account', element: <AccountPage /> },
           {

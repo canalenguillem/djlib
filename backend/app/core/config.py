@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # de YouTube para una consulta vaga suele ser un mix de una hora, asi que
     # se descartan los que no tienen duracion de cancion.
     max_song_duration_seconds: int = 900
+    # Tandas de descarga en segundo plano: cuantas canciones a la vez. Cada
+    # una es un yt-dlp; mas de dos y YouTube empieza a frenar.
+    batch_workers: int = 2
+    # Tareas al arrancar (recuperar descargas, hilos de tandas). Los tests lo
+    # apagan: arrancarian contra la base de datos de verdad, no la de pruebas.
+    startup_tasks_enabled: bool = True
     # Cuantos resultados se miran antes de elegir.
     search_candidates: int = 5
     # Buscando solo por artista se explora, no se busca algo concreto: conviene

@@ -1,4 +1,5 @@
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus, track_artists
+from app.models.batch import BatchItemStatus, BatchStatus, DownloadBatch, DownloadBatchItem
 from app.models.crate import Crate, CrateTrack
 from app.models.refresh_token import RefreshToken
 from app.models.spotify import SpotifyAccount
@@ -23,4 +24,8 @@ __all__ = [
     "Crate",
     "CrateTrack",
     "SpotifyAccount",
+    "DownloadBatch",
+    "DownloadBatchItem",
+    "BatchStatus",
+    "BatchItemStatus",
 ]

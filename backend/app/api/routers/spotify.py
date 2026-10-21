@@ -13,6 +13,8 @@ from app.models.track import Track, TrackStatus
 from app.schemas.spotify import (
     PlayedTrackOut,
     RecentlyPlayed,
+    PlaylistOut,
+    PlaylistTracks,
     ShazamTracks,
     SpotifyAuthUrl,
     SpotifyStatus,
@@ -202,19 +204,48 @@ def spotify_recently_played(
     return RecentlyPlayed(items=_marcar(db, canciones))
 
 
+def _cuenta_con_playlists(db, user_id: int) -> SpotifyAccount:
+    cuenta = _cuenta_conectada(db, user_id)
+    # Las cuentas conectadas antes de pedir este permiso no lo tienen: Spotify
+    # solo ensenaria las listas publicas, y casi todas son privadas
+    if cuenta.scope is not None and spotify.PLAYLIST_SCOPE not in cuenta.scope.split():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Para leer tus listas de Spotify hace falta un permiso nuevo: "
+            "desconecta Spotify y vuelve a conectarlo.",
+        )
+    return cuenta
+
+
+@router.get("/playlists", response_model=list[PlaylistOut])
+def spotify_playlists(current_user: CurrentUser, db: DbSession) -> list[PlaylistOut]:
+    """Las listas de la cuenta, propias y seguidas."""
+    cuenta = _cuenta_con_playlists(db, current_user.id)
+    try:
+        listas = spotify.list_playlists(_access_token(db, cuenta))
+    except SpotifyError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return [PlaylistOut(**vars(lista)) for lista in listas]
+
+
+@router.get("/playlists/{playlist_id}", response_model=PlaylistTracks)
+def spotify_playlist_tracks(
+    playlist_id: str, current_user: CurrentUser, db: DbSession
+) -> PlaylistTracks:
+    """Las canciones de una lista, marcando las que ya estan."""
+    cuenta = _cuenta_con_playlists(db, current_user.id)
+    try:
+        nombre, canciones = spotify.playlist_tracks(_access_token(db, cuenta), playlist_id)
+    except SpotifyError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return PlaylistTracks(name=nombre, items=_marcar(db, canciones))
+
+
 @router.get("/shazam", response_model=ShazamTracks)
 def spotify_shazam(current_user: CurrentUser, db: DbSession) -> ShazamTracks:
     """Lo reconocido con Shazam, que Shazam guarda en una playlist de Spotify
     si se conectan. Shazam no tiene API propia: este es el unico camino."""
-    cuenta = _cuenta_conectada(db, current_user.id)
-    # Las cuentas conectadas antes de pedir este permiso no lo tienen: Spotify
-    # solo ensenaria las playlists publicas, y la de Shazam suele ser privada
-    if cuenta.scope is not None and spotify.PLAYLIST_SCOPE not in cuenta.scope.split():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Para leer tu playlist de Shazam hace falta un permiso nuevo: "
-            "desconecta Spotify y vuelve a conectarlo.",
-        )
+    cuenta = _cuenta_con_playlists(db, current_user.id)
     try:
         token = _access_token(db, cuenta)
         nombre, canciones = spotify.shazam_tracks(token)

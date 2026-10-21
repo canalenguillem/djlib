@@ -14,8 +14,16 @@ export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
   return apiFetch<TrackPage>(`/tracks${query ? `?${query}` : ''}`)
 }
 
-export function addFromUrl(url: string): Promise<Track> {
-  return apiFetch<Track>('/tracks/from-url', { method: 'POST', body: { url } })
+export function getTrack(id: number): Promise<Track> {
+  return apiFetch<Track>(`/tracks/${id}`)
+}
+
+/** Con `crateId`, el servidor la mete en ese crate en cuanto este descargada. */
+export function addFromUrl(url: string, crateId?: number | null): Promise<Track> {
+  return apiFetch<Track>('/tracks/from-url', {
+    method: 'POST',
+    body: { url, crate_id: crateId ?? null },
+  })
 }
 
 export function previewSearch(

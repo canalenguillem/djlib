@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import (
     artists,
     auth,
+    batches,
     crates,
     recognition,
     spotify,
@@ -21,16 +22,27 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Las descargas viven dentro del proceso: un reinicio las deja huerfanas.
-    # Al arrancar se marcan como error para que se vean y se puedan reintentar.
+    if not settings.startup_tasks_enabled:
+        yield
+        return
+
+    # Las descargas sueltas viven dentro del proceso: un reinicio las deja
+    # huerfanas. Al arrancar se marcan como error para que se vean y se puedan
+    # reintentar. Las de las tandas, en cambio, se retoman solas.
     from app.db.session import SessionLocal
-    from app.services import track_service
+    from app.services import batch_service, track_service
 
     with SessionLocal() as db:
         recovered = track_service.recover_interrupted(db)
+        retomadas = batch_service.recover(db)
     if recovered:
         logger.warning("%s descargas interrumpidas marcadas como error", recovered)
+    if retomadas:
+        logger.warning("%s canciones de tandas devueltas a la cola", retomadas)
+
+    batch_service.start_workers(SessionLocal, settings.batch_workers)
     yield
+    batch_service.stop_workers()
 
 
 app = FastAPI(
@@ -61,6 +73,7 @@ app.include_router(artists.router)
 app.include_router(recognition.router)
 app.include_router(spotify.router)
 app.include_router(tags.router)
+app.include_router(batches.router)
 
 
 @app.get("/health", tags=["health"])

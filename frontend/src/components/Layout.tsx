@@ -43,6 +43,7 @@ export function Layout() {
           <NavLink to="/mixer">Mezclar</NavLink>
           {spotifyEnabled && <NavLink to="/spotify">Spotify</NavLink>}
           <NavLink to="/crates">Crates</NavLink>
+          <NavLink to="/listen">Escuchar</NavLink>
           <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>
           <NavLink to="/account">Mi cuenta</NavLink>

@@ -6,6 +6,7 @@ import * as tagsApi from '../api/tags'
 import * as tracksApi from '../api/tracks'
 import { AddTrackPanel } from '../components/AddTrackPanel'
 import { Alert } from '../components/Alert'
+import { BatchesPanel } from '../components/BatchesPanel'
 import { Loading } from '../components/Loading'
 import { Player } from '../components/Player'
 import { TrackRow } from '../components/TrackRow'
@@ -263,6 +264,8 @@ export function LibraryPage() {
       </section>
 
       {error && <Alert kind="error">{error}</Alert>}
+
+      <BatchesPanel onProgress={() => void load()} />
 
       {loading ? (
         <Loading />

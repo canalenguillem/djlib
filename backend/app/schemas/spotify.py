@@ -33,3 +33,16 @@ class ShazamTracks(BaseModel):
 
     playlist: str | None = None
     items: list[PlayedTrackOut] = []
+
+
+class PlaylistOut(BaseModel):
+    id: str
+    name: str
+    total: int
+    owner: str | None = None
+    image_url: str | None = None
+
+
+class PlaylistTracks(BaseModel):
+    name: str
+    items: list[PlayedTrackOut] = []
