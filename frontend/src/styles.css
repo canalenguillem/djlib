@@ -1384,7 +1384,7 @@ input[type='file'] {
    los pads de hot cue y el tempo */
 .deck__deck {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
   gap: 0.9rem;
   align-items: center;
 }
@@ -2018,4 +2018,58 @@ input[type='file'] {
 
 .crateselect__error {
   color: #ffb4ae;
+}
+
+/* Fader de tempo del CDJ: vertical, con el - arriba */
+.pitch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pitch__end {
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pitch__track {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+/* La marca del 0 a media altura, como la del plato */
+.pitch__zero {
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  right: -6px;
+  height: 2px;
+  background: #2fd36b;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.pitch__fader {
+  writing-mode: vertical-lr;
+  width: 36px;
+  height: 200px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pitch__value {
+  font-size: 0.85rem;
+  min-width: 4.2rem;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .pitch__fader {
+    height: 150px;
+  }
 }

@@ -41,6 +41,9 @@ export interface DeckControls {
 // Cuanto frena o acelera el empujon: lo justo para mover los golpes sin que
 // se note el cambio de tono
 const EMPUJON = 0.04
+// Paso del fader de tempo: 0,05 %, lo fino que hace falta para cuadrar dos
+// temas a mano
+const PASO_TEMPO = 0.0005
 
 export function DeckPanel(props: DeckControls) {
   const {
@@ -69,6 +72,14 @@ export function DeckPanel(props: DeckControls) {
   // El porcentaje de tempo es lo que se lee en un plato: 0 % es la velocidad
   // original, +6 % es un 6 % mas rapido.
   const porcentaje = ((tempo - 1) * 100).toFixed(1)
+  const textoTempo = `${Number(porcentaje) > 0 ? '+' : ''}${porcentaje} %`
+
+  function moverTempo(valor: number) {
+    let nuevo = Math.max(1 - limite, Math.min(1 + limite, valor))
+    // Un pequeno iman en el 0, como el clic del centro del fader del CDJ
+    if (Math.abs(nuevo - 1) < limite * 0.015) nuevo = 1
+    props.onTempo(nuevo)
+  }
 
   return (
     <section className="deck card">
@@ -232,7 +243,7 @@ export function DeckPanel(props: DeckControls) {
 
           <label className="deck__control">
             <span>
-              Tempo <strong>{Number(porcentaje) > 0 ? `+${porcentaje}` : porcentaje} %</strong>
+              Tempo <strong>{textoTempo}</strong>
               {puedeIgualar && (
                 <button type="button" className="deck__match" onClick={props.onMatch}>
                   Igualar al otro plato
@@ -250,14 +261,6 @@ export function DeckPanel(props: DeckControls) {
                 </button>
               )}
             </span>
-            <input
-              type="range"
-              min={1 - limite}
-              max={1 + limite}
-              step={0.001}
-              value={tempo}
-              onChange={(e) => props.onTempo(Number(e.target.value))}
-            />
             <div className="deck__range">
               <span className="muted">Recorrido</span>
               {[8, 16, 50].map((opcion) => (
@@ -278,6 +281,43 @@ export function DeckPanel(props: DeckControls) {
               )}
             </div>
           </label>
+        </div>
+
+        {/* El fader de tempo del CDJ: vertical, con el - arriba y el + abajo.
+            Hacia uno mismo, mas rapido. */}
+        <div className="pitch">
+          <span className="pitch__end" aria-hidden="true">−</span>
+          <div className="pitch__track">
+            <span className="pitch__zero" aria-hidden="true" />
+            <input
+              type="range"
+              className="pitch__fader"
+              min={1 - limite}
+              max={1 + limite}
+              step={PASO_TEMPO}
+              value={tempo}
+              disabled={!track}
+              aria-label="Tempo"
+              aria-valuetext={textoTempo}
+              title="Arriba, más lento; abajo, más rápido. Doble clic: tempo original"
+              onChange={(e) => moverTempo(Number(e.target.value))}
+              onDoubleClick={props.onResetTempo}
+              onKeyDown={(e) => {
+                // Las flechas siguen al cursor: arriba lo sube, y eso es frenar
+                const pasos: Record<string, number> = {
+                  ArrowUp: -PASO_TEMPO, ArrowLeft: -PASO_TEMPO,
+                  ArrowDown: PASO_TEMPO, ArrowRight: PASO_TEMPO,
+                  PageUp: -0.01, PageDown: 0.01,
+                }
+                if (e.key in pasos) {
+                  e.preventDefault()
+                  moverTempo(tempo + pasos[e.key])
+                }
+              }}
+            />
+          </div>
+          <span className="pitch__end" aria-hidden="true">+</span>
+          <strong className="pitch__value">{textoTempo}</strong>
         </div>
       </div>
     </section>
