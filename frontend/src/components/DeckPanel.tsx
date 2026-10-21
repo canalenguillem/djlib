@@ -40,9 +40,10 @@ export interface DeckControls {
   onDownbeat: () => void
 }
 
-// Cuanto frena o acelera el empujon: lo justo para mover los golpes sin que
-// se note el cambio de tono
-const EMPUJON = 0.04
+// Cuanto frena o acelera el empujon. Con un 4 % se quedaba corto: habia que
+// mantenerlo varios segundos para mover medio golpe. Con un 10 %, medio
+// segundo pulsado corre unos 50 ms, lo que se suele necesitar.
+const EMPUJON = 0.1
 // Paso del fader de tempo: 0,05 %, lo fino que hace falta para cuadrar dos
 // temas a mano
 const PASO_TEMPO = 0.0005
