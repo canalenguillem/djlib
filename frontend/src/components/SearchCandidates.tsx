@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
-import type { SearchCandidate } from '../types/api'
+import type { SearchCandidate, Track } from '../types/api'
+import { CrateSelect } from './CrateSelect'
 import { PauseIcon, PlayIcon } from './icons'
 
 interface Props {
   candidates: SearchCandidate[]
   addedIds: string[]
   addingId: string | null
-  onAdd: (candidate: SearchCandidate) => void
+  /** Devuelve la cancion creada, para poder meterla en un crate desde aqui. */
+  onAdd: (candidate: SearchCandidate) => Promise<Track | undefined> | void
 }
 
 /** Resultados de YouTube para que el usuario elija.
@@ -26,6 +28,13 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Prop
   const [fallo, setFallo] = useState<string | null>(null)
   const audio = useRef<HTMLAudioElement | null>(null)
   const objeto = useRef<string | null>(null)
+  // Las que se han anadido desde esta lista, por id de video
+  const [nuevas, setNuevas] = useState<Record<string, Track>>({})
+
+  async function anadir(candidate: SearchCandidate) {
+    const track = await onAdd(candidate)
+    if (track) setNuevas((prev) => ({ ...prev, [candidate.video_id]: track }))
+  }
 
   function parar() {
     audio.current?.pause()
@@ -73,6 +82,12 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Prop
       {candidates.map((candidate) => {
         const added = addedIds.includes(candidate.video_id)
         const inLibrary = candidate.already_in_library || added
+        const nueva = nuevas[candidate.video_id]
+        const enBiblioteca = nueva
+          ? { id: nueva.id, crateIds: nueva.crate_ids, pending: nueva.pending_crate_id }
+          : candidate.track_id !== null
+            ? { id: candidate.track_id, crateIds: candidate.crate_ids, pending: candidate.pending_crate_id }
+            : null
         return (
           <li key={candidate.video_id} className="candidate">
             {candidate.thumbnail_url && (
@@ -117,14 +132,23 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Prop
                 <PlayIcon />
               )}
             </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={inLibrary || addingId !== null}
-              onClick={() => onAdd(candidate)}
-            >
-              {addingId === candidate.video_id ? 'Anadiendo...' : 'Anadir'}
-            </button>
+            {enBiblioteca ? (
+              <CrateSelect
+                key={enBiblioteca.id}
+                trackId={enBiblioteca.id}
+                crateIds={enBiblioteca.crateIds}
+                pendingCrateId={enBiblioteca.pending}
+              />
+            ) : (
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={inLibrary || addingId !== null}
+                onClick={() => void anadir(candidate)}
+              >
+                {addingId === candidate.video_id ? 'Anadiendo...' : 'Anadir'}
+              </button>
+            )}
           </li>
         )
       })}

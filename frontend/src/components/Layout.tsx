@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import * as recognitionApi from '../api/recognition'
 import * as spotifyApi from '../api/spotify'
@@ -8,6 +8,8 @@ import { useAuth } from '../auth/useAuth'
 export function Layout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  // La mesa de mezclas necesita todo el ancho: dos platos y la mesa en medio
+  const ancha = useLocation().pathname.startsWith('/mixer')
   const [recognitionEnabled, setRecognitionEnabled] = useState(false)
   const [spotifyEnabled, setSpotifyEnabled] = useState(false)
 
@@ -59,7 +61,7 @@ export function Layout() {
           )}
         </div>
       </header>
-      <main className="content">
+      <main className={ancha ? 'content content--wide' : 'content'}>
         <Outlet />
       </main>
     </div>

@@ -22,6 +22,21 @@ export function audioContext(): AudioContext {
   return contexto
 }
 
+/** Las tres bandas del ecualizador de canal, de arriba abajo en la mesa. */
+export type EqBand = 'high' | 'mid' | 'low'
+
+/** Recorrido de cada potenciometro, el de una mesa Pioneer DJM: casi elimina
+ *  la banda girandolo del todo a la izquierda y la refuerza un poco a la
+ *  derecha. */
+export const EQ_MIN_DB = -26
+export const EQ_MAX_DB = 6
+
+/** Posicion del potenciometro (-1 a 1, 0 a las 12) a decibelios. La escala no
+ *  es simetrica, como en la mesa: el centro es 0 dB. */
+export function eqDb(posicion: number): number {
+  return posicion < 0 ? -posicion * EQ_MIN_DB : posicion * EQ_MAX_DB
+}
+
 export interface DeckSnapshot {
   playing: boolean
   position: number
@@ -30,6 +45,9 @@ export interface DeckSnapshot {
 
 export class Deck {
   private readonly ctx: AudioContext
+  /** Ecualizador del canal. Los cortes son los de la forma de onda, asi que
+   *  quitar los bajos quita justo lo que se pinta en azul. */
+  private readonly eq: Record<EqBand, BiquadFilterNode>
   /** Volumen del canal, lo que mueve el fader vertical. */
   readonly volume: GainNode
   /** Posicion en el crossfader; se controla desde fuera. */
@@ -40,14 +58,26 @@ export class Deck {
   private offset = 0
   private startedAt = 0
   private rate = 1
+  /** Empujon temporal del jog, encima del tempo: 1 es sin tocar. */
+  private bend = 1
 
   playing = false
   onEnded?: () => void
 
   constructor(destino: AudioNode) {
     this.ctx = audioContext()
+    this.eq = {
+      low: this.filtro('lowshelf', 200),
+      mid: this.filtro('peaking', 1000),
+      high: this.filtro('highshelf', 2500),
+    }
+    // Un medio ancho, que cubra la banda entre los otros dos
+    this.eq.mid.Q.value = 0.7
     this.volume = this.ctx.createGain()
     this.crossfade = this.ctx.createGain()
+    this.eq.low.connect(this.eq.mid)
+    this.eq.mid.connect(this.eq.high)
+    this.eq.high.connect(this.volume)
     this.volume.connect(this.crossfade)
     this.crossfade.connect(destino)
   }
@@ -60,10 +90,15 @@ export class Deck {
     return this.buffer !== null
   }
 
+  /** El audio descodificado, para dibujar su onda. */
+  get audio(): AudioBuffer | null {
+    return this.buffer
+  }
+
   /** Posicion actual en segundos del propio tema, no del reloj. */
   get position(): number {
     if (!this.playing) return this.offset
-    return Math.min(this.duration, this.offset + (this.ctx.currentTime - this.startedAt) * this.rate)
+    return Math.min(this.duration, this.offset + (this.ctx.currentTime - this.startedAt) * this.rate * this.bend)
   }
 
   async load(datos: ArrayBuffer): Promise<void> {
@@ -78,8 +113,8 @@ export class Deck {
 
     const source = this.ctx.createBufferSource()
     source.buffer = this.buffer
-    source.playbackRate.value = this.rate
-    source.connect(this.volume)
+    source.playbackRate.value = this.rate * this.bend
+    source.connect(this.eq.low)
     source.onended = () => {
       // onended salta tanto al terminar como al parar nosotros: solo interesa
       // el primer caso.
@@ -113,15 +148,37 @@ export class Deck {
   }
 
   setTempo(valor: number): void {
+    this.cambiarVelocidad(() => (this.rate = valor))
+  }
+
+  /** Frena o acelera un momento sin tocar el tempo, como al rozar el borde
+   *  del jog: sirve para cuadrar los golpes cuando ya van al mismo BPM. */
+  setBend(valor: number): void {
+    this.cambiarVelocidad(() => (this.bend = valor))
+  }
+
+  private cambiarVelocidad(cambio: () => void): void {
     // Se apunta donde vamos antes de cambiar el ritmo del reloj, o la cuenta
     // de la posicion se descuadra.
     const donde = this.position
-    this.rate = valor
+    cambio()
     if (this.playing) {
       this.offset = donde
       this.startedAt = this.ctx.currentTime
-      if (this.source) this.source.playbackRate.value = valor
+      if (this.source) this.source.playbackRate.value = this.rate * this.bend
     }
+  }
+
+  /** Ganancia de una banda, en decibelios. */
+  setEq(banda: EqBand, db: number): void {
+    this.eq[banda].gain.setTargetAtTime(db, this.ctx.currentTime, 0.01)
+  }
+
+  private filtro(type: BiquadFilterType, frequency: number): BiquadFilterNode {
+    const nodo = this.ctx.createBiquadFilter()
+    nodo.type = type
+    nodo.frequency.value = frequency
+    return nodo
   }
 
   setVolume(valor: number): void {
@@ -145,6 +202,7 @@ export class Deck {
   dispose(): void {
     this.stop()
     this.buffer = null
+    for (const nodo of Object.values(this.eq)) nodo.disconnect()
     this.volume.disconnect()
     this.crossfade.disconnect()
   }

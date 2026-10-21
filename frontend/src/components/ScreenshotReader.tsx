@@ -75,8 +75,9 @@ export function ScreenshotReader() {
     setAddingId(candidate.video_id)
     setError(null)
     try {
-      await tracksApi.addFromUrl(candidate.url)
+      const nueva = await tracksApi.addFromUrl(candidate.url)
       setAddedIds((prev) => [...prev, candidate.video_id])
+      return nueva
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo anadir la cancion.')
     } finally {

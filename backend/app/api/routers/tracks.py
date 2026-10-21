@@ -22,14 +22,23 @@ from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
     SearchCandidate,
     SearchResults,
+    TrackCrateMove,
     TrackFromSearch,
     TrackFromUrl,
     TrackOut,
     TrackPage,
     TrackTagsUpdate,
     TrackUpdate,
+    WaveformOut,
 )
-from app.services import artist_service, downloader, preview, tag_service, track_service
+from app.services import (
+    artist_service,
+    downloader,
+    preview,
+    tag_service,
+    track_service,
+    waveform as waveform_service,
+)
 from app.services.audio_file import AudioFileError
 from app.services.downloader import DownloadError
 from app.services.tag_service import TagError
@@ -89,7 +98,11 @@ def add_from_url(
     session_factory: SessionFactory,
 ) -> TrackOut:
     try:
-        track = track_service.create_from_url(db, current_user, payload.url)
+        track = track_service.create_from_url(
+            db, current_user, payload.url, crate_id=payload.crate_id
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except DuplicateTrackError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ValueError as exc:
@@ -117,7 +130,7 @@ def preview_search(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
         ) from exc
 
-    ya_estan = track_service.existing_video_ids(db, [r.video_id for r in resultados])
+    ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
     limite = settings.max_song_duration_seconds
 
     return SearchResults(
@@ -130,8 +143,8 @@ def preview_search(
                 duration_seconds=r.duration_seconds,
                 url=r.url,
                 thumbnail_url=r.thumbnail_url,
-                already_in_library=r.video_id in ya_estan,
                 too_long=bool(r.duration_seconds and r.duration_seconds > limite),
+                **track_service.library_fields(ya_estan.get(r.video_id)),
             )
             for r in resultados
         ],
@@ -233,6 +246,7 @@ def upload_track(
     if nuevos:
         background.add_task(artist_service.run_enrichment, session_factory, nuevos)
     background.add_task(track_service.analyze_bpm, session_factory, track.id)
+    background.add_task(track_service.compute_waveform, session_factory, track.id)
     return resultado
 
 
@@ -262,6 +276,20 @@ def update_track(
     if payload.bpm is not None:
         track.bpm = payload.bpm
     track.updated_at = utcnow()
+    db.commit()
+    db.refresh(track)
+    return TrackOut.model_validate(track)
+
+
+@router.put("/{track_id}/crate", response_model=TrackOut)
+def move_track_to_crate(
+    track_id: int, payload: TrackCrateMove, current_user: CurrentUser, db: DbSession
+) -> TrackOut:
+    track = _get_or_404(db, track_id)
+    try:
+        track_service.move_to_crate(db, track, payload.crate_id, payload.from_crate_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     db.commit()
     db.refresh(track)
     return TrackOut.model_validate(track)
@@ -377,6 +405,36 @@ def get_track_file(track_id: int, current_user: CurrentUser, db: DbSession):
         filename=track_service.download_filename(track),
         content_disposition_type="inline",
     )
+
+
+@router.get("/{track_id}/waveform", response_model=WaveformOut)
+def get_track_waveform(
+    track_id: int,
+    current_user: CurrentUser,
+    db: DbSession,
+    session_factory: SessionFactory,
+    response: Response,
+) -> WaveformOut:
+    """Forma de onda para pintar en la fila, como la vista general de un CDJ.
+
+    Las canciones anteriores a esta funcion no la tienen: se calcula aqui la
+    primera vez, en un segundo o dos, y ya queda guardada.
+    """
+    track = _get_or_404(db, track_id)
+    if track.status != TrackStatus.ready:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="La cancion todavia no esta lista."
+        )
+    datos = track.waveform or track_service.compute_waveform(session_factory, track_id)
+    if datos is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se ha podido calcular la forma de onda.",
+        )
+    # El audio de una cancion no cambia, y su onda tampoco
+    response.headers["Cache-Control"] = "private, max-age=86400"
+    bandas = waveform_service.decode(datos)
+    return WaveformOut(bins=len(bandas["low"]), **bandas)
 
 
 @router.delete("/{track_id}", status_code=status.HTTP_204_NO_CONTENT)

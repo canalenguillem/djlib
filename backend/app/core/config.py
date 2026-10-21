@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     bpm_analysis_seconds: int = 120
     bpm_timeout_seconds: int = 120
 
+    # --- Forma de onda ---
+    waveform_enabled: bool = True
+    # Tramos de la onda: los mismos que tiene de ancho, mas o menos, la vista
+    # general de un CDJ. Es lo que ocupa una fila de la biblioteca.
+    waveform_bins: int = 400
+    waveform_timeout_seconds: int = 120
+
     # --- Fichas de artista (MusicBrainz + Wikipedia) ---
     enrichment_enabled: bool = True
     musicbrainz_base_url: str = "https://musicbrainz.org/ws/2"

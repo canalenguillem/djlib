@@ -79,7 +79,7 @@ def recognize_audio(
     candidatos: list[SearchCandidate] = []
     try:
         resultados = downloader.search(encontrada.title, encontrada.artist)
-        ya_estan = track_service.existing_video_ids(db, [r.video_id for r in resultados])
+        ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
         limite = settings.max_song_duration_seconds
         candidatos = [
             SearchCandidate(
@@ -89,8 +89,8 @@ def recognize_audio(
                 duration_seconds=r.duration_seconds,
                 url=r.url,
                 thumbnail_url=r.thumbnail_url,
-                already_in_library=r.video_id in ya_estan,
                 too_long=bool(r.duration_seconds and r.duration_seconds > limite),
+                **track_service.library_fields(ya_estan.get(r.video_id)),
             )
             for r in resultados
         ]

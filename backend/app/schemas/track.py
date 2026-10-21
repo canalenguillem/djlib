@@ -39,6 +39,18 @@ class TrackOut(BaseModel):
     updated_at: datetime
     tags: list[TagOut] = []
     artists: list[ArtistBrief] = []
+    # Crates en los que esta, del primero en que entro al ultimo
+    crate_ids: list[int] = []
+    # Crate al que ira cuando termine de descargarse
+    pending_crate_id: int | None = None
+
+
+class TrackCrateMove(BaseModel):
+    """Cambiar la cancion de crate: sale de `from_crate_id` (si se da) y entra
+    en `crate_id` (si se da). Con los dos vacios no hace nada."""
+
+    crate_id: int | None = None
+    from_crate_id: int | None = None
 
 
 class TrackPage(BaseModel):
@@ -50,6 +62,8 @@ class TrackPage(BaseModel):
 
 class TrackFromUrl(BaseModel):
     url: str = Field(min_length=5, max_length=500)
+    # Crate al que ira cuando este descargada
+    crate_id: int | None = None
 
 
 class TrackFromSearch(BaseModel):
@@ -95,8 +109,22 @@ class SearchCandidate(BaseModel):
     # Marcas para que se vea de un vistazo que conviene y que no
     already_in_library: bool = False
     too_long: bool = False
+    # Si ya esta, la cancion de la biblioteca: para poder meterla en un crate
+    # desde los propios resultados
+    track_id: int | None = None
+    crate_ids: list[int] = []
+    pending_crate_id: int | None = None
 
 
 class SearchResults(BaseModel):
     query: str
     candidates: list[SearchCandidate]
+
+
+class WaveformOut(BaseModel):
+    """Forma de onda en tres bandas, un valor de 0 a 255 por tramo."""
+
+    bins: int
+    low: list[int]
+    mid: list[int]
+    high: list[int]

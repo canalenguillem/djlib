@@ -281,3 +281,104 @@ def test_listado_de_crates(client: TestClient, admin_user, fake_downloader) -> N
     assert [c["name"] for c in listado] == ["Apertura", "Cierre"]
     assert listado[0]["track_count"] == 3
     assert listado[0]["total_seconds"] == 540
+
+
+# --- Crate elegido al pedir la descarga -------------------------------------
+
+
+URL_NUEVA = "https://www.youtube.com/watch?v=ddddddddddd"
+
+
+def test_la_descarga_entra_sola_en_el_crate_elegido(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    existente = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    crate = client.post("/crates", json={"name": "Spotify", "track_ids": [existente]}, headers=h).json()
+
+    fake_downloader.info = fake_downloader.info.__class__(
+        video_id="ddddddddddd", title="Nueva", artist="Blur", duration_seconds=180,
+        webpage_url=URL_NUEVA, site="youtube",
+    )
+    alta = client.post("/tracks/from-url", json={"url": URL_NUEVA, "crate_id": crate["id"]}, headers=h)
+    assert alta.status_code == 202
+
+    # La descarga corre como tarea de fondo, que el cliente de pruebas ejecuta
+    # antes de devolver: al terminar ya esta dentro, al final
+    detalle = client.get(f"/crates/{crate['id']}", headers=h).json()
+    assert titulos(detalle) == ["Primera", "Nueva"]
+
+
+def test_crate_inexistente_se_rechaza_antes_de_descargar(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    alta = client.post("/tracks/from-url", json={"url": URL_NUEVA, "crate_id": 999}, headers=h)
+    assert alta.status_code == 404
+    assert fake_downloader.downloaded_queries == []
+
+
+def test_si_la_descarga_falla_no_entra_en_el_crate(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    from app.services.downloader import DownloadError
+
+    h = headers(client)
+    crate = client.post("/crates", json={"name": "Spotify"}, headers=h).json()
+    fake_downloader.error = DownloadError("Video no disponible.")
+    client.post("/tracks/from-url", json={"url": URL_NUEVA, "crate_id": crate["id"]}, headers=h)
+    assert client.get(f"/crates/{crate['id']}", headers=h).json()["tracks"] == []
+
+
+# --- Desplegable de crate de cada cancion -----------------------------------
+
+
+def test_meter_cambiar_y_sacar_de_crate(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    track = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    uno = client.post("/crates", json={"name": "Uno"}, headers=h).json()["id"]
+    dos = client.post("/crates", json={"name": "Dos"}, headers=h).json()["id"]
+
+    r = client.put(f"/tracks/{track}/crate", json={"crate_id": uno}, headers=h)
+    assert r.status_code == 200
+    assert r.json()["crate_ids"] == [uno]
+
+    # Cambiarla: sale del primero y entra en el segundo
+    r = client.put(f"/tracks/{track}/crate", json={"crate_id": dos, "from_crate_id": uno}, headers=h)
+    assert r.json()["crate_ids"] == [dos]
+    assert client.get(f"/crates/{uno}", headers=h).json()["tracks"] == []
+
+    # Y sacarla del todo
+    r = client.put(f"/tracks/{track}/crate", json={"crate_id": None, "from_crate_id": dos}, headers=h)
+    assert r.json()["crate_ids"] == []
+    assert client.get(f"/tracks/{track}", headers=h).json()["crate_ids"] == []
+
+
+def test_elegir_el_crate_en_el_que_ya_esta_no_la_duplica(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    track = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    uno = client.post("/crates", json={"name": "Uno", "track_ids": [track]}, headers=h).json()["id"]
+    r = client.put(f"/tracks/{track}/crate", json={"crate_id": uno, "from_crate_id": uno}, headers=h)
+    assert r.status_code == 200
+    assert titulos(client.get(f"/crates/{uno}", headers=h).json()) == ["Primera"]
+
+
+def test_crate_inexistente_en_el_desplegable_es_404(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    track = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    assert client.put(f"/tracks/{track}/crate", json={"crate_id": 999}, headers=h).status_code == 404
+
+
+def test_los_resultados_de_busqueda_dicen_su_crate(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    track = crear_track(client, h, "dQw4w9WgXcQ", "Song 2", fake_downloader)
+    uno = client.post("/crates", json={"name": "Uno", "track_ids": [track]}, headers=h).json()["id"]
+    candidatos = client.post("/tracks/search/preview", json={"title": "Song 2"}, headers=h).json()["candidates"]
+    ya = [c for c in candidatos if c["already_in_library"]]
+    assert ya and ya[0]["track_id"] == track and ya[0]["crate_ids"] == [uno]

@@ -1,4 +1,4 @@
-import type { SearchResults, Track, TrackFilters, TrackPage } from '../types/api'
+import type { SearchResults, Track, TrackFilters, TrackPage, Waveform } from '../types/api'
 import { apiFetch, apiFetchBlob, apiFetchForm } from './client'
 
 export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
@@ -52,6 +52,19 @@ export function updateTrack(
   return apiFetch<Track>(`/tracks/${id}`, { method: 'PATCH', body: payload })
 }
 
+/** Saca la cancion de `fromCrateId` y la mete en `crateId`; cualquiera de
+ *  los dos puede faltar. Si aun se descarga, entra al terminar. */
+export function moveTrackToCrate(
+  id: number,
+  crateId: number | null,
+  fromCrateId: number | null,
+): Promise<Track> {
+  return apiFetch<Track>(`/tracks/${id}/crate`, {
+    method: 'PUT',
+    body: { crate_id: crateId, from_crate_id: fromCrateId },
+  })
+}
+
 export function setTrackTags(id: number, tagIds: number[]): Promise<Track> {
   return apiFetch<Track>(`/tracks/${id}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
 }
@@ -72,6 +85,10 @@ export function deleteTrack(id: number): Promise<void> {
 /** Fragmento de 30 s de un candidato, para saber si es la version buena. */
 export function previewCandidate(url: string): Promise<Blob> {
   return apiFetchBlob(`/tracks/preview?url=${encodeURIComponent(url)}`)
+}
+
+export function fetchWaveform(id: number): Promise<Waveform> {
+  return apiFetch<Waveform>(`/tracks/${id}/waveform`)
 }
 
 export function fetchTrackFile(id: number): Promise<Blob> {

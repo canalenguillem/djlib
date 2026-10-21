@@ -4,9 +4,11 @@ import { Link } from 'react-router-dom'
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
 import type { Tag, Track, TrackStatus } from '../types/api'
+import { CrateSelect } from './CrateSelect'
 import { EnergyPicker } from './EnergyPicker'
 import { PauseIcon, PlayIcon } from './icons'
 import { TagPicker } from './TagPicker'
+import { Waveform } from './Waveform'
 
 const STATUS_LABEL: Record<TrackStatus, string> = {
   pending: 'en cola',
@@ -153,6 +155,7 @@ export function TrackRow({
           {track.status === 'error' && track.error_message && (
             <div className="track__error">{track.error_message}</div>
           )}
+          {track.status === 'ready' && <Waveform trackId={track.id} />}
           {track.status === 'ready' && (
             <div className="track__energy">
               <EnergyPicker
@@ -177,6 +180,14 @@ export function TrackRow({
         </div>
 
         <div className="track__actions">
+          {/* Tambien mientras se descarga: entra en el crate al terminar */}
+          {track.status !== 'error' && (
+            <CrateSelect
+              trackId={track.id}
+              crateIds={track.crate_ids}
+              pendingCrateId={track.pending_crate_id}
+            />
+          )}
           {track.status === 'ready' && (
             <>
               <button type="button" className="btn btn--ghost" disabled={busy} onClick={handleDownload}>

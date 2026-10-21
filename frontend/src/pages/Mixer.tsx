@@ -1,16 +1,43 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 
 import * as cratesApi from '../api/crates'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { DeckPanel } from '../components/DeckPanel'
+import { SyncView } from '../components/SyncView'
 import { Loading } from '../components/Loading'
-import { Deck, audioContext, crossfadeGains } from '../lib/audioEngine'
+import { Knob } from '../components/Knob'
+import { Deck, audioContext, crossfadeGains, eqDb } from '../lib/audioEngine'
+import type { EqBand } from '../lib/audioEngine'
+import { BANDS, analyzeBuffer } from '../lib/waveform'
+import { detectBeatGrid, setDownbeat } from '../lib/beatgrid'
+import type { BeatGrid } from '../lib/beatgrid'
+import type { DeckWaveformData } from '../lib/waveform'
 import { formatDuration } from '../lib/format'
 import type { CrateSummary, Track } from '../types/api'
 
 const PADS = 4
+
+// De arriba abajo, como en la mesa. Cada uno con el color de su banda en la
+// onda, para ver lo que se esta quitando.
+const EQ: Array<{ band: EqBand; label: string }> = [
+  { band: 'high', label: 'Agudos' },
+  { band: 'mid', label: 'Medios' },
+  { band: 'low', label: 'Bajos' },
+]
+const COLOR_BANDA = Object.fromEntries(BANDS.map((b) => [b.key, b.color])) as Record<EqBand, string>
+
+// Duracion del intercambio de ecualizador, en compases de 4 tiempos: es como
+// se cuenta una mezcla. 0 es un corte seco.
+const VELOCIDADES = [0, 1, 2, 4]
+// Si no suena nada con BPM conocido, se cuenta a un tempo tipico de house
+const BPM_POR_DEFECTO = 120
+
+function textoDb(posicion: number): string {
+  const db = Math.round(eqDb(posicion))
+  return db === 0 ? '0 dB' : `${db > 0 ? '+' : '−'}${Math.abs(db)} dB`
+}
 
 interface EstadoPlato {
   track: Track | null
@@ -20,8 +47,16 @@ interface EstadoPlato {
   duration: number
   tempo: number
   volume: number
+  /** Posicion de cada potenciometro del ecualizador, de -1 a 1. */
+  eq: Record<EqBand, number>
   range: number
   cues: Array<number | null>
+  /** El cue principal, el del boton CUE. Al cargar, el principio del tema. */
+  mainCue: number
+  waveform: DeckWaveformData | null
+  analyzing: boolean
+  /** Rejilla de tiempos, sacada de la onda. */
+  grid: BeatGrid | null
 }
 
 const PLATO_INICIAL: EstadoPlato = {
@@ -32,17 +67,31 @@ const PLATO_INICIAL: EstadoPlato = {
   duration: 0,
   tempo: 1,
   volume: 0.8,
+  eq: { high: 0, mid: 0, low: 0 },
   range: 8,
   cues: Array(PADS).fill(null),
+  mainCue: 0,
+  waveform: null,
+  analyzing: false,
+  grid: null,
 }
 
 export function MixerPage() {
   const decks = useRef<[Deck, Deck] | null>(null)
+  // Cuantas canciones se han cargado en cada plato: el analisis de la onda es
+  // asincrono y no debe pisar el de una cancion cargada despues.
+  const cargas = useRef<[number, number]>([0, 0])
+  // Si cada plato esta sonando solo mientras se mantiene pulsado el CUE
+  const preescucha = useRef<[boolean, boolean]>([false, false])
   const [estados, setEstados] = useState<[EstadoPlato, EstadoPlato]>([
     { ...PLATO_INICIAL },
     { ...PLATO_INICIAL },
   ])
   const [crossfader, setCrossfader] = useState(0.5)
+  const [compases, setCompases] = useState(1)
+  // Barridos de intercambio en marcha, por banda: el id de su animacion
+  const barridos = useRef<Partial<Record<EqBand, number>>>({})
+  const [barriendo, setBarriendo] = useState<Partial<Record<EqBand, boolean>>>({})
   const [error, setError] = useState<string | null>(null)
 
   // Biblioteca desde la que se cargan los platos
@@ -142,24 +191,138 @@ export function MixerPage() {
   async function cargarEnPlato(indice: 0 | 1, track: Track) {
     const deck = decks.current?.[indice]
     if (!deck) return
-    actualizar(indice, { loading: true, track, playing: false, position: 0, cues: Array(PADS).fill(null) })
+    const turno = ++cargas.current[indice]
+    actualizar(indice, {
+      loading: true,
+      track,
+      playing: false,
+      position: 0,
+      cues: Array(PADS).fill(null),
+      mainCue: 0,
+      waveform: null,
+      analyzing: false,
+      grid: null,
+    })
     setError(null)
     try {
       const blob = await tracksApi.fetchTrackFile(track.id)
       await deck.load(await blob.arrayBuffer())
-      actualizar(indice, { loading: false, duration: deck.duration, position: 0 })
+      actualizar(indice, { loading: false, duration: deck.duration, position: 0, analyzing: true })
     } catch (err) {
       actualizar(indice, { loading: false, track: null })
       setError(err instanceof Error ? err.message : 'No se pudo cargar el audio.')
+      return
+    }
+
+    // La onda se calcula despues: el plato ya se puede tocar mientras tanto
+    try {
+      const onda = deck.audio ? await analyzeBuffer(deck.audio) : null
+      // Si mientras tanto se ha cargado otra cancion en el plato, esta onda ya
+      // no es la suya
+      const grid = onda ? detectBeatGrid(onda, track.bpm) : null
+      if (turno === cargas.current[indice]) actualizar(indice, { waveform: onda, analyzing: false, grid })
+    } catch {
+      if (turno === cargas.current[indice]) actualizar(indice, { analyzing: false })
     }
   }
 
   function alternar(indice: 0 | 1) {
     const deck = decks.current?.[indice]
     if (!deck?.loaded) return
+    // PLAY con el CUE pulsado: como en el CDJ, al soltar el CUE sigue sonando
+    if (preescucha.current[indice]) {
+      preescucha.current[indice] = false
+      return
+    }
     if (deck.playing) deck.pause()
     else deck.play()
     actualizar(indice, { playing: deck.playing })
+  }
+
+  /** El boton CUE de un CDJ, en el modo por defecto. */
+  function pulsarCue(indice: 0 | 1) {
+    const deck = decks.current?.[indice]
+    if (!deck?.loaded) return
+    const cue = estados[indice].mainCue
+    if (deck.playing) {
+      // Sonando: vuelve al cue y se queda parado, listo para lanzarlo a tiempo
+      deck.pause()
+      deck.seek(cue)
+      actualizar(indice, { playing: false, position: cue })
+    } else if (Math.abs(deck.position - cue) > 0.01) {
+      // Parado en otro punto: ese punto pasa a ser el cue
+      actualizar(indice, { mainCue: deck.position })
+    } else {
+      // Parado en el cue: suena mientras se mantenga pulsado
+      preescucha.current[indice] = true
+      deck.play()
+      actualizar(indice, { playing: true })
+    }
+  }
+
+  function soltarCue(indice: 0 | 1) {
+    if (!preescucha.current[indice]) return
+    preescucha.current[indice] = false
+    const deck = decks.current?.[indice]
+    if (!deck) return
+    const cue = estados[indice].mainCue
+    deck.pause()
+    deck.seek(cue)
+    actualizar(indice, { playing: false, position: cue })
+  }
+
+  function cambiarEq(indice: 0 | 1, banda: EqBand, posicion: number) {
+    decks.current?.[indice].setEq(banda, eqDb(posicion))
+    setEstados((previo) => {
+      const copia = [...previo] as [EstadoPlato, EstadoPlato]
+      copia[indice] = { ...copia[indice], eq: { ...copia[indice].eq, [banda]: posicion } }
+      return copia
+    })
+  }
+
+  function pararBarrido(banda: EqBand) {
+    const id = barridos.current[banda]
+    if (id === undefined) return
+    cancelAnimationFrame(id)
+    delete barridos.current[banda]
+    setBarriendo((previo) => ({ ...previo, [banda]: false }))
+  }
+
+  // Al salir de la pantalla no puede quedar ningun barrido moviendo nada
+  useEffect(() => () => Object.values(barridos.current).forEach((id) => cancelAnimationFrame(id!)), [])
+
+  /** Lo que hace un DJ con las dos manos: cada canal se queda con el valor
+   *  que tenia el otro. Si los bajos de A estan arriba y los de B cortados,
+   *  A los pierde mientras B los recupera. */
+  function intercambiar(banda: EqBand, segundos: number) {
+    const a = estados[0].eq[banda]
+    const b = estados[1].eq[banda]
+    pararBarrido(banda)
+    if (a === b) return
+    if (segundos <= 0) {
+      cambiarEq(0, banda, b)
+      cambiarEq(1, banda, a)
+      return
+    }
+    const inicio = performance.now()
+    const paso = (ahora: number) => {
+      const t = Math.min(1, (ahora - inicio) / (segundos * 1000))
+      cambiarEq(0, banda, a + (b - a) * t)
+      cambiarEq(1, banda, b + (a - b) * t)
+      if (t < 1) {
+        barridos.current[banda] = requestAnimationFrame(paso)
+      } else {
+        delete barridos.current[banda]
+        setBarriendo((previo) => ({ ...previo, [banda]: false }))
+      }
+    }
+    barridos.current[banda] = requestAnimationFrame(paso)
+    setBarriendo((previo) => ({ ...previo, [banda]: true }))
+  }
+
+  function cambiarVolumen(indice: 0 | 1, valor: number) {
+    decks.current?.[indice].setVolume(valor)
+    actualizar(indice, { volume: valor })
   }
 
   function pulsarPad(indice: 0 | 1, pad: number) {
@@ -187,10 +350,28 @@ export function MixerPage() {
     platos[1].crossfade.gain.setTargetAtTime(gb, ctx.currentTime, 0.01)
   }
 
+  /** BPM del tema: el afinado de la rejilla si ya esta, que tiene decimales. */
+  function bpmDe(indice: 0 | 1): number | null {
+    const estado = estados[indice]
+    return estado.grid?.bpm ?? estado.track?.bpm ?? null
+  }
+
   /** BPM al que suena cada plato ahora mismo, con su tempo aplicado. */
   function sonandoA(indice: 0 | 1): number | null {
-    const estado = estados[indice]
-    return estado.track?.bpm ? estado.track.bpm * estado.tempo : null
+    const bpm = bpmDe(indice)
+    return bpm ? bpm * estados[indice].tempo : null
+  }
+
+  /** Mientras se mantiene, frena o acelera el plato un poco, como empujando
+   *  el jog: es como se cuadran los golpes a mano. */
+  function empujar(indice: 0 | 1, factor: number) {
+    decks.current?.[indice].setBend(factor)
+  }
+
+  /** Corrige la rejilla: el golpe mas cercano a la aguja pasa a ser el 1. */
+  function marcarUno(indice: 0 | 1) {
+    const { grid, position } = estados[indice]
+    if (grid) actualizar(indice, { grid: setDownbeat(grid, position) })
   }
 
   /** Devuelve el plato a la velocidad a la que se grabo el tema. */
@@ -201,7 +382,7 @@ export function MixerPage() {
 
   /** Ajusta el tempo de un plato para que suene al mismo BPM que el otro. */
   function igualar(indice: 0 | 1) {
-    const propio = estados[indice].track?.bpm
+    const propio = bpmDe(indice)
     const objetivo = sonandoA(indice === 0 ? 1 : 0)
     if (!propio || !objetivo) return
     const limite = estados[indice].range / 100
@@ -224,6 +405,16 @@ export function MixerPage() {
 
   const listaVisible = crateTracks ?? tracks
 
+  // El intercambio se cuenta al tempo de lo que suena; si suenan los dos,
+  // estaran igualados o casi
+  const bpmMezcla =
+    ([0, 1] as const).map((i) => (estados[i].playing ? sonandoA(i) : null)).find((v) => v) ??
+    sonandoA(0) ??
+    sonandoA(1) ??
+    BPM_POR_DEFECTO
+  const segundosIntercambio = (compases * 4 * 60) / bpmMezcla
+  const sinDiferencia = (banda: EqBand) => estados[0].eq[banda] === estados[1].eq[banda]
+
   return (
     <div className="stack">
       <h1>Mesa de mezclas</h1>
@@ -234,6 +425,13 @@ export function MixerPage() {
       </p>
 
       {error && <Alert kind="error">{error}</Alert>}
+
+      <SyncView
+        decks={[
+          { label: 'A', loaded: estados[0].track !== null && !estados[0].loading, ...estados[0], data: estados[0].waveform },
+          { label: 'B', loaded: estados[1].track !== null && !estados[1].loading, ...estados[1], data: estados[1].waveform },
+        ]}
+      />
 
       <div className="mixer">
         <DeckPanel
@@ -252,10 +450,10 @@ export function MixerPage() {
             decks.current?.[0].setTempo(v)
             actualizar(0, { tempo: v })
           }}
-          onVolume={(v) => {
-            decks.current?.[0].setVolume(v)
-            actualizar(0, { volume: v })
-          }}
+          onCueDown={() => pulsarCue(0)}
+          onNudge={(f) => empujar(0, f)}
+          onDownbeat={() => marcarUno(0)}
+          onCueUp={() => soltarCue(0)}
           onCue={(p) => pulsarPad(0, p)}
           onClearCue={(p) => {
             const nuevos = [...estados[0].cues]
@@ -265,6 +463,92 @@ export function MixerPage() {
         />
 
         <div className="crossfader card">
+          {/* Los canales, como en una mesa Pioneer: ecualizador arriba y fader
+              debajo, y los dos pasan despues por el crossfader. */}
+          <div className="channels">
+            {([0, 1] as const).map((indice) => (
+              <div key={indice} className="channel">
+                <span className="channel__label">{indice === 0 ? 'A' : 'B'}</span>
+                {EQ.map(({ band, label }) => (
+                  <Knob
+                    key={band}
+                    label={label}
+                    color={COLOR_BANDA[band]}
+                    value={estados[indice].eq[band]}
+                    valueText={textoDb(estados[indice].eq[band])}
+                    onChange={(v) => {
+                      // La mano manda sobre un barrido en marcha
+                      pararBarrido(band)
+                      cambiarEq(indice, band, v)
+                    }}
+                  />
+                ))}
+                <input
+                  type="range"
+                  className="channel__fader"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={estados[indice].volume}
+                  aria-label={`Volumen del plato ${indice === 0 ? 'A' : 'B'}`}
+                  onChange={(e) => cambiarVolumen(indice, Number(e.target.value))}
+                />
+                <span className="channel__value">{Math.round(estados[indice].volume * 100)}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Intercambio de ecualizador: lo que en la mesa se hace con dos manos */}
+          <div className="swap">
+            <span className="crossfader__label">Intercambiar entre A y B</span>
+            <div className="swap__bands">
+              {EQ.map(({ band, label }) => (
+                <button
+                  key={band}
+                  type="button"
+                  className={barriendo[band] ? 'swapbtn swapbtn--running' : 'swapbtn'}
+                  style={{ '--band': COLOR_BANDA[band] } as CSSProperties}
+                  disabled={sinDiferencia(band) && !barriendo[band]}
+                  title={
+                    sinDiferencia(band)
+                      ? `Los ${label.toLowerCase()} de A y B estan igual: no hay nada que intercambiar`
+                      : `Baja los ${label.toLowerCase()} del canal que los tiene subidos y sube los del otro`
+                  }
+                  onClick={() => intercambiar(band, segundosIntercambio)}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="swapbtn swapbtn--all"
+                disabled={EQ.every(({ band }) => sinDiferencia(band))}
+                title="Intercambia las tres bandas a la vez"
+                onClick={() => EQ.forEach(({ band }) => intercambiar(band, segundosIntercambio))}
+              >
+                Todo
+              </button>
+            </div>
+            <div className="swap__speed">
+              {VELOCIDADES.map((opcion) => (
+                <button
+                  key={opcion}
+                  type="button"
+                  className={opcion === compases ? 'rangebtn rangebtn--on' : 'rangebtn'}
+                  title={
+                    opcion === 0
+                      ? 'Cambio seco, de golpe'
+                      : `${opcion} ${opcion === 1 ? 'compas' : 'compases'}: ${((opcion * 4 * 60) / bpmMezcla).toFixed(1)} s a ${bpmMezcla.toFixed(0)} BPM`
+                  }
+                  onClick={() => setCompases(opcion)}
+                >
+                  {opcion === 0 ? 'Corte' : opcion}
+                </button>
+              ))}
+              <span className="muted">{compases === 0 ? 'de golpe' : compases === 1 ? 'compas' : 'compases'}</span>
+            </div>
+          </div>
+
           <span className="crossfader__label">Crossfader</span>
           <input
             type="range"
@@ -311,10 +595,10 @@ export function MixerPage() {
             decks.current?.[1].setTempo(v)
             actualizar(1, { tempo: v })
           }}
-          onVolume={(v) => {
-            decks.current?.[1].setVolume(v)
-            actualizar(1, { volume: v })
-          }}
+          onCueDown={() => pulsarCue(1)}
+          onNudge={(f) => empujar(1, f)}
+          onDownbeat={() => marcarUno(1)}
+          onCueUp={() => soltarCue(1)}
           onCue={(p) => pulsarPad(1, p)}
           onClearCue={(p) => {
             const nuevos = [...estados[1].cues]

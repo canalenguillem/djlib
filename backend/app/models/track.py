@@ -9,11 +9,12 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
 from app.core.time import utcnow
 from app.db.base import Base
@@ -94,6 +95,15 @@ class Track(Base):
     # warm-up, 5 para el pico de la noche. No es una nota de calidad.
     # El indice se declara abajo en __table_args__, junto a los demas
     energy: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Forma de onda en tres bandas (ver services/waveform). Diferida: el
+    # listado no la necesita y solo se lee al pedirla por su endpoint.
+    waveform: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
+
+    # Crate en el que meterla en cuanto termine de descargarse: un crate solo
+    # admite canciones listas, y desde Spotify se elige antes de bajarla.
+    pending_crate_id: Mapped[int | None] = mapped_column(
+        ForeignKey("crates.id", ondelete="SET NULL"), nullable=True
+    )
 
     added_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
@@ -114,6 +124,15 @@ class Track(Base):
     tags: Mapped[list["Tag"]] = relationship(  # noqa: F821
         secondary=track_tags, back_populates="tracks", lazy="selectin", order_by="Tag.name"
     )
+    # Solo lectura: los crates se cambian desde su lado, que es el que lleva el
+    # orden. Aqui sirve para saber en cuales esta la cancion.
+    crate_entries: Mapped[list["CrateTrack"]] = relationship(  # noqa: F821
+        viewonly=True, lazy="selectin", order_by="CrateTrack.added_at"
+    )
+
+    @property
+    def crate_ids(self) -> list[int]:
+        return [entrada.crate_id for entrada in self.crate_entries]
 
     __table_args__ = (
         Index("ix_tracks_normalized_key", "normalized_key"),

@@ -107,6 +107,10 @@ a {
   padding: 1.5rem 1.25rem 3rem;
 }
 
+.content--wide {
+  width: min(1500px, 100%);
+}
+
 .stack {
   display: flex;
   flex-direction: column;
@@ -557,6 +561,33 @@ select:focus {
 .track__error {
   font-size: 0.85rem;
   color: #ffb4ae;
+}
+
+/* Vista general de la onda, sobre fondo negro como la pantalla de un CDJ */
+.waveform {
+  display: block;
+  width: 100%;
+  height: 40px;
+  margin: 0.25rem 0 0.1rem;
+  background: #05070a;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.waveform--loading {
+  animation: waveform-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes waveform-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waveform--loading {
+    animation: none;
+  }
 }
 
 .track__actions {
@@ -1303,29 +1334,6 @@ input[type='file'] {
   gap: 0.8rem;
 }
 
-.deck__play {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: #0b0e13;
-  color: var(--text);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.deck__play:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent-hover);
-}
-
-.deck__play:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .deck__times {
   display: flex;
   gap: 0.6rem;
@@ -1333,17 +1341,134 @@ input[type='file'] {
   font-size: 1.1rem;
 }
 
-.deck__progress {
-  height: 12px;
-  border-radius: 999px;
-  background: var(--border);
-  overflow: hidden;
+/* Las dos ondas de la pantalla de un CDJ: detalle arriba, general abajo */
+.deckwave {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.deckwave canvas {
+  display: block;
+  width: 100%;
+  background: #05070a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.deckwave__detail {
+  height: 96px;
+}
+
+.deckwave__overview {
+  height: 34px;
   cursor: pointer;
 }
 
-.deck__played {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+.deckwave__overview:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.deckwave--loading {
+  animation: waveform-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckwave--loading {
+    animation: none;
+  }
+}
+
+/* Abajo a la izquierda los dos botones grandes, como en un CDJ; a su lado,
+   los pads de hot cue y el tempo */
+.deck__deck {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.deck__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.bigbtn {
+  --ring: var(--border);
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 3px solid var(--ring);
+  background: #0b0e13;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  transition: box-shadow 0.1s, background 0.1s;
+}
+
+.bigbtn svg {
+  width: 30px;
+  height: 30px;
+}
+
+.bigbtn--cue {
+  --ring: #ff9f0a;
+  color: #ffc56b;
+}
+
+.bigbtn--play {
+  --ring: #2fd36b;
+  color: #8ff0b0;
+}
+
+.bigbtn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Encendido: el CUE parado en el cue, el PLAY sonando */
+.bigbtn--on {
+  background: color-mix(in srgb, var(--ring) 22%, #0b0e13);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ring) 55%, transparent);
+}
+
+/* Parado con cancion cargada, el PLAY parpadea como en el CDJ */
+.bigbtn--ready {
+  animation: bigbtn-blink 1s steps(2, jump-none) infinite;
+}
+
+@keyframes bigbtn-blink {
+  50% {
+    border-color: color-mix(in srgb, var(--ring) 30%, #0b0e13);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bigbtn--ready {
+    animation: none;
+  }
+}
+
+.bigbtn:disabled {
+  --ring: var(--border);
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.deck__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
 }
 
 .deck__pads {
@@ -1422,8 +1547,157 @@ input[type='file'] {
 .crossfader {
   justify-content: center;
   align-items: center;
-  min-width: 190px;
+  min-width: 230px;
   gap: 0.6rem;
+}
+
+/* Faders de canal verticales, como en una mesa Pioneer */
+.channels {
+  display: flex;
+  justify-content: center;
+  gap: 2.2rem;
+  margin-bottom: 0.8rem;
+}
+
+.channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.channel__label {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.channel__fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 36px;
+  height: 190px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Intercambio de ecualizador entre canales */
+.swap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.swap__bands {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.swapbtn {
+  --band: var(--accent);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--band);
+  border-radius: 6px;
+  background: #0b0e13;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.3rem;
+  cursor: pointer;
+}
+
+.swapbtn:hover:not(:disabled) {
+  border-color: var(--band);
+}
+
+.swapbtn:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.swapbtn--all {
+  border-left-color: var(--accent);
+}
+
+/* Mientras dura el barrido, el boton se rellena con el color de su banda */
+.swapbtn--running {
+  background: color-mix(in srgb, var(--band) 25%, #0b0e13);
+  border-color: var(--band);
+}
+
+.swap__speed {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+}
+
+/* Potenciometros del ecualizador */
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.knob__dial {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.knob__dial:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.knob__dial svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.knob__track,
+.knob__arc {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.knob__track {
+  stroke: var(--border);
+}
+
+.knob__cap {
+  fill: #0b0e13;
+  stroke: #3a4352;
+}
+
+.knob__pointer {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.knob__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.channel__value {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .crossfader__label {
@@ -1619,4 +1893,129 @@ input[type='file'] {
   color: #ffb4ae;
   font-size: 0.85rem;
   margin: 0.4rem 0 0;
+}
+
+/* Las dos ondas juntas con la misma aguja, para cuadrar los golpes */
+.sync {
+  gap: 0.4rem;
+  padding: 0.9rem 1.25rem;
+}
+
+.sync__row {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sync__label {
+  font-weight: 700;
+  color: var(--muted);
+  text-align: center;
+}
+
+.sync__wave {
+  display: block;
+  width: 100%;
+  height: 64px;
+  background: #05070a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.sync__status {
+  margin: 0.2rem 0 0 2.25rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sync__status--ok {
+  color: #2fd36b;
+  font-weight: 600;
+}
+
+/* El medidor de fase del CDJ: el tiempo del compas en el que va el plato */
+.phase {
+  display: grid;
+  grid-template-columns: repeat(4, 1.6rem);
+  gap: 0.2rem;
+}
+
+.phase__beat {
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.phase__beat--on {
+  background: #ff9f0a;
+  border-color: #ff9f0a;
+  color: #111;
+}
+
+.phase__beat--one {
+  background: #ff3b30;
+  border-color: #ff3b30;
+  color: #fff;
+}
+
+.deck__nudge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.nudge {
+  flex: 1 1 auto;
+  touch-action: none;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
+  .sync {
+    padding: 0.75rem;
+  }
+
+  .sync__row {
+    grid-template-columns: 1.2rem 1fr;
+  }
+
+  .phase {
+    grid-column: 2;
+  }
+}
+
+/* Desplegable de crate de cada cancion */
+.crateselect {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.crateselect select {
+  min-width: 0;
+  max-width: 12rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+.crateselect--set select {
+  border-color: var(--accent);
+}
+
+.crateselect__more,
+.crateselect__error {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.crateselect__error {
+  color: #ffb4ae;
 }

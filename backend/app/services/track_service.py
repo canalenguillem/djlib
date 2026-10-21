@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from pathlib import Path
 
@@ -13,10 +14,13 @@ from app.core.config import settings
 from app.core.text import normalize_key
 from app.core.time import utcnow
 from app.models.artist import EnrichmentStatus
+from app.models.crate import Crate
 from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
 from app.services import artist_service, audio_file, bpm as bpm_service, downloader
+from app.services import crate_service
+from app.services import waveform as waveform_service
 from app.services.downloader import DownloadError
 
 logger = logging.getLogger(__name__)
@@ -54,10 +58,14 @@ def _find_by_normalized_key(db: Session, key: str) -> Track | None:
     )
 
 
-def create_from_url(db: Session, user: User, url: str) -> Track:
+def create_from_url(
+    db: Session, user: User, url: str, *, crate_id: int | None = None
+) -> Track:
     url = url.strip()
     if not downloader.is_supported_url(url):
         raise ValueError("Introduce una URL que empiece por http:// o https://")
+    if crate_id is not None and db.get(Crate, crate_id) is None:
+        raise LookupError("Crate no encontrado.")
 
     # Si es de YouTube podemos deducir el id sin salir a la red y avisar del
     # duplicado al instante, antes de crear nada.
@@ -75,6 +83,7 @@ def create_from_url(db: Session, user: User, url: str) -> Track:
         source_video_id=video_id,
         status=TrackStatus.pending,
         added_by_user_id=user.id,
+        pending_crate_id=crate_id,
     )
     db.add(track)
     db.flush()
@@ -247,6 +256,7 @@ def run_download(session_factory, track_id: int) -> None:
         track.error_message = None
         track.downloaded_at = utcnow()
         track.updated_at = utcnow()
+        _join_pending_crate(db, track)
 
         # La ficha del artista se crea sola al descargar: asi queda documentado
         # quien toca esto para la proxima vez que suene.
@@ -270,6 +280,23 @@ def run_download(session_factory, track_id: int) -> None:
             db.commit()
 
     analyze_bpm(session_factory, track_id)
+    compute_waveform(session_factory, track_id)
+
+
+def _join_pending_crate(db: Session, track: Track) -> None:
+    """La mete en el crate elegido al pedirla. Si el crate ya no existe o ya
+    la tenia, no pasa nada: la descarga ha ido bien igualmente."""
+    if track.pending_crate_id is None:
+        return
+    crate = db.get(Crate, track.pending_crate_id)
+    track.pending_crate_id = None
+    if crate is None:
+        return
+    db.flush()  # para que el crate la vea ya como lista
+    try:
+        crate_service.add_track(db, crate, track.id)
+    except crate_service.CrateError:
+        logger.info("El track %s no se ha podido meter en el crate %s", track.id, crate.id)
 
 
 def _fail(session_factory, track_id: int, message: str) -> None:
@@ -320,6 +347,45 @@ def analyze_bpm(session_factory, track_id: int, *, force: bool = False) -> int |
         track.updated_at = utcnow()
         db.commit()
     return detectado
+
+
+# Las canciones que ya estaban en la biblioteca calculan su onda la primera vez
+# que se piden, y una pagina del listado las pide todas a la vez. Con dos ffmpeg
+# simultaneos como mucho, el resto espera en vez de saturar la maquina.
+_waveform_slots = threading.Semaphore(2)
+
+
+def compute_waveform(session_factory, track_id: int) -> bytes | None:
+    """Calcula la forma de onda y la guarda. Si ya la tiene, la devuelve tal
+    cual: el audio no cambia, asi que la onda tampoco."""
+    if not settings.waveform_enabled:
+        return None
+
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is None or not track.file_path or track.status != TrackStatus.ready:
+            return None
+        if track.waveform is not None:
+            return track.waveform
+        ruta = Path(track.file_path)
+
+    try:
+        with _waveform_slots:
+            datos = waveform_service.analyze(ruta)
+    except waveform_service.WaveformError as exc:
+        logger.info("No se pudo calcular la onda del track %s: %s", track_id, exc)
+        return None
+    except Exception:  # pragma: no cover - nunca tumbar la tarea de fondo
+        logger.exception("Fallo inesperado calculando la onda del track %s", track_id)
+        return None
+
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is None:
+            return None
+        track.waveform = datos
+        db.commit()
+    return datos
 
 
 def recover_interrupted(db: Session) -> int:
@@ -410,18 +476,52 @@ def get_by_id(db: Session, track_id: int) -> Track | None:
     return db.get(Track, track_id)
 
 
-def existing_video_ids(db: Session, video_ids: list[str]) -> set[str]:
-    """De una lista de ids de video, cuales ya estan en la biblioteca."""
+def existing_by_video_id(db: Session, video_ids: list[str]) -> dict[str, Track]:
+    """De una lista de ids de video, los que ya estan en la biblioteca."""
     if not video_ids:
-        return set()
-    return set(
-        db.scalars(
-            select(Track.source_video_id).where(
-                Track.source_video_id.in_(video_ids),
-                Track.status.in_(LIVE_STATUSES),
-            )
+        return {}
+    tracks = db.scalars(
+        select(Track).where(
+            Track.source_video_id.in_(video_ids),
+            Track.status.in_(LIVE_STATUSES),
         )
     )
+    return {t.source_video_id: t for t in tracks if t.source_video_id}
+
+
+def library_fields(track: Track | None) -> dict:
+    """Lo que un resultado de busqueda cuenta de la cancion si ya la tenemos."""
+    if track is None:
+        return {}
+    return {
+        "already_in_library": True,
+        "track_id": track.id,
+        "crate_ids": track.crate_ids,
+        "pending_crate_id": track.pending_crate_id,
+    }
+
+
+def move_to_crate(
+    db: Session, track: Track, crate_id: int | None, from_crate_id: int | None
+) -> None:
+    """Saca la cancion de un crate y la mete en otro. Si aun se esta
+    descargando, el crate nuevo queda apuntado y entra al terminar.
+
+    Lanza LookupError si alguno de los crates no existe."""
+    destino = db.get(Crate, crate_id) if crate_id is not None else None
+    origen = db.get(Crate, from_crate_id) if from_crate_id is not None else None
+    if (crate_id is not None and destino is None) or (from_crate_id is not None and origen is None):
+        raise LookupError("Crate no encontrado.")
+
+    if track.status != TrackStatus.ready:
+        track.pending_crate_id = crate_id
+        return
+
+    if origen is not None and origen is not destino:
+        if any(e.track_id == track.id for e in origen.entries):
+            crate_service.remove_track(db, origen, track.id)
+    if destino is not None and not any(e.track_id == track.id for e in destino.entries):
+        crate_service.add_track(db, destino, track.id)
 
 
 # --- Edicion y borrado ------------------------------------------------------

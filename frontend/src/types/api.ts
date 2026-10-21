@@ -64,6 +64,10 @@ export interface Track {
   updated_at: string
   tags: Tag[]
   artists: ArtistBrief[]
+  /** Crates en los que esta, del primero en que entro al ultimo. */
+  crate_ids: number[]
+  /** Crate al que ira cuando termine de descargarse. */
+  pending_crate_id: number | null
 }
 
 export interface TrackPage {
@@ -141,6 +145,10 @@ export interface SearchCandidate {
   thumbnail_url: string | null
   already_in_library: boolean
   too_long: boolean
+  /** Si ya esta en la biblioteca, cual es y en que crate. */
+  track_id: number | null
+  crate_ids: number[]
+  pending_crate_id: number | null
 }
 
 export interface SearchResults {
@@ -203,4 +211,12 @@ export interface PlayedTrack {
   spotify_url: string | null
   image_url: string | null
   already_in_library: boolean
+}
+
+/** Forma de onda en tres bandas, un valor de 0 a 255 por tramo. */
+export interface Waveform {
+  bins: number
+  low: number[]
+  mid: number[]
+  high: number[]
 }

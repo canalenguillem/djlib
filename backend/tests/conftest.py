@@ -18,6 +18,7 @@ from app.main import app as fastapi_app
 from app.models.user import User, UserRole
 from app.services import bpm as bpm_service
 from app.services import spotify as spotify_service
+from app.services import waveform as waveform_service
 from app.services import downloader, enrichment, preview as preview_service
 from app.services import recognition, screenshot, user_service
 
@@ -366,6 +367,29 @@ def fake_bpm(monkeypatch) -> FakeBpm:
     de la biblioteca lanzaria ffmpeg y soundstretch de verdad."""
     fake = FakeBpm()
     monkeypatch.setattr(bpm_service, "analyze", fake.analyze)
+    return fake
+
+
+class FakeWaveform:
+    """Sustituye al calculo de la onda, que llama a ffmpeg."""
+
+    def __init__(self) -> None:
+        # Dos tramos: graves fuertes y agudos flojos, como un bombo
+        self.datos: bytes | None = bytes([255, 100, 20, 128, 50, 10])
+        self.analizados: list[str] = []
+
+    def analyze(self, path):
+        self.analizados.append(str(path))
+        if self.datos is None:
+            raise waveform_service.WaveformError("no se ha podido")
+        return self.datos
+
+
+@pytest.fixture(autouse=True)
+def fake_waveform(monkeypatch) -> FakeWaveform:
+    """autouse por lo mismo que fake_bpm: cada descarga calcula la onda."""
+    fake = FakeWaveform()
+    monkeypatch.setattr(waveform_service, "analyze", fake.analyze)
     return fake
 
 
