@@ -2029,10 +2029,39 @@ input[type='file'] {
   font-variant-numeric: tabular-nums;
 }
 
-.pitch__end {
-  color: var(--muted);
+.pitch__step {
+  width: 36px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0b0e13;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.1rem;
   font-weight: 700;
   line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.pitch__step:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.pitch__step:active:not(:disabled) {
+  background: var(--accent);
+}
+
+.pitch__step:disabled {
+  color: var(--muted);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pitch__bpm {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 .pitch__track {

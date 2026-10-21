@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 import { formatClock } from '../lib/audioEngine'
 import type { BeatGrid } from '../lib/beatgrid'
 import type { DeckWaveformData } from '../lib/waveform'
@@ -44,6 +46,12 @@ const EMPUJON = 0.04
 // Paso del fader de tempo: 0,05 %, lo fino que hace falta para cuadrar dos
 // temas a mano
 const PASO_TEMPO = 0.0005
+// Cada clic en - o + mueve una centesima de BPM: el ultimo ajuste, cuando
+// el fader ya es demasiado basto
+const PASO_BPM = 0.01
+// Manteniendo pulsado se repite, primero despacio y luego mas rapido
+const ESPERA_REPETICION_MS = 400
+const CADENCIA_MS = 70
 
 export function DeckPanel(props: DeckControls) {
   const {
@@ -74,11 +82,74 @@ export function DeckPanel(props: DeckControls) {
   const porcentaje = ((tempo - 1) * 100).toFixed(1)
   const textoTempo = `${Number(porcentaje) > 0 ? '+' : ''}${porcentaje} %`
 
+  // El tempo al dia para la repeticion de los botones, que corre fuera del
+  // render
+  const tempoActual = useRef(tempo)
+  tempoActual.current = tempo
+  const repeticion = useRef<number | null>(null)
+
+  function limitarTempo(valor: number) {
+    return Math.max(1 - limite, Math.min(1 + limite, valor))
+  }
+
   function moverTempo(valor: number) {
-    let nuevo = Math.max(1 - limite, Math.min(1 + limite, valor))
-    // Un pequeno iman en el 0, como el clic del centro del fader del CDJ
-    if (Math.abs(nuevo - 1) < limite * 0.015) nuevo = 1
+    let nuevo = limitarTempo(valor)
+    // Un iman muy pequeno en el 0, como el clic del centro del fader del CDJ.
+    // Solo al arrastrar: con los botones hay que poder quedarse al lado.
+    if (Math.abs(nuevo - 1) < limite * 0.004) nuevo = 1
     props.onTempo(nuevo)
+  }
+
+  /** Un paso de - o +: una centesima de BPM, o un 0,01 % si no hay BPM. */
+  function pasoFino(sentido: 1 | -1) {
+    const delta = bpm ? PASO_BPM / bpm : 0.0001
+    const nuevo = limitarTempo(tempoActual.current + sentido * delta)
+    tempoActual.current = nuevo
+    props.onTempo(nuevo)
+  }
+
+  function pararRepeticion() {
+    if (repeticion.current !== null) window.clearTimeout(repeticion.current)
+    repeticion.current = null
+  }
+
+  function empezarRepeticion(sentido: 1 | -1) {
+    pararRepeticion()
+    pasoFino(sentido)
+    const repetir = () => {
+      pasoFino(sentido)
+      repeticion.current = window.setTimeout(repetir, CADENCIA_MS)
+    }
+    repeticion.current = window.setTimeout(repetir, ESPERA_REPETICION_MS)
+  }
+
+  useEffect(() => pararRepeticion, [])
+
+  function botonFino(sentido: 1 | -1) {
+    return (
+      <button
+        type="button"
+        className="pitch__step"
+        disabled={!track}
+        aria-label={sentido < 0 ? 'Bajar una centésima de BPM' : 'Subir una centésima de BPM'}
+        title={`${sentido < 0 ? 'Más lento' : 'Más rápido'}: ${PASO_BPM.toFixed(2)} BPM por clic. Mantén pulsado para seguir.`}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return
+          e.currentTarget.setPointerCapture(e.pointerId)
+          empezarRepeticion(sentido)
+        }}
+        onPointerUp={pararRepeticion}
+        onPointerCancel={pararRepeticion}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault()
+            pasoFino(sentido)
+          }
+        }}
+      >
+        {sentido < 0 ? '−' : '+'}
+      </button>
+    )
   }
 
   return (
@@ -286,7 +357,7 @@ export function DeckPanel(props: DeckControls) {
         {/* El fader de tempo del CDJ: vertical, con el - arriba y el + abajo.
             Hacia uno mismo, mas rapido. */}
         <div className="pitch">
-          <span className="pitch__end" aria-hidden="true">−</span>
+          {botonFino(-1)}
           <div className="pitch__track">
             <span className="pitch__zero" aria-hidden="true" />
             <input
@@ -316,8 +387,9 @@ export function DeckPanel(props: DeckControls) {
               }}
             />
           </div>
-          <span className="pitch__end" aria-hidden="true">+</span>
+          {botonFino(1)}
           <strong className="pitch__value">{textoTempo}</strong>
+          {sonando !== null && <span className="pitch__bpm">{sonando.toFixed(2)} BPM</span>}
         </div>
       </div>
     </section>
