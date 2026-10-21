@@ -2102,3 +2102,9 @@ input[type='file'] {
     height: 150px;
   }
 }
+
+.spotify__vistas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}

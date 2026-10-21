@@ -410,6 +410,15 @@ class FakeSpotify:
                 played_at="2026-08-31T22:05:00Z", spotify_url=None, image_url=None,
             ),
         ]
+        self.shazam: tuple[str | None, list] = (
+            "My Shazam Tracks",
+            [
+                spotify_service.PlayedTrack(
+                    title="Sandstorm", artist="Darude", album=None,
+                    played_at="2026-10-20T01:30:00Z", spotify_url=None, image_url=None,
+                ),
+            ],
+        )
         self.error: Exception | None = None
         self.consultados: list[str] = []
 
@@ -424,12 +433,18 @@ class FakeSpotify:
             raise self.error
         return self.played
 
+    def shazam_tracks(self, token):
+        if self.error is not None:
+            raise self.error
+        return self.shazam
+
 
 @pytest.fixture
 def fake_spotify(monkeypatch) -> FakeSpotify:
     fake = FakeSpotify()
     monkeypatch.setattr(spotify_service, "artist_genres", fake.artist_genres)
     monkeypatch.setattr(spotify_service, "recently_played", fake.recently_played)
+    monkeypatch.setattr(spotify_service, "shazam_tracks", fake.shazam_tracks)
     monkeypatch.setattr(settings, "spotify_client_id", "id-de-prueba")
     monkeypatch.setattr(settings, "spotify_client_secret", "secreto")
     monkeypatch.setattr(

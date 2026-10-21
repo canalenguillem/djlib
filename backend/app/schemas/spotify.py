@@ -26,3 +26,10 @@ class PlayedTrackOut(BaseModel):
 
 class RecentlyPlayed(BaseModel):
     items: list[PlayedTrackOut] = []
+
+
+class ShazamTracks(BaseModel):
+    """Lo guardado por Shazam en Spotify. Sin `playlist`, no se ha encontrado."""
+
+    playlist: str | None = None
+    items: list[PlayedTrackOut] = []

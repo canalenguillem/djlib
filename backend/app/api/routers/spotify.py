@@ -13,6 +13,7 @@ from app.models.track import Track, TrackStatus
 from app.schemas.spotify import (
     PlayedTrackOut,
     RecentlyPlayed,
+    ShazamTracks,
     SpotifyAuthUrl,
     SpotifyStatus,
 )
@@ -140,33 +141,25 @@ def spotify_disconnect(current_user: CurrentUser, db: DbSession) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/recently-played", response_model=RecentlyPlayed)
-def spotify_recently_played(
-    current_user: CurrentUser, db: DbSession, limit: int = Query(default=50, ge=1, le=50)
-) -> RecentlyPlayed:
-    """Lo ultimo que has escuchado, marcando lo que ya tienes."""
+def _cuenta_conectada(db, user_id: int) -> SpotifyAccount:
     if not spotify.is_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Spotify no esta configurado en el servidor.",
         )
-    cuenta = _cuenta(db, current_user.id)
+    cuenta = _cuenta(db, user_id)
     if cuenta is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Todavia no has conectado tu cuenta de Spotify.",
         )
+    return cuenta
 
-    try:
-        token = _access_token(db, cuenta)
-        canciones = spotify.recently_played(token, limit)
-    except SpotifyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
-        ) from exc
 
+def _marcar(db, canciones: list[spotify.PlayedTrack]) -> list[PlayedTrackOut]:
+    """Las pasa a la respuesta marcando las que ya estan en la biblioteca."""
     # Se comparan por la misma clave normalizada que usa la deduplicacion
-    claves = {normalize_key(c.artist, c.title): c for c in canciones}
+    claves = {normalize_key(c.artist, c.title) for c in canciones}
     existentes = set(
         db.scalars(
             Track.__table__.select()
@@ -179,18 +172,54 @@ def spotify_recently_played(
             )
         )
     )
+    return [
+        PlayedTrackOut(
+            title=c.title,
+            artist=c.artist,
+            album=c.album,
+            played_at=c.played_at,
+            spotify_url=c.spotify_url,
+            image_url=c.image_url,
+            already_in_library=normalize_key(c.artist, c.title) in existentes,
+        )
+        for c in canciones
+    ]
 
-    return RecentlyPlayed(
-        items=[
-            PlayedTrackOut(
-                title=c.title,
-                artist=c.artist,
-                album=c.album,
-                played_at=c.played_at,
-                spotify_url=c.spotify_url,
-                image_url=c.image_url,
-                already_in_library=normalize_key(c.artist, c.title) in existentes,
-            )
-            for c in canciones
-        ]
-    )
+
+@router.get("/recently-played", response_model=RecentlyPlayed)
+def spotify_recently_played(
+    current_user: CurrentUser, db: DbSession, limit: int = Query(default=50, ge=1, le=50)
+) -> RecentlyPlayed:
+    """Lo ultimo que has escuchado, marcando lo que ya tienes."""
+    cuenta = _cuenta_conectada(db, current_user.id)
+    try:
+        token = _access_token(db, cuenta)
+        canciones = spotify.recently_played(token, limit)
+    except SpotifyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+    return RecentlyPlayed(items=_marcar(db, canciones))
+
+
+@router.get("/shazam", response_model=ShazamTracks)
+def spotify_shazam(current_user: CurrentUser, db: DbSession) -> ShazamTracks:
+    """Lo reconocido con Shazam, que Shazam guarda en una playlist de Spotify
+    si se conectan. Shazam no tiene API propia: este es el unico camino."""
+    cuenta = _cuenta_conectada(db, current_user.id)
+    # Las cuentas conectadas antes de pedir este permiso no lo tienen: Spotify
+    # solo ensenaria las playlists publicas, y la de Shazam suele ser privada
+    if cuenta.scope is not None and spotify.PLAYLIST_SCOPE not in cuenta.scope.split():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Para leer tu playlist de Shazam hace falta un permiso nuevo: "
+            "desconecta Spotify y vuelve a conectarlo.",
+        )
+    try:
+        token = _access_token(db, cuenta)
+        nombre, canciones = spotify.shazam_tracks(token)
+    except SpotifyError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
+        ) from exc
+    return ShazamTracks(playlist=nombre, items=_marcar(db, canciones))

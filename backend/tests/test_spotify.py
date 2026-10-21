@@ -74,7 +74,7 @@ def test_el_callback_propaga_el_error_de_spotify(client: TestClient) -> None:
 # --- Ultimas reproducciones -------------------------------------------------
 
 
-def conectar(db_user_id: int, fake_spotify) -> None:
+def conectar(db_user_id: int, fake_spotify, scope: str | None = None) -> None:
     from app.core.time import utcnow
     from datetime import timedelta
     from app.models.spotify import SpotifyAccount
@@ -88,6 +88,7 @@ def conectar(db_user_id: int, fake_spotify) -> None:
                 access_token="acceso",
                 expires_at=utcnow() + timedelta(hours=1),
                 display_name="enguillem",
+                scope=scope,
             )
         )
         db.commit()
@@ -197,3 +198,79 @@ def test_el_403_de_modo_desarrollo_explica_que_hacer(monkeypatch) -> None:
     monkeypatch.setattr(httpx, "get", fake_get)
     with pytest.raises(spotify.SpotifyError, match="User Management"):
         spotify._get("/me", "token")
+
+
+# --- Playlist de Shazam -----------------------------------------------------
+
+
+def test_la_autorizacion_pide_leer_playlists(client: TestClient, admin_user, fake_spotify) -> None:
+    url = client.post("/spotify/authorize", headers=headers(client)).json()["url"]
+    assert "playlist-read-private" in url
+
+
+def test_lista_lo_shazameado(
+    client: TestClient, admin_user, fake_spotify, fake_downloader
+) -> None:
+    conectar(admin_user.id, fake_spotify, scope="user-read-recently-played playlist-read-private")
+    datos = client.get("/spotify/shazam", headers=headers(client)).json()
+    assert datos["playlist"] == "My Shazam Tracks"
+    assert [(i["artist"], i["title"], i["already_in_library"]) for i in datos["items"]] == [
+        ("Darude", "Sandstorm", False)
+    ]
+
+
+def test_sin_playlist_de_shazam(client: TestClient, admin_user, fake_spotify) -> None:
+    conectar(admin_user.id, fake_spotify)
+    fake_spotify.shazam = (None, [])
+    assert client.get("/spotify/shazam", headers=headers(client)).json() == {
+        "playlist": None,
+        "items": [],
+    }
+
+
+def test_una_conexion_antigua_pide_reconectar(
+    client: TestClient, admin_user, fake_spotify
+) -> None:
+    """Conectada antes de pedir el permiso de playlists: sin el, la de Shazam
+    (privada) no se veria y pareceria que no existe."""
+    conectar(admin_user.id, fake_spotify, scope="user-read-recently-played user-top-read")
+    respuesta = client.get("/spotify/shazam", headers=headers(client))
+    assert respuesta.status_code == 409
+    assert "vuelve a conectarlo" in respuesta.json()["detail"]
+
+
+def test_lee_las_ultimas_de_la_playlist_de_mas_nueva_a_mas_vieja(monkeypatch) -> None:
+    from app.services import spotify
+
+    def pista(nombre: str, cuando: str) -> dict:
+        return {
+            "added_at": cuando,
+            "track": {"name": nombre, "artists": [{"name": "Darude"}], "album": {"name": "X"}},
+        }
+
+    llamadas: list[tuple[str, dict | None]] = []
+
+    def fake_get(ruta, token, params=None):
+        llamadas.append((ruta, params))
+        if ruta == "/me/playlists":
+            return {
+                "items": [
+                    {"id": "otra", "name": "Para correr", "tracks": {"total": 3}},
+                    {"id": "shz", "name": "My Shazam Tracks", "tracks": {"total": 2}},
+                ],
+                "next": None,
+            }
+        assert ruta == "/playlists/shz/tracks"
+        return {
+            "items": [
+                pista("Vieja", "2026-01-01T00:00:00Z"),
+                pista("Nueva", "2026-10-20T00:00:00Z"),
+                pista("Vieja", "2026-02-01T00:00:00Z"),  # repetida
+            ]
+        }
+
+    monkeypatch.setattr(spotify, "_get", fake_get)
+    nombre, canciones = spotify.shazam_tracks("token")
+    assert nombre == "My Shazam Tracks"
+    assert [c.title for c in canciones] == ["Nueva", "Vieja"]
+    assert canciones[0].played_at == "2026-10-20T00:00:00Z"

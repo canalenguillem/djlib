@@ -213,6 +213,12 @@ export interface PlayedTrack {
   already_in_library: boolean
 }
 
+export interface ShazamTracks {
+  /** Nombre de la playlist; null si la cuenta no tiene ninguna de Shazam. */
+  playlist: string | null
+  items: PlayedTrack[]
+}
+
 /** Forma de onda en tres bandas, un valor de 0 a 255 por tramo. */
 export interface Waveform {
   bins: number
