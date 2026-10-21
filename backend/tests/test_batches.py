@@ -124,6 +124,9 @@ def test_un_reinicio_devuelve_a_la_cola_lo_que_estaba_en_curso(
     tanda = crear_tanda(client, h, None)
     # Como si el servidor se hubiera parado buscandola
     assert batch_service._reclamar(TestingSessionLocal) is not None
+    # Mientras, el listado dice cual esta en curso
+    resumen = client.get("/batches", headers=h).json()[0]
+    assert resumen["current"] == ["Blur - Song 2"]
     with TestingSessionLocal() as db:
         assert batch_service.recover(db) == 1
         item = db.get(DownloadBatchItem, tanda["items"][0]["id"])

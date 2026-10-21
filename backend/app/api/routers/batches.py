@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, DbSession
-from app.models.batch import BatchStatus, DownloadBatch
+from app.models.batch import BatchItemStatus, BatchStatus, DownloadBatch
 from app.models.crate import Crate
 from app.schemas.batch import BatchCreate, BatchItemOut, BatchOut, BatchSummary
 from app.services import batch_service
@@ -26,6 +26,11 @@ def _summary(db, batch: DownloadBatch) -> dict:
         "created_at": batch.created_at,
         "total": len(batch.items),
         "counts": dict(Counter(item.status for item in batch.items)),
+        "current": [
+            f"{item.artist} - {item.title}" if item.artist else item.title
+            for item in batch.items
+            if item.status in (BatchItemStatus.searching, BatchItemStatus.downloading)
+        ],
     }
 
 

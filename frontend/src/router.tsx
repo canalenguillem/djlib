@@ -8,6 +8,7 @@ import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
+import { DownloadsPage } from './pages/Downloads'
 import { LibraryPage } from './pages/Library'
 import { ListenPage } from './pages/Listen'
 import { MixerPage } from './pages/Mixer'
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: '/crates', element: <CratesPage /> },
           { path: '/crates/:crateId', element: <CrateDetailPage /> },
           { path: '/listen', element: <ListenPage /> },
+          { path: '/downloads', element: <DownloadsPage /> },
           { path: '/tags', element: <TagsPage /> },
           { path: '/account', element: <AccountPage /> },
           {

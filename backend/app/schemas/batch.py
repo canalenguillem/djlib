@@ -39,6 +39,8 @@ class BatchSummary(BaseModel):
     total: int
     # Cuantas hay en cada estado, p. ej. {"done": 12, "pending": 3}
     counts: dict[str, int]
+    # Lo que se esta buscando o descargando ahora mismo, p. ej. "Blur - Song 2"
+    current: list[str] = []
 
 
 class BatchOut(BatchSummary):

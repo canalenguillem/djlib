@@ -270,6 +270,8 @@ export interface BatchSummary {
   created_at: string
   total: number
   counts: Partial<Record<BatchItemStatus, number>>
+  /** Lo que se esta buscando o descargando ahora mismo. */
+  current: string[]
 }
 
 export interface Batch extends BatchSummary {

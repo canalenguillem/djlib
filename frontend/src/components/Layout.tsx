@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import * as recognitionApi from '../api/recognition'
 import * as spotifyApi from '../api/spotify'
 import { useAuth } from '../auth/useAuth'
+import { useDownloadsCount } from '../lib/useDownloadsCount'
 
 export function Layout() {
   const { user, signOut } = useAuth()
@@ -12,6 +13,8 @@ export function Layout() {
   const ancha = useLocation().pathname.startsWith('/mixer')
   const [recognitionEnabled, setRecognitionEnabled] = useState(false)
   const [spotifyEnabled, setSpotifyEnabled] = useState(false)
+  // Canciones que faltan en las descargas del servidor, siempre a la vista
+  const descargando = useDownloadsCount()
 
   // El enlace solo aparece si el servidor tiene clave de reconocimiento.
   useEffect(() => {
@@ -43,6 +46,14 @@ export function Layout() {
           <NavLink to="/mixer">Mezclar</NavLink>
           {spotifyEnabled && <NavLink to="/spotify">Spotify</NavLink>}
           <NavLink to="/crates">Crates</NavLink>
+          <NavLink to="/downloads">
+            Descargas
+            {descargando > 0 && (
+              <span className="nav__count" aria-label={`${descargando} pendientes`}>
+                {descargando}
+              </span>
+            )}
+          </NavLink>
           <NavLink to="/listen">Escuchar</NavLink>
           <NavLink to="/artists">Artistas</NavLink>
           <NavLink to="/tags">Etiquetas</NavLink>

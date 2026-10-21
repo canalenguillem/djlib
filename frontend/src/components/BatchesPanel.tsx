@@ -28,10 +28,37 @@ function hechas(tanda: BatchSummary): number {
   return tanda.total - (c.pending ?? 0) - (c.searching ?? 0) - (c.downloading ?? 0) - (c.cancelled ?? 0)
 }
 
+/** Las que faltan por hacer, contando las que estan en curso. */
+export function faltan(tanda: BatchSummary): number {
+  const c = tanda.counts
+  return (c.pending ?? 0) + (c.searching ?? 0) + (c.downloading ?? 0)
+}
+
+/** Lo que queda, al ritmo que llevamos: el tiempo desde que se lanzo entre
+ *  las que ya se han hecho. Sin ninguna hecha todavia no hay ritmo. */
+function quedan(tanda: BatchSummary, ahora: number): string | null {
+  const hechasYa = hechas(tanda)
+  if (tanda.status !== 'active' || hechasYa === 0) return null
+  const transcurrido = (ahora - new Date(`${tanda.created_at}Z`).getTime()) / 1000
+  const segundos = (transcurrido / hechasYa) * faltan(tanda)
+  if (segundos < 60) return 'menos de un minuto'
+  const minutos = Math.round(segundos / 60)
+  if (minutos < 60) return `unos ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  return `unas ${horas} h ${minutos % 60} min`
+}
+
 /** Las descargas que el servidor hace solo, para ver al volver como han ido.
  *  Se refresca mientras alguna esta en marcha. `onProgress` avisa cuando
  *  entra algo nuevo en la biblioteca, para recargarla. */
-export function BatchesPanel({ onProgress }: { onProgress?: () => void }) {
+export function BatchesPanel({
+  onProgress,
+  todas = false,
+}: {
+  onProgress?: () => void
+  /** Todas las recientes, aunque no haya ninguna; si no, solo las de hoy. */
+  todas?: boolean
+}) {
   const [tandas, setTandas] = useState<BatchSummary[]>([])
   const [abierta, setAbierta] = useState<Batch | null>(null)
   const activas = tandas.some((t) => t.status === 'active')
@@ -71,15 +98,25 @@ export function BatchesPanel({ onProgress }: { onProgress?: () => void }) {
     }
   }, [tandas, abierta])
 
-  // Solo interesan las recientes en marcha o de hoy
-  const visibles = tandas.filter(
-    (t) => t.status === 'active' || Date.now() - new Date(t.created_at + 'Z').getTime() < 24 * 3600 * 1000,
-  )
-  if (visibles.length === 0) return null
+  // Fuera de su pagina solo interesan las en marcha o de hoy
+  const ahora = Date.now()
+  const visibles = todas
+    ? tandas
+    : tandas.filter(
+        (t) => t.status === 'active' || ahora - new Date(`${t.created_at}Z`).getTime() < 24 * 3600 * 1000,
+      )
+  if (visibles.length === 0) {
+    return todas ? (
+      <p className="muted">
+        No hay descargas. Se lanzan con «Descargar todas» desde las capturas o desde
+        Spotify.
+      </p>
+    ) : null
+  }
 
   return (
     <section className="card batches">
-      <h2>Descargas en segundo plano</h2>
+      {!todas && <h2>Descargas en segundo plano</h2>}
       <ul className="batches__list">
         {visibles.map((t) => {
           const n = hechas(t)
@@ -128,6 +165,19 @@ export function BatchesPanel({ onProgress }: { onProgress?: () => void }) {
                 )}
               </div>
               <progress className="batches__bar" max={t.total} value={n} />
+              {t.status === 'active' && (
+                <div className="batches__now">
+                  <span>
+                    Faltan <strong>{faltan(t)}</strong>
+                    {quedan(t, ahora) ? <> · quedan {quedan(t, ahora)}</> : ' · calculando lo que queda...'}
+                  </span>
+                  {t.current.map((c) => (
+                    <span key={c} className="batches__current">
+                      <span className="spinner" aria-hidden="true" /> {c}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="batches__counts muted">
                 {(Object.keys(TEXTO) as BatchItemStatus[])
                   .filter((k) => t.counts[k])

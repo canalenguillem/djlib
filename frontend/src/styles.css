@@ -2501,3 +2501,33 @@ input[type='file'] {
   border-color: #ff6b5e;
   color: #ffb4ae;
 }
+
+/* Contador de descargas pendientes en el menu */
+.nav__count {
+  display: inline-block;
+  min-width: 1.3rem;
+  margin-left: 0.3rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.3rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.batches__now {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.batches__current {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent-hover);
+}
