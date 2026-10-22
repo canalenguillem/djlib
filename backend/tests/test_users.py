@@ -142,3 +142,38 @@ def test_patch_de_usuario_inexistente_es_404(client: TestClient, admin_user) -> 
         headers=auth_headers(tokens["access_token"]),
     )
     assert response.status_code == 404
+
+
+def test_menus_por_usuario(client: TestClient, admin_user, normal_user) -> None:
+    admin = login(client, "enguillem", ADMIN_PASSWORD)["access_token"]
+    pepe = login(client, "dj_pepe", USER_PASSWORD)["access_token"]
+    todos = client.get("/auth/me", headers=auth_headers(pepe)).json()["menus"]
+    assert "spotify" in todos and "library" in todos
+
+    r = client.patch(
+        f"/users/{normal_user.id}",
+        json={"menus": ["library", "listen"]},
+        headers=auth_headers(admin),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["menus"] == ["library", "listen"]
+    assert client.get("/auth/me", headers=auth_headers(pepe)).json()["menus"] == ["library", "listen"]
+
+    # Lo que cuesta dinero o usa otra cuenta lo corta tambien el servidor
+    assert client.post("/spotify/authorize", headers=auth_headers(pepe)).status_code == 403
+    assert client.get("/spotify/playlists", headers=auth_headers(pepe)).status_code == 403
+    assert (
+        client.post(
+            "/recognize/screenshot",
+            files={"image": ("a.png", b"x", "image/png")},
+            headers=auth_headers(pepe),
+        ).status_code
+        == 403
+    )
+    # El admin no se puede quedar sin nada
+    r = client.patch(f"/users/{admin_user.id}", json={"menus": []}, headers=auth_headers(admin))
+    assert len(r.json()["menus"]) == len(todos)
+
+    # Marcarlos todos vuelve a "todos"
+    client.patch(f"/users/{normal_user.id}", json={"menus": todos}, headers=auth_headers(admin))
+    assert client.get("/auth/me", headers=auth_headers(pepe)).json()["menus"] == todos

@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import AdminUser, DbSession
 from app.core.time import utcnow
+from app.models.user import Menu
 from app.schemas.user import UserCreate, UserOut, UserUpdate
 from app.services import user_service
 from app.services.user_service import PasswordPolicyError
@@ -79,6 +80,12 @@ def update_user(
             user_service.revoke_all_refresh_tokens(db, user)
     if payload.role is not None:
         user.role = payload.role
+    if payload.menus is not None:
+        elegidos = {m.value for m in payload.menus}
+        # Todos marcados se guarda como "todos", y asi le llegan los menus nuevos
+        user.menus = None if elegidos == {m.value for m in Menu} else [
+            m.value for m in Menu if m.value in elegidos
+        ]
 
     user.updated_at = utcnow()
     db.commit()

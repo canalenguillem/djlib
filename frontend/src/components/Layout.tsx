@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import * as recognitionApi from '../api/recognition'
 import * as spotifyApi from '../api/spotify'
 import { useAuth } from '../auth/useAuth'
+import { MENUS, puedeVer } from '../lib/menus'
 import { useDownloadsCount } from '../lib/useDownloadsCount'
 
 export function Layout() {
@@ -41,22 +42,22 @@ export function Layout() {
           DJ Library
         </div>
         <nav className="topbar__nav">
-          <NavLink to="/library">Biblioteca</NavLink>
-          {recognitionEnabled && <NavLink to="/recognize">Reconocer</NavLink>}
-          <NavLink to="/mixer">Mezclar</NavLink>
-          {spotifyEnabled && <NavLink to="/spotify">Spotify</NavLink>}
-          <NavLink to="/crates">Crates</NavLink>
-          <NavLink to="/downloads">
-            Descargas
-            {descargando > 0 && (
-              <span className="nav__count" aria-label={`${descargando} pendientes`}>
-                {descargando}
-              </span>
-            )}
-          </NavLink>
-          <NavLink to="/listen">Escuchar</NavLink>
-          <NavLink to="/artists">Artistas</NavLink>
-          <NavLink to="/tags">Etiquetas</NavLink>
+          {MENUS.filter(
+            (m) =>
+              puedeVer(user, m.key) &&
+              // Sin clave en el servidor, el apartado no hace nada
+              (m.key !== 'recognize' || recognitionEnabled) &&
+              (m.key !== 'spotify' || spotifyEnabled),
+          ).map((m) => (
+            <NavLink key={m.key} to={m.to}>
+              {m.label}
+              {m.key === 'downloads' && descargando > 0 && (
+                <span className="nav__count" aria-label={`${descargando} pendientes`}>
+                  {descargando}
+                </span>
+              )}
+            </NavLink>
+          ))}
           <NavLink to="/account">Mi cuenta</NavLink>
           {user?.role === 'admin' && <NavLink to="/users">Usuarios</NavLink>}
         </nav>

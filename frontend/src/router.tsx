@@ -2,7 +2,10 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RequireAdmin } from './auth/RequireAdmin'
+import { RequireMenu } from './auth/RequireMenu'
+import { useAuth } from './auth/useAuth'
 import { Layout } from './components/Layout'
+import { inicio } from './lib/menus'
 import { AccountPage } from './pages/Account'
 import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
@@ -19,6 +22,12 @@ import { RecognizePage } from './pages/Recognize'
 import { TagsPage } from './pages/Tags'
 import { UsersPage } from './pages/Users'
 
+/** La portada es el primer apartado que tenga cada uno. */
+function Inicio() {
+  const { user } = useAuth()
+  return <Navigate to={inicio(user)} replace />
+}
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
@@ -27,18 +36,28 @@ export const router = createBrowserRouter([
       {
         element: <Layout />,
         children: [
-          { path: '/', element: <Navigate to="/library" replace /> },
-          { path: '/library', element: <LibraryPage /> },
-          { path: '/recognize', element: <RecognizePage /> },
-          { path: '/artists', element: <ArtistsPage /> },
-          { path: '/artists/:artistId', element: <ArtistDetailPage /> },
-          { path: '/mixer', element: <MixerPage /> },
-          { path: '/spotify', element: <SpotifyPage /> },
-          { path: '/crates', element: <CratesPage /> },
-          { path: '/crates/:crateId', element: <CrateDetailPage /> },
-          { path: '/listen', element: <ListenPage /> },
-          { path: '/downloads', element: <DownloadsPage /> },
-          { path: '/tags', element: <TagsPage /> },
+          { path: '/', element: <Inicio /> },
+          { element: <RequireMenu menu="library" />, children: [{ path: '/library', element: <LibraryPage /> }] },
+          { element: <RequireMenu menu="recognize" />, children: [{ path: '/recognize', element: <RecognizePage /> }] },
+          {
+            element: <RequireMenu menu="artists" />,
+            children: [
+              { path: '/artists', element: <ArtistsPage /> },
+              { path: '/artists/:artistId', element: <ArtistDetailPage /> },
+            ],
+          },
+          { element: <RequireMenu menu="mixer" />, children: [{ path: '/mixer', element: <MixerPage /> }] },
+          { element: <RequireMenu menu="spotify" />, children: [{ path: '/spotify', element: <SpotifyPage /> }] },
+          {
+            element: <RequireMenu menu="crates" />,
+            children: [
+              { path: '/crates', element: <CratesPage /> },
+              { path: '/crates/:crateId', element: <CrateDetailPage /> },
+            ],
+          },
+          { element: <RequireMenu menu="listen" />, children: [{ path: '/listen', element: <ListenPage /> }] },
+          { element: <RequireMenu menu="downloads" />, children: [{ path: '/downloads', element: <DownloadsPage /> }] },
+          { element: <RequireMenu menu="tags" />, children: [{ path: '/tags', element: <TagsPage /> }] },
           { path: '/account', element: <AccountPage /> },
           {
             element: <RequireAdmin />,

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String
+from sqlalchemy import JSON, Boolean, DateTime, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.time import utcnow
@@ -11,6 +11,21 @@ from app.db.base import Base
 class UserRole(str, enum.Enum):
     admin = "admin"
     user = "user"
+
+
+class Menu(str, enum.Enum):
+    """Apartados del menu que se dan o se quitan a cada usuario. "Mi cuenta"
+    no esta: cada uno tiene que poder cambiar su contrasena."""
+
+    library = "library"
+    recognize = "recognize"
+    mixer = "mixer"
+    spotify = "spotify"
+    crates = "crates"
+    downloads = "downloads"
+    listen = "listen"
+    artists = "artists"
+    tags = "tags"
 
 
 class User(Base):
@@ -30,6 +45,8 @@ class User(Base):
         default=UserRole.user,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Lista de Menu que puede ver; None es todos
+    menus: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     # Cualquier access token emitido antes de esta fecha deja de valer.
     password_changed_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow
@@ -47,6 +64,14 @@ class User(Base):
     @property
     def is_admin(self) -> bool:
         return self.role == UserRole.admin
+
+    def can_use(self, menu: "Menu") -> bool:
+        # El admin lo ve todo: si no, podria quitarse a si mismo el acceso
+        return self.is_admin or self.menus is None or menu.value in self.menus
+
+    @property
+    def visible_menus(self) -> list["Menu"]:
+        return [m for m in Menu if self.can_use(m)]
 
     def __repr__(self) -> str:  # pragma: no cover - ayuda al depurar
         return f"<User {self.id} {self.username} {self.role.value}>"

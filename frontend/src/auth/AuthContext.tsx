@@ -10,6 +10,7 @@ export interface AuthContextValue {
   loading: boolean
   sessionMessage: string | null
   signIn: (username: string, password: string) => Promise<void>
+  signInWithGoogle: (credential: string) => Promise<void>
   signOut: () => Promise<void>
   applyTokens: (tokens: TokenPair) => void
   setUser: (user: User) => void
@@ -59,13 +60,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired)
   }, [])
 
-  const signIn = useCallback(async (username: string, password: string) => {
-    const tokens = await authApi.login(username, password)
+  const startSession = useCallback(async (tokens: TokenPair) => {
     tokenStore.save(tokens)
     const me = await authApi.getMe()
     setUser(me)
     setSessionMessage(null)
   }, [])
+
+  const signIn = useCallback(
+    async (username: string, password: string) => startSession(await authApi.login(username, password)),
+    [startSession],
+  )
+
+  const signInWithGoogle = useCallback(
+    async (credential: string) => startSession(await authApi.loginWithGoogle(credential)),
+    [startSession],
+  )
 
   const signOut = useCallback(async () => {
     await authApi.logout()
@@ -83,12 +93,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       sessionMessage,
       signIn,
+      signInWithGoogle,
       signOut,
       applyTokens,
       setUser,
       clearSessionMessage: () => setSessionMessage(null),
     }),
-    [user, loading, sessionMessage, signIn, signOut, applyTokens],
+    [user, loading, sessionMessage, signIn, signInWithGoogle, signOut, applyTokens],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

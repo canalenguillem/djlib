@@ -249,6 +249,18 @@ select:focus {
   margin: 0;
 }
 
+.login__separador {
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+/* Google pinta su boton en un iframe; aqui solo se centra */
+.login__google {
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+}
+
 /* --- Datos y tablas ------------------------------------------------------- */
 .datalist {
   display: grid;
@@ -2530,4 +2542,65 @@ input[type='file'] {
   align-items: center;
   gap: 0.4rem;
   color: var(--accent-hover);
+}
+
+/* --- Menus de cada usuario ------------------------------------------------ */
+.users__menus-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  padding: 0.25rem 0;
+}
+
+.users__menus-lista .check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+/* En el movil la tabla de usuarios no cabe: cada usuario es una ficha con
+   la etiqueta de cada dato a la izquierda */
+@media (max-width: 700px) {
+  .users-table thead {
+    display: none;
+  }
+
+  .users-table,
+  .users-table tbody,
+  .users-table tr,
+  .users-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .users-table tr {
+    border-bottom: 1px solid var(--border);
+    padding: 0.5rem 0;
+  }
+
+  .users-table tr.users__menus {
+    border-bottom: 1px solid var(--border);
+    padding-top: 0;
+  }
+
+  .users-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 0;
+    padding: 0.3rem 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    text-align: right;
+  }
+
+  .users-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: left;
+    flex-shrink: 0;
+  }
 }

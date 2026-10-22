@@ -1,11 +1,23 @@
 export type UserRole = 'admin' | 'user'
 
+export type Menu =
+  | 'library'
+  | 'recognize'
+  | 'mixer'
+  | 'spotify'
+  | 'crates'
+  | 'downloads'
+  | 'listen'
+  | 'artists'
+  | 'tags'
+
 export interface User {
   id: number
   username: string
   email: string | null
   role: UserRole
   is_active: boolean
+  menus: Menu[]
   last_login_at: string | null
   created_at: string
   updated_at: string
@@ -28,6 +40,7 @@ export interface CreateUserPayload {
 export interface UpdateUserPayload {
   is_active?: boolean
   role?: UserRole
+  menus?: Menu[]
 }
 
 export type TrackStatus = 'pending' | 'downloading' | 'ready' | 'error'

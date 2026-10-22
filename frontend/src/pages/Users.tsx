@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as usersApi from '../api/users'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
 import { useAuth } from '../auth/useAuth'
-import type { UpdateUserPayload, User, UserRole } from '../types/api'
+import { MENUS } from '../lib/menus'
+import type { Menu, UpdateUserPayload, User, UserRole } from '../types/api'
 
 function formatDate(value: string | null): string {
   if (!value) return '—'
@@ -20,6 +21,8 @@ export function UsersPage() {
   const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  // Fila con las casillas de menus abiertas
+  const [menusDe, setMenusDe] = useState<number | null>(null)
 
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -82,6 +85,11 @@ export function UsersPage() {
     }
   }
 
+  function toggleMenu(u: User, menu: Menu) {
+    const menus = u.menus.includes(menu) ? u.menus.filter((m) => m !== menu) : [...u.menus, menu]
+    void patchUser(u.id, { menus })
+  }
+
   if (loading) return <Loading />
 
   return (
@@ -139,13 +147,14 @@ export function UsersPage() {
         {listError && <Alert kind="error">{listError}</Alert>}
         {actionError && <Alert kind="error">{actionError}</Alert>}
         <div className="table-wrap">
-          <table className="table">
+          <table className="table users-table">
             <thead>
               <tr>
                 <th>Usuario</th>
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Estado</th>
+                <th>Menus</th>
                 <th>Ultimo acceso</th>
                 <th>Acciones</th>
               </tr>
@@ -153,14 +162,16 @@ export function UsersPage() {
             <tbody>
               {users.map((u) => {
                 const isSelf = u.id === currentUser?.id
+                const abierta = menusDe === u.id
                 return (
-                  <tr key={u.id} className={u.is_active ? '' : 'row--inactive'}>
-                    <td>
+                  <Fragment key={u.id}>
+                  <tr className={u.is_active ? '' : 'row--inactive'}>
+                    <td data-label="Usuario">
                       {u.username}
                       {isSelf && <span className="muted"> (tu)</span>}
                     </td>
-                    <td>{u.email ?? '—'}</td>
-                    <td>
+                    <td data-label="Email">{u.email ?? '—'}</td>
+                    <td data-label="Rol">
                       <select
                         value={u.role}
                         disabled={isSelf || busyId === u.id}
@@ -170,13 +181,29 @@ export function UsersPage() {
                         <option value="admin">admin</option>
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Estado">
                       <span className={u.is_active ? 'badge badge--ok' : 'badge badge--off'}>
-                        {u.is_active ? 'activo' : 'desactivado'}
+                        {/* Sin ningun acceso aun: es un alta de Google esperando */}
+                        {u.is_active ? 'activo' : u.last_login_at ? 'desactivado' : 'pendiente'}
                       </span>
                     </td>
-                    <td className="muted">{formatDate(u.last_login_at)}</td>
-                    <td>
+                    <td data-label="Menus">
+                      {u.role === 'admin' ? (
+                        <span className="muted">todos</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          aria-expanded={abierta}
+                          onClick={() => setMenusDe(abierta ? null : u.id)}
+                        >
+                          {u.menus.length === MENUS.length ? 'todos' : `${u.menus.length} de ${MENUS.length}`}
+                          {abierta ? ' ▴' : ' ▾'}
+                        </button>
+                      )}
+                    </td>
+                    <td data-label="Ultimo acceso" className="muted">{formatDate(u.last_login_at)}</td>
+                    <td data-label="Acciones">
                       <button
                         type="button"
                         className="btn btn--ghost"
@@ -187,6 +214,26 @@ export function UsersPage() {
                       </button>
                     </td>
                   </tr>
+                  {abierta && u.role !== 'admin' && (
+                    <tr className="users__menus">
+                      <td colSpan={7}>
+                        <div className="users__menus-lista">
+                          {MENUS.map((m) => (
+                            <label key={m.key} className="check">
+                              <input
+                                type="checkbox"
+                                checked={u.menus.includes(m.key)}
+                                disabled={busyId === u.id}
+                                onChange={() => toggleMenu(u, m.key)}
+                              />
+                              {m.label}
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
             </tbody>

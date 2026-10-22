@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.security import decode_access_token
 from app.core.time import to_epoch
 from app.db.session import SessionLocal, get_db
-from app.models.user import User
+from app.models.user import Menu, User
 from app.services import user_service
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -74,3 +74,18 @@ def require_admin(current_user: CurrentUser) -> User:
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+def require_menu(menu: Menu):
+    """Para lo que cuesta dinero o tira de la cuenta de otro servicio: no basta
+    con esconder el menu, el servidor tambien lo corta."""
+
+    def comprobar(current_user: CurrentUser) -> User:
+        if not current_user.can_use(menu):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes acceso a este apartado.",
+            )
+        return current_user
+
+    return Depends(comprobar)

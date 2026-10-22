@@ -23,3 +23,6 @@ backups/
 .DS_Store
 .idea/
 .vscode/
+
+# Credenciales descargadas de Google Cloud: llevan el secreto
+client_secret_*.json

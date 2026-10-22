@@ -4,6 +4,8 @@ Los routers se limitan a HTTP; aqui vive la logica para que sea reutilizable
 (seed, tests, futuros modulos) y facil de probar.
 """
 
+import re
+import secrets
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -76,6 +78,26 @@ def create_user(
     db.add(user)
     db.flush()
     return user
+
+
+def create_pending_from_google(db: Session, email: str) -> User:
+    """Alta de quien entra con Google por primera vez. Queda desactivado hasta
+    que un admin lo apruebe: la web es publica y cuenta de Google tiene
+    cualquiera. La contrasena es al azar y no se le da a nadie; si algun dia
+    la quiere, se le pone con el comando de cambiar la contrasena."""
+    base = re.sub(r"[^A-Za-z0-9._-]", "", email.split("@")[0])[:40] or "usuario"
+    base = base.ljust(3, "0")
+    username, n = base, 1
+    while get_by_username(db, username) is not None:
+        n += 1
+        username = f"{base}{n}"
+    return create_user(
+        db,
+        username=username,
+        password=secrets.token_urlsafe(32),
+        email=email,
+        is_active=False,
+    )
 
 
 def authenticate(db: Session, username: str, password: str) -> User | None:

@@ -4,11 +4,12 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
 import { Alert } from '../components/Alert'
+import { GoogleButton } from '../components/GoogleButton'
 import { Loading } from '../components/Loading'
 import { useAuth } from '../auth/useAuth'
 
 export function LoginPage() {
-  const { user, loading, signIn, sessionMessage, clearSessionMessage } = useAuth()
+  const { user, loading, signIn, signInWithGoogle, sessionMessage, clearSessionMessage } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -18,28 +19,42 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (loading) return <Loading />
-  if (user) return <Navigate to="/library" replace />
+  if (user) return <Navigate to="/" replace />
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function entrar(intento: () => Promise<void>, error401: (err: ApiError) => string) {
     setError(null)
     clearSessionMessage()
     setSubmitting(true)
     try {
-      await signIn(username.trim(), password)
+      await intento()
       const from = (location.state as { from?: string } | null)?.from
-      navigate(from && from !== '/login' ? from : '/library', { replace: true })
+      navigate(from && from !== '/login' ? from : '/', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setError('Demasiados intentos fallidos. Espera unos minutos y vuelve a probar.')
       } else if (err instanceof ApiError && err.status === 401) {
-        setError('Usuario o contrasena incorrectos.')
+        setError(error401(err))
+      } else if (err instanceof ApiError && err.status === 403) {
+        setError(err.message)
       } else {
         setError(err instanceof Error ? err.message : 'Error inesperado.')
       }
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    void entrar(
+      () => signIn(username.trim(), password),
+      () => 'Usuario o contrasena incorrectos.',
+    )
+  }
+
+  function handleGoogle(credential: string) {
+    // El servidor dice por que: sin cuenta con ese correo, sin verificar...
+    void entrar(() => signInWithGoogle(credential), (err) => err.message)
   }
 
   return (
@@ -80,6 +95,8 @@ export function LoginPage() {
         <button type="submit" className="btn btn--primary" disabled={submitting}>
           {submitting ? 'Entrando...' : 'Entrar'}
         </button>
+
+        <GoogleButton onCredential={handleGoogle} />
       </form>
     </div>
   )

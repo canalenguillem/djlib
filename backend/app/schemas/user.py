@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models.user import UserRole
+from app.models.user import Menu, UserRole
 
 
 class UserOut(BaseModel):
@@ -13,6 +13,8 @@ class UserOut(BaseModel):
     email: EmailStr | None = None
     role: UserRole
     is_active: bool
+    # Los menus que puede ver, ya resueltos: el admin y "todos" salen completos
+    menus: list[Menu] = Field(validation_alias="visible_menus")
     last_login_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -30,6 +32,7 @@ class UserUpdate(BaseModel):
 
     is_active: bool | None = None
     role: UserRole | None = None
+    menus: list[Menu] | None = None
 
 
 class EmailUpdate(BaseModel):

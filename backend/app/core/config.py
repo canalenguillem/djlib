@@ -113,6 +113,11 @@ class Settings(BaseSettings):
     preview_start_seconds: int = 60
     preview_cache_files: int = 60
 
+    # --- Entrar con Google ---
+    # ID de cliente OAuth de tipo "Aplicacion web". Vacio desactiva el boton.
+    google_client_id: str = ""
+    google_timeout_seconds: int = 10
+
     # --- Spotify ---
     spotify_client_id: str = ""
     spotify_client_secret: str = ""

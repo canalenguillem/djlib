@@ -9,6 +9,18 @@ export function login(username: string, password: string): Promise<TokenPair> {
   })
 }
 
+export function loginWithGoogle(credential: string): Promise<TokenPair> {
+  return apiFetch<TokenPair>('/auth/google', {
+    method: 'POST',
+    body: { credential },
+    auth: false,
+  })
+}
+
+export function getAuthConfig(): Promise<{ google_client_id: string | null }> {
+  return apiFetch('/auth/config', { auth: false })
+}
+
 export function getMe(): Promise<User> {
   return apiFetch<User>('/auth/me')
 }

@@ -3,13 +3,14 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from fastapi.responses import RedirectResponse
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, require_menu
 from app.core.config import settings
 from app.core.text import normalize_key
 from app.core.time import utcnow
 from app.db.session import SessionLocal
 from app.models.spotify import SpotifyAccount
 from app.models.track import Track, TrackStatus
+from app.models.user import Menu
 from app.schemas.spotify import (
     PlayedTrackOut,
     RecentlyPlayed,
@@ -69,7 +70,7 @@ def spotify_status(current_user: CurrentUser, db: DbSession) -> SpotifyStatus:
     )
 
 
-@router.post("/authorize", response_model=SpotifyAuthUrl)
+@router.post("/authorize", response_model=SpotifyAuthUrl, dependencies=[require_menu(Menu.spotify)])
 def spotify_authorize(current_user: CurrentUser) -> SpotifyAuthUrl:
     """Devuelve la URL a la que mandar al usuario para que de permiso."""
     try:
@@ -188,7 +189,7 @@ def _marcar(db, canciones: list[spotify.PlayedTrack]) -> list[PlayedTrackOut]:
     ]
 
 
-@router.get("/recently-played", response_model=RecentlyPlayed)
+@router.get("/recently-played", response_model=RecentlyPlayed, dependencies=[require_menu(Menu.spotify)])
 def spotify_recently_played(
     current_user: CurrentUser, db: DbSession, limit: int = Query(default=50, ge=1, le=50)
 ) -> RecentlyPlayed:
@@ -217,7 +218,7 @@ def _cuenta_con_playlists(db, user_id: int) -> SpotifyAccount:
     return cuenta
 
 
-@router.get("/playlists", response_model=list[PlaylistOut])
+@router.get("/playlists", response_model=list[PlaylistOut], dependencies=[require_menu(Menu.spotify)])
 def spotify_playlists(current_user: CurrentUser, db: DbSession) -> list[PlaylistOut]:
     """Las listas de la cuenta, propias y seguidas."""
     cuenta = _cuenta_con_playlists(db, current_user.id)
@@ -228,7 +229,7 @@ def spotify_playlists(current_user: CurrentUser, db: DbSession) -> list[Playlist
     return [PlaylistOut(**vars(lista)) for lista in listas]
 
 
-@router.get("/playlists/{playlist_id}", response_model=PlaylistTracks)
+@router.get("/playlists/{playlist_id}", response_model=PlaylistTracks, dependencies=[require_menu(Menu.spotify)])
 def spotify_playlist_tracks(
     playlist_id: str, current_user: CurrentUser, db: DbSession
 ) -> PlaylistTracks:
@@ -241,7 +242,7 @@ def spotify_playlist_tracks(
     return PlaylistTracks(name=nombre, items=_marcar(db, canciones))
 
 
-@router.get("/shazam", response_model=ShazamTracks)
+@router.get("/shazam", response_model=ShazamTracks, dependencies=[require_menu(Menu.spotify)])
 def spotify_shazam(current_user: CurrentUser, db: DbSession) -> ShazamTracks:
     """Lo reconocido con Shazam, que Shazam guarda en una playlist de Spotify
     si se conectan. Shazam no tiene API propia: este es el unico camino."""

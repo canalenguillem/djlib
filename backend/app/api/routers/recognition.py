@@ -2,8 +2,9 @@ import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
-from app.api.deps import CurrentUser, DbSession
+from app.api.deps import CurrentUser, DbSession, require_menu
 from app.core.config import settings
+from app.models.user import Menu
 from app.schemas.recognition import (
     DetectedSong,
     RecognitionResult,
@@ -31,7 +32,7 @@ def recognition_status(current_user: CurrentUser) -> RecognitionStatus:
     )
 
 
-@router.post("", response_model=RecognitionResult)
+@router.post("", response_model=RecognitionResult, dependencies=[require_menu(Menu.recognize)])
 def recognize_audio(
     current_user: CurrentUser,
     db: DbSession,
@@ -117,7 +118,7 @@ IMAGENES_ADMITIDAS = {
 }
 
 
-@router.post("/screenshot", response_model=ScreenshotResult)
+@router.post("/screenshot", response_model=ScreenshotResult, dependencies=[require_menu(Menu.recognize)])
 def recognize_screenshot(
     current_user: CurrentUser,
     image: UploadFile = File(..., description="Captura con canciones visibles"),

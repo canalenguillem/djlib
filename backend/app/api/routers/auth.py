@@ -2,12 +2,19 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.config import settings
 from app.core.rate_limit import client_ip, login_rate_limiter
 from app.core.security import create_access_token, verify_password
 from app.core.time import utcnow
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenPair
+from app.schemas.auth import (
+    AuthConfig,
+    GoogleLoginRequest,
+    LoginRequest,
+    RefreshRequest,
+    TokenPair,
+)
 from app.schemas.user import EmailUpdate, PasswordChange, UserOut
-from app.services import user_service
+from app.services import google_auth, user_service
 from app.services.user_service import PasswordPolicyError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -26,9 +33,7 @@ def _issue_pair(db, user) -> TokenPair:
     )
 
 
-@router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, request: Request, db: DbSession) -> TokenPair:
-    ip = client_ip(request)
+def _check_rate_limit(ip: str) -> None:
     retry_after = login_rate_limiter.retry_after(ip)
     if retry_after is not None:
         raise HTTPException(
@@ -37,10 +42,50 @@ def login(payload: LoginRequest, request: Request, db: DbSession) -> TokenPair:
             headers={"Retry-After": str(retry_after)},
         )
 
+
+@router.get("/config", response_model=AuthConfig)
+def auth_config() -> AuthConfig:
+    # El ID de cliente es publico: va en la pagina de login de todas formas
+    return AuthConfig(google_client_id=settings.google_client_id or None)
+
+
+@router.post("/login", response_model=TokenPair)
+def login(payload: LoginRequest, request: Request, db: DbSession) -> TokenPair:
+    ip = client_ip(request)
+    _check_rate_limit(ip)
+
     user = user_service.authenticate(db, payload.username, payload.password)
     if user is None:
         login_rate_limiter.register_failure(ip)
         raise INVALID_CREDENTIALS
+
+    login_rate_limiter.reset(ip)
+    user.last_login_at = utcnow()
+    tokens = _issue_pair(db, user)
+    db.commit()
+    return tokens
+
+
+@router.post("/google", response_model=TokenPair)
+def login_google(payload: GoogleLoginRequest, request: Request, db: DbSession) -> TokenPair:
+    ip = client_ip(request)
+    _check_rate_limit(ip)
+    try:
+        email = google_auth.verify_id_token(payload.credential)
+    except google_auth.GoogleAuthError as exc:
+        login_rate_limiter.register_failure(ip)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
+
+    user = user_service.get_by_email(db, email)
+    if user is None:
+        user = user_service.create_pending_from_google(db, email)
+        db.commit()
+    if not user.is_active:
+        # Lo mismo para pendientes que para desactivados: no se dice cual es
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu cuenta esta pendiente de aprobacion. Pide al administrador que te de acceso.",
+        )
 
     login_rate_limiter.reset(ip)
     user.last_login_at = utcnow()
