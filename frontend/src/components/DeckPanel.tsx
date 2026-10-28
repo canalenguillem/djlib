@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { formatClock } from '../lib/audioEngine'
+import { textoRango } from '../lib/equipos'
 import type { BeatGrid } from '../lib/beatgrid'
 import type { DeckWaveformData } from '../lib/waveform'
 import type { Track } from '../types/api'
@@ -24,6 +25,8 @@ export interface DeckControls {
   otherBpm: number | null
   /** Recorrido del fader en por ciento, como el selector de un CDJ. */
   range: number
+  /** Recorridos de tempo que tiene el reproductor que se simula. */
+  ranges: number[]
   onRange: (valor: number) => void
   onMatch: () => void
   onResetTempo: () => void
@@ -335,14 +338,14 @@ export function DeckPanel(props: DeckControls) {
             </span>
             <div className="deck__range">
               <span className="muted">Recorrido</span>
-              {[8, 16, 50].map((opcion) => (
+              {props.ranges.map((opcion) => (
                 <button
                   key={opcion}
                   type="button"
                   className={opcion === range ? 'rangebtn rangebtn--on' : 'rangebtn'}
                   onClick={() => props.onRange(opcion)}
                 >
-                  ±{opcion}%
+                  {textoRango(opcion)}
                 </button>
               ))}
               {!puedeIgualar && necesario !== null && (

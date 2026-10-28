@@ -9,6 +9,7 @@ import { inicio } from './lib/menus'
 import { AccountPage } from './pages/Account'
 import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
+import { BeatportPage } from './pages/Beatport'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
 import { DownloadsPage } from './pages/Downloads'
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
           },
           { element: <RequireMenu menu="mixer" />, children: [{ path: '/mixer', element: <MixerPage /> }] },
           { element: <RequireMenu menu="spotify" />, children: [{ path: '/spotify', element: <SpotifyPage /> }] },
+          { element: <RequireMenu menu="beatport" />, children: [{ path: '/beatport', element: <BeatportPage /> }] },
           {
             element: <RequireMenu menu="crates" />,
             children: [

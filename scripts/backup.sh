@@ -63,7 +63,8 @@ docker compose exec -T db mariadb-dump \
 # --- Musica ---
 # Se empaqueta desde el contenedor, que es quien tiene montado el volumen.
 log "[backup] empaquetando los mp3..."
-docker compose exec -T backend tar czf - -C /data music > "$CARPETA/music.tar.gz"
+# Sin la cache de mp3 de las exportaciones: se regenera sola
+docker compose exec -T backend tar czf - -C /data --exclude=music/mp3 music > "$CARPETA/music.tar.gz"
 
 # --- Configuracion ---
 # Sin .env no se puede restaurar en una maquina nueva: la contrasena de la base

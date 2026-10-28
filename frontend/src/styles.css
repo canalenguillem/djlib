@@ -494,8 +494,25 @@ select:focus {
 /* --- Listado de canciones ------------------------------------------------- */
 .library__header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: baseline;
   justify-content: space-between;
+}
+
+.filters__buscaetiqueta {
+  max-width: 220px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.library__header .pager {
+  justify-content: flex-end;
 }
 
 .tracklist {
@@ -2602,5 +2619,108 @@ input[type='file'] {
     font-size: 0.85rem;
     text-align: left;
     flex-shrink: 0;
+  }
+}
+
+/* --- Equipo que simula el mezclador ---------------------------------------- */
+.mixer__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.mixer__equipo {
+  min-width: min(320px, 100%);
+}
+
+/* --- SOUND COLOR FX --------------------------------------------------------- */
+.colorfx {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.colorfx__botones {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.35rem;
+  width: 100%;
+}
+
+/* Como en la mesa: los botones se iluminan cuando el efecto esta puesto */
+.colorfxbtn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0b0e13;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.45rem 0.15rem;
+  cursor: pointer;
+}
+
+.colorfxbtn:hover {
+  color: var(--text);
+  border-color: #f5a623;
+}
+
+.colorfxbtn--on {
+  color: #0b0e13;
+  background: #f5a623;
+  border-color: #f5a623;
+  box-shadow: 0 0 10px color-mix(in srgb, #f5a623 55%, transparent);
+}
+
+.colorfx__ayuda {
+  font-size: 0.75rem;
+  text-align: center;
+  margin: 0;
+}
+
+/* --- Beatport ------------------------------------------------------------- */
+.beatport__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.beatport__filtros .field {
+  flex: 1 1 220px;
+}
+
+.beatport__pos {
+  width: 2ch;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.beatport__cover {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: none;
+  background: #0b0e13;
+}
+
+@media (max-width: 700px) {
+  .beatport__cover {
+    display: none;
+  }
+
+  .detected__row:has(.beatport__pos) {
+    flex-wrap: wrap;
   }
 }

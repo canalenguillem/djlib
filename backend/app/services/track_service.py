@@ -19,7 +19,7 @@ from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
 from app.services import artist_service, audio_file, bpm as bpm_service, downloader
-from app.services import crate_service
+from app.services import crate_service, mp3_service
 from app.services import waveform as waveform_service
 from app.services.downloader import DownloadError
 
@@ -544,6 +544,7 @@ def delete_track(db: Session, track: Track) -> None:
             path.unlink(missing_ok=True)
         except OSError:  # pragma: no cover
             logger.warning("No se pudo borrar el fichero %s", path)
+        mp3_service.forget(str(path))
 
 
 # Tipo MIME segun la extension del flujo que sirviera YouTube.

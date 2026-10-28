@@ -13,6 +13,8 @@
  *  esta pantalla esta pensada para el escritorio.
  */
 
+import { ColorFx } from './colorFx'
+
 let contexto: AudioContext | null = null
 
 export function audioContext(): AudioContext {
@@ -33,8 +35,8 @@ export const EQ_MAX_DB = 6
 
 /** Posicion del potenciometro (-1 a 1, 0 a las 12) a decibelios. La escala no
  *  es simetrica, como en la mesa: el centro es 0 dB. */
-export function eqDb(posicion: number): number {
-  return posicion < 0 ? -posicion * EQ_MIN_DB : posicion * EQ_MAX_DB
+export function eqDb(posicion: number, minDb = EQ_MIN_DB, maxDb = EQ_MAX_DB): number {
+  return posicion < 0 ? -posicion * minDb : posicion * maxDb
 }
 
 export interface DeckSnapshot {
@@ -48,6 +50,8 @@ export class Deck {
   /** Ecualizador del canal. Los cortes son los de la forma de onda, asi que
    *  quitar los bajos quita justo lo que se pinta en azul. */
   private readonly eq: Record<EqBand, BiquadFilterNode>
+  /** SOUND COLOR FX del canal: despues del EQ y antes del fader. */
+  readonly colorFx: ColorFx
   /** Volumen del canal, lo que mueve el fader vertical. */
   readonly volume: GainNode
   /** Posicion en el crossfader; se controla desde fuera. */
@@ -73,11 +77,13 @@ export class Deck {
     }
     // Un medio ancho, que cubra la banda entre los otros dos
     this.eq.mid.Q.value = 0.7
+    this.colorFx = new ColorFx(this.ctx)
     this.volume = this.ctx.createGain()
     this.crossfade = this.ctx.createGain()
     this.eq.low.connect(this.eq.mid)
     this.eq.mid.connect(this.eq.high)
-    this.eq.high.connect(this.volume)
+    this.eq.high.connect(this.colorFx.input)
+    this.colorFx.output.connect(this.volume)
     this.volume.connect(this.crossfade)
     this.crossfade.connect(destino)
   }
@@ -203,6 +209,7 @@ export class Deck {
     this.stop()
     this.buffer = null
     for (const nodo of Object.values(this.eq)) nodo.disconnect()
+    this.colorFx.dispose()
     this.volume.disconnect()
     this.crossfade.disconnect()
   }

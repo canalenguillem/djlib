@@ -10,14 +10,17 @@ import { Loading } from '../components/Loading'
 import { Knob } from '../components/Knob'
 import { Deck, audioContext, crossfadeGains, eqDb } from '../lib/audioEngine'
 import type { EqBand } from '../lib/audioEngine'
+import { COLOR_FX } from '../lib/colorFx'
+import type { ColorFxId } from '../lib/colorFx'
+import { ContadorEscucha } from '../lib/escuchas'
+import { EQUIPOS, equipoGuardado, guardarEquipo, rangoCercano } from '../lib/equipos'
+import type { Equipo } from '../lib/equipos'
 import { BANDS, analyzeBuffer } from '../lib/waveform'
 import { detectBeatGrid, setDownbeat } from '../lib/beatgrid'
 import type { BeatGrid } from '../lib/beatgrid'
 import type { DeckWaveformData } from '../lib/waveform'
 import { formatDuration } from '../lib/format'
 import type { CrateSummary, Track } from '../types/api'
-
-const PADS = 4
 
 // De arriba abajo, como en la mesa. Cada uno con el color de su banda en la
 // onda, para ver lo que se esta quitando.
@@ -34,8 +37,8 @@ const VELOCIDADES = [0, 1, 2, 4]
 // Si no suena nada con BPM conocido, se cuenta a un tempo tipico de house
 const BPM_POR_DEFECTO = 120
 
-function textoDb(posicion: number): string {
-  const db = Math.round(eqDb(posicion))
+function textoDb(posicion: number, equipo: Equipo): string {
+  const db = Math.round(eqDb(posicion, equipo.eqMinDb, equipo.eqMaxDb))
   return db === 0 ? '0 dB' : `${db > 0 ? '+' : '−'}${Math.abs(db)} dB`
 }
 
@@ -50,6 +53,8 @@ interface EstadoPlato {
   /** Posicion de cada potenciometro del ecualizador, de -1 a 1. */
   eq: Record<EqBand, number>
   range: number
+  /** Rueda COLOR del canal, de -1 a 1: en el centro no hay efecto. */
+  color: number
   cues: Array<number | null>
   /** El cue principal, el del boton CUE. Al cargar, el principio del tema. */
   mainCue: number
@@ -59,7 +64,11 @@ interface EstadoPlato {
   grid: BeatGrid | null
 }
 
-const PLATO_INICIAL: EstadoPlato = {
+function platoInicial(equipo: Equipo): EstadoPlato {
+  return { ...PLATO_VACIO, range: equipo.rangoInicial, cues: Array(equipo.hotCues).fill(null) }
+}
+
+const PLATO_VACIO: EstadoPlato = {
   track: null,
   loading: false,
   playing: false,
@@ -68,8 +77,9 @@ const PLATO_INICIAL: EstadoPlato = {
   tempo: 1,
   volume: 0.8,
   eq: { high: 0, mid: 0, low: 0 },
-  range: 8,
-  cues: Array(PADS).fill(null),
+  range: 10,
+  color: 0,
+  cues: [],
   mainCue: 0,
   waveform: null,
   analyzing: false,
@@ -78,16 +88,26 @@ const PLATO_INICIAL: EstadoPlato = {
 
 export function MixerPage() {
   const decks = useRef<[Deck, Deck] | null>(null)
+  // Lo que ha sonado de cada plato, para contar la escucha como mezcla
+  const contadores = useRef<[ContadorEscucha | null, ContadorEscucha | null]>([null, null])
   // Cuantas canciones se han cargado en cada plato: el analisis de la onda es
   // asincrono y no debe pisar el de una cancion cargada despues.
   const cargas = useRef<[number, number]>([0, 0])
   // Si cada plato esta sonando solo mientras se mantiene pulsado el CUE
   const preescucha = useRef<[boolean, boolean]>([false, false])
-  const [estados, setEstados] = useState<[EstadoPlato, EstadoPlato]>([
-    { ...PLATO_INICIAL },
-    { ...PLATO_INICIAL },
+  // Modelo de cabina que se simula; se recuerda entre visitas
+  const [equipo, setEquipo] = useState(equipoGuardado)
+  // Para los barridos de EQ, que leen el equipo desde una animacion
+  const equipoRef = useRef(equipo)
+  equipoRef.current = equipo
+  const [estados, setEstados] = useState<[EstadoPlato, EstadoPlato]>(() => [
+    platoInicial(equipo),
+    platoInicial(equipo),
   ])
   const [crossfader, setCrossfader] = useState(0.5)
+  // SOUND COLOR FX: el boton encendido y la rueda PARAMETER, comunes a la mesa
+  const [colorFx, setColorFx] = useState<ColorFxId | null>(null)
+  const [parametro, setParametro] = useState(0)
   const [compases, setCompases] = useState(1)
   // Barridos de intercambio en marcha, por banda: el id de su animacion
   const barridos = useRef<Partial<Record<EqBand, number>>>({})
@@ -108,8 +128,8 @@ export function MixerPage() {
     const salida = ctx.destination
     decks.current = [new Deck(salida), new Deck(salida)]
     const [a, b] = decks.current
-    a.setVolume(PLATO_INICIAL.volume)
-    b.setVolume(PLATO_INICIAL.volume)
+    a.setVolume(PLATO_VACIO.volume)
+    b.setVolume(PLATO_VACIO.volume)
     const [ga, gb] = crossfadeGains(0.5)
     a.crossfade.gain.value = ga
     b.crossfade.gain.value = gb
@@ -126,6 +146,9 @@ export function MixerPage() {
       if (!vivo) return
       const platos = decks.current
       if (platos) {
+        platos.forEach((deck, i) => {
+          if (deck.playing) contadores.current[i]?.avanza(deck.position)
+        })
         setEstados((previo) => {
           const siguiente = previo.map((estado, i) => {
             const deck = platos[i]
@@ -197,7 +220,7 @@ export function MixerPage() {
       track,
       playing: false,
       position: 0,
-      cues: Array(PADS).fill(null),
+      cues: Array(equipo.hotCues).fill(null),
       mainCue: 0,
       waveform: null,
       analyzing: false,
@@ -207,6 +230,7 @@ export function MixerPage() {
     try {
       const blob = await tracksApi.fetchTrackFile(track.id)
       await deck.load(await blob.arrayBuffer())
+      contadores.current[indice] = new ContadorEscucha(track.id, 'mixer', deck.duration)
       actualizar(indice, { loading: false, duration: deck.duration, position: 0, analyzing: true })
     } catch (err) {
       actualizar(indice, { loading: false, track: null })
@@ -272,7 +296,8 @@ export function MixerPage() {
   }
 
   function cambiarEq(indice: 0 | 1, banda: EqBand, posicion: number) {
-    decks.current?.[indice].setEq(banda, eqDb(posicion))
+    const { eqMinDb, eqMaxDb } = equipoRef.current
+    decks.current?.[indice].setEq(banda, eqDb(posicion, eqMinDb, eqMaxDb))
     setEstados((previo) => {
       const copia = [...previo] as [EstadoPlato, EstadoPlato]
       copia[indice] = { ...copia[indice], eq: { ...copia[indice].eq, [banda]: posicion } }
@@ -403,6 +428,67 @@ export function MixerPage() {
     actualizar(indice, { range: valor, tempo: ajustado })
   }
 
+  /** Pasar a otro modelo sin parar la musica: lo que suena sigue sonando y
+   *  solo cambia lo que el modelo nuevo hace distinto. */
+  function cambiarEquipo(id: string) {
+    const nuevo = EQUIPOS.find((e) => e.id === id)
+    if (!nuevo || nuevo.id === equipo.id) return
+    setEquipo(nuevo)
+    equipoRef.current = nuevo
+    // Si la mesa nueva no tiene el efecto encendido, se apaga
+    if (colorFx && !nuevo.colorFx.includes(colorFx)) setColorFx(null)
+    guardarEquipo(nuevo)
+    estados.forEach((estado, i) => {
+      const indice = i as 0 | 1
+      const range = rangoCercano(nuevo, estado.range)
+      const limite = range / 100
+      const tempo = Math.max(1 - limite, Math.min(1 + limite, estado.tempo))
+      if (tempo !== estado.tempo) decks.current?.[indice].setTempo(tempo)
+      // Los hot cues que caben se conservan; los que sobran se pierden
+      const cues = Array.from({ length: nuevo.hotCues }, (_, k) => estado.cues[k] ?? null)
+      actualizar(indice, { range, tempo, cues })
+      // La rueda de una mesa no significa lo mismo en la otra: vuelve al centro
+      decks.current?.[indice].colorFx.aplicar(null, 0, 0.5)
+      actualizar(indice, { color: 0 })
+      for (const banda of Object.keys(estado.eq) as EqBand[]) {
+        decks.current?.[indice].setEq(banda, eqDb(estado.eq[banda], nuevo.eqMinDb, nuevo.eqMaxDb))
+      }
+    })
+  }
+
+  /** Pone el SOUND COLOR FX de un canal como dicen la mesa y su rueda. Con
+   *  una rueda CFX de controladora no hay botones: siempre es un filtro. */
+  function aplicarColor(indice: 0 | 1, efecto: ColorFxId | null, color: number, param: number) {
+    const cfx = equipoRef.current.cfx
+    // PARAMETER va de -1 a 1 como todas las ruedas; el efecto lo quiere de 0 a 1
+    decks.current?.[indice].colorFx.aplicar(cfx ? 'filter' : efecto, color, cfx ? 0.2 : (param + 1) / 2)
+  }
+
+  function elegirColorFx(id: ColorFxId) {
+    // Pulsar el que ya esta encendido lo apaga, como en la DJM
+    const nuevo = colorFx === id ? null : id
+    setColorFx(nuevo)
+    ;([0, 1] as const).forEach((i) => aplicarColor(i, nuevo, estados[i].color, parametro))
+  }
+
+  function girarColor(indice: 0 | 1, valor: number) {
+    actualizar(indice, { color: valor })
+    aplicarColor(indice, colorFx, valor, parametro)
+  }
+
+  function girarParametro(valor: number) {
+    setParametro(valor)
+    ;([0, 1] as const).forEach((i) => aplicarColor(i, colorFx, estados[i].color, valor))
+  }
+
+  // El DUB ECHO va a tempo de lo que suena en cada plato
+  const bpmA = sonandoA(0)
+  const bpmB = sonandoA(1)
+  useEffect(() => {
+    decks.current?.[0].colorFx.setBpm(bpmA)
+    decks.current?.[1].colorFx.setBpm(bpmB)
+  }, [bpmA, bpmB])
+
   const listaVisible = crateTracks ?? tracks
 
   // El intercambio se cuenta al tempo de lo que suena; si suenan los dos,
@@ -417,7 +503,19 @@ export function MixerPage() {
 
   return (
     <div className="stack">
-      <h1>Mesa de mezclas</h1>
+      <div className="mixer__cabecera">
+        <h1>Mesa de mezclas</h1>
+        <label className="field mixer__equipo">
+          <span>Equipo que se simula</span>
+          <select value={equipo.id} onChange={(e) => cambiarEquipo(e.target.value)}>
+            {EQUIPOS.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <p className="muted">
         Dos platos con crossfader para practicar transiciones con tu propia
         biblioteca. El tempo cambia el tono, como en un plato de verdad. No sustituye
@@ -439,6 +537,7 @@ export function MixerPage() {
           {...estados[0]}
           otherBpm={sonandoA(1)}
           onMatch={() => igualar(0)}
+          ranges={equipo.rangosTempo}
           onRange={(v) => cambiarRango(0, v)}
           onResetTempo={() => tempoOriginal(0)}
           onPlayPause={() => alternar(0)}
@@ -475,7 +574,7 @@ export function MixerPage() {
                     label={label}
                     color={COLOR_BANDA[band]}
                     value={estados[indice].eq[band]}
-                    valueText={textoDb(estados[indice].eq[band])}
+                    valueText={textoDb(estados[indice].eq[band], equipo)}
                     onChange={(v) => {
                       // La mano manda sobre un barrido en marcha
                       pararBarrido(band)
@@ -483,6 +582,34 @@ export function MixerPage() {
                     }}
                   />
                 ))}
+                {equipo.cfx && (
+                  <Knob
+                    label="CFX"
+                    color="#4fc3f7"
+                    value={estados[indice].color}
+                    valueText={
+                      estados[indice].color === 0
+                        ? 'Sin filtro'
+                        : estados[indice].color < 0
+                          ? `Quita agudos ${Math.round(-estados[indice].color * 100)}`
+                          : `Quita graves ${Math.round(estados[indice].color * 100)}`
+                    }
+                    onChange={(v) => girarColor(indice, v)}
+                  />
+                )}
+                {equipo.colorFx.length > 0 && (
+                  <Knob
+                    label="COLOR"
+                    color={colorFx ? '#f5a623' : '#5b6574'}
+                    value={estados[indice].color}
+                    valueText={
+                      colorFx
+                        ? `${COLOR_FX.find((f) => f.id === colorFx)?.label} ${Math.round(estados[indice].color * 100)}`
+                        : 'Sin efecto elegido'
+                    }
+                    onChange={(v) => girarColor(indice, v)}
+                  />
+                )}
                 <input
                   type="range"
                   className="channel__fader"
@@ -497,6 +624,38 @@ export function MixerPage() {
               </div>
             ))}
           </div>
+
+          {equipo.colorFx.length > 0 && (
+            <div className="colorfx">
+              <span className="crossfader__label">Sound Color FX</span>
+              <div className="colorfx__botones">
+                {COLOR_FX.filter((f) => equipo.colorFx.includes(f.id)).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={colorFx === f.id ? 'colorfxbtn colorfxbtn--on' : 'colorfxbtn'}
+                    aria-pressed={colorFx === f.id}
+                    title={f.ayuda}
+                    onClick={() => elegirColorFx(f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <Knob
+                label="PARAMETER"
+                color="#f5a623"
+                value={parametro}
+                valueText={`${Math.round(((parametro + 1) / 2) * 100)} %`}
+                onChange={girarParametro}
+              />
+              <p className="muted colorfx__ayuda">
+                {colorFx
+                  ? COLOR_FX.find((f) => f.id === colorFx)?.ayuda
+                  : 'Elige un efecto y gira la rueda COLOR de cada canal. En el centro no suena.'}
+              </p>
+            </div>
+          )}
 
           {/* Intercambio de ecualizador: lo que en la mesa se hace con dos manos */}
           <div className="swap">
@@ -584,6 +743,7 @@ export function MixerPage() {
           {...estados[1]}
           otherBpm={sonandoA(0)}
           onMatch={() => igualar(1)}
+          ranges={equipo.rangosTempo}
           onRange={(v) => cambiarRango(1, v)}
           onResetTempo={() => tempoOriginal(1)}
           onPlayPause={() => alternar(1)}

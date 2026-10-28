@@ -113,6 +113,21 @@ export function claveCancion(song: Cancion): string {
 export function useAutoDownload(origen: string) {
   const [tandas, setTandas] = useState<Batch[]>([])
   const [error, setError] = useState<string | null>(null)
+  // Crate de la barra: lo usan la descarga de todas y el "Anadir" suelto
+  const crates = useCrates()
+  const [crateId, setCrateId] = useState<number | null>(crateGuardado)
+  // El crate recordado puede haberse borrado
+  const crateElegido = crates.some((c) => c.id === crateId) ? crateId : null
+
+  function elegirCrate(id: number | null) {
+    setCrateId(id)
+    try {
+      if (id) localStorage.setItem(CLAVE_CRATE, String(id))
+      else localStorage.removeItem(CLAVE_CRATE)
+    } catch {
+      // Sin almacenamiento solo se pierde el recordarlo
+    }
+  }
 
   // Al entrar (o cambiar de lista), las tandas que se lanzaron desde aqui
   useEffect(() => {
@@ -150,11 +165,30 @@ export function useAutoDownload(origen: string) {
 
   // Las tandas mas nuevas mandan: una cancion reintentada sale como va ahora
   const estados: Record<string, Estado> = {}
+  // Pista de las que ya estan en la biblioteca (bajadas o que ya estaban)
+  const pistas: Record<string, number> = {}
   for (const tanda of [...tandas].sort((a, b) => a.id - b.id)) {
     for (const item of tanda.items) {
       const estado = estadoDe(item)
-      if (estado) estados[claveCancion(item)] = estado
+      if (!estado) continue
+      const clave = claveCancion(item)
+      estados[clave] = estado
+      if ((estado.tipo === 'lista' || estado.tipo === 'ya_estaba') && item.track_id) pistas[clave] = item.track_id
+      else delete pistas[clave]
     }
+  }
+
+  /** Las que ya se tienen de tandas anteriores (quiza con otro crate o sin
+   *  ninguno) no se vuelven a pedir: se meten directamente en el crate. */
+  async function meterEnCrate(canciones: Cancion[], destino: number) {
+    const ids = [...new Set(canciones.map((c) => pistas[claveCancion(c)]).filter((id) => id !== undefined))]
+    if (!ids.length) return
+    const crate = await cratesApi.getCrate(destino)
+    const dentro = new Set(crate.tracks.map((t) => t.id))
+    for (const id of ids) {
+      if (!dentro.has(id)) await cratesApi.addTrackToCrate(destino, id).catch(() => undefined)
+    }
+    await refrescarCrates()
   }
 
   async function descargar(canciones: Cancion[], destino: number | null, nombre: string) {
@@ -162,9 +196,10 @@ export function useAutoDownload(origen: string) {
       const estado = estados[claveCancion(c)]
       return !estado || estado.tipo === 'error'
     })
-    if (!faltan.length) return
     setError(null)
     try {
+      if (destino !== null) await meterEnCrate(canciones, destino)
+      if (!faltan.length) return
       const tanda = await batchesApi.createBatch(
         nombre,
         destino,
@@ -205,6 +240,8 @@ export function useAutoDownload(origen: string) {
 
   return {
     estados,
+    crateElegido,
+    elegirCrate,
     enCola: enMarcha.length > 0,
     progreso,
     error,
@@ -240,23 +277,13 @@ export function AutoDownloadBar({
   disabled?: boolean
 }) {
   const crates = useCrates()
-  const [crateId, setCrateId] = useState<number | null>(crateGuardado)
   const [creando, setCreando] = useState(false)
   const [nombre, setNombre] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pendientes = auto.pendientes(canciones)
 
-  function elegir(id: number | null) {
-    setCrateId(id)
-    try {
-      if (id) localStorage.setItem(CLAVE_CRATE, String(id))
-      else localStorage.removeItem(CLAVE_CRATE)
-    } catch {
-      // Sin almacenamiento solo se pierde el recordarlo
-    }
-  }
-
+  const elegir = auto.elegirCrate
   async function crear(e: FormEvent) {
     e.preventDefault()
     if (!nombre.trim()) return
@@ -274,8 +301,7 @@ export function AutoDownloadBar({
     }
   }
 
-  // El crate recordado puede haberse borrado
-  const elegido = crates.some((c) => c.id === crateId) ? crateId : null
+  const elegido = auto.crateElegido
 
   return (
     <div className="autoload">
@@ -330,13 +356,15 @@ export function AutoDownloadBar({
         <button
           type="button"
           className="btn btn--primary"
-          disabled={disabled || creando || pendientes === 0}
+          disabled={disabled || creando || (pendientes === 0 && elegido === null)}
           title="Busca cada una en YouTube y descarga el primer resultado que no sea un mix"
           onClick={() => void auto.descargar(canciones, elegido, nombreTanda)}
         >
-          {pendientes === canciones.length
-            ? `Descargar todas (${pendientes})`
-            : `Descargar las que faltan (${pendientes})`}
+          {pendientes === 0
+            ? 'Meterlas en el crate'
+            : pendientes === canciones.length
+              ? `Descargar todas (${pendientes})`
+              : `Descargar las que faltan (${pendientes})`}
         </button>
       )}
       {auto.progreso && (

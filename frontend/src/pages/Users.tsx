@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 
 import * as usersApi from '../api/users'
 import { Alert } from '../components/Alert'
+import { ListenStatsPanel } from '../components/ListenStatsPanel'
 import { Loading } from '../components/Loading'
 import { useAuth } from '../auth/useAuth'
 import { MENUS } from '../lib/menus'
@@ -240,6 +241,8 @@ export function UsersPage() {
           </table>
         </div>
       </section>
+
+      <ListenStatsPanel />
     </div>
   )
 }

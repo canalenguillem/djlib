@@ -5,6 +5,7 @@ export type Menu =
   | 'recognize'
   | 'mixer'
   | 'spotify'
+  | 'beatport'
   | 'crates'
   | 'downloads'
   | 'listen'
@@ -100,6 +101,8 @@ export interface TrackFilters {
   bpmMin?: number
   bpmMax?: number
   sort?: TrackSort
+  limit?: number
+  offset?: number
 }
 
 export type EnrichmentStatus = 'pending' | 'ok' | 'youtube' | 'not_found' | 'error' | 'manual'
@@ -289,4 +292,62 @@ export interface BatchSummary {
 
 export interface Batch extends BatchSummary {
   items: BatchItem[]
+}
+
+export type ListenSource = 'player' | 'mixer'
+
+export interface ListenCounts {
+  player: number
+  mixer: number
+}
+
+export interface UserListens {
+  user_id: number | null
+  username: string | null
+  total: ListenCounts
+  last_7_days: ListenCounts
+  last_listen_at: string | null
+}
+
+export interface TopTrack {
+  track_id: number
+  title: string
+  artist_text: string | null
+  player: number
+  mixer: number
+}
+
+export interface ListenStats {
+  users: UserListens[]
+  top_tracks: TopTrack[]
+}
+
+export interface BeatportGenre {
+  id: number
+  name: string
+}
+
+export interface BeatportTrack {
+  position: number
+  /** Con la mezcla: "Zoolander (Extended Mix)". Es lo que se busca. */
+  title: string
+  name: string
+  mix: string | null
+  artist: string
+  remixers: string | null
+  bpm: number | null
+  key: string | null
+  genre: string | null
+  label: string | null
+  length: string | null
+  release_date: string | null
+  image_url: string | null
+  sample_url: string | null
+  beatport_url: string
+  already_in_library: boolean
+}
+
+export interface BeatportTop {
+  genre: BeatportGenre | null
+  items: BeatportTrack[]
 }

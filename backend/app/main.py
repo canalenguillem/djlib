@@ -8,7 +8,9 @@ from app.api.routers import (
     artists,
     auth,
     batches,
+    beatport,
     crates,
+    listens,
     recognition,
     spotify,
     tags,
@@ -74,6 +76,8 @@ app.include_router(recognition.router)
 app.include_router(spotify.router)
 app.include_router(tags.router)
 app.include_router(batches.router)
+app.include_router(listens.router)
+app.include_router(beatport.router)
 
 
 @app.get("/health", tags=["health"])

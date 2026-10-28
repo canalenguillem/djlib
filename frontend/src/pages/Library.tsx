@@ -6,7 +6,6 @@ import * as tagsApi from '../api/tags'
 import * as tracksApi from '../api/tracks'
 import { AddTrackPanel } from '../components/AddTrackPanel'
 import { Alert } from '../components/Alert'
-import { BatchesPanel } from '../components/BatchesPanel'
 import { Loading } from '../components/Loading'
 import { Player } from '../components/Player'
 import { TrackRow } from '../components/TrackRow'
@@ -18,6 +17,44 @@ const KIND_LABEL: Record<TagKind, string> = {
   moment: 'Momento',
 }
 const KINDS: TagKind[] = ['mood', 'style', 'moment']
+const POR_PAGINA = 50
+// Lo mas que da el servidor de una vez
+const LOTE_MAXIMO = 500
+
+function Paginacion({
+  pagina,
+  paginas,
+  onCambiar,
+}: {
+  pagina: number
+  paginas: number
+  onCambiar: (pagina: number) => void
+}) {
+  if (paginas <= 1) return null
+  return (
+    <nav className="pager" aria-label="Paginas">
+      <button
+        type="button"
+        className="btn btn--ghost"
+        disabled={pagina === 0}
+        onClick={() => onCambiar(pagina - 1)}
+      >
+        ← Anterior
+      </button>
+      <span className="muted">
+        Pagina {pagina + 1} de {paginas}
+      </span>
+      <button
+        type="button"
+        className="btn btn--ghost"
+        disabled={pagina >= paginas - 1}
+        onClick={() => onCambiar(pagina + 1)}
+      >
+        Siguiente →
+      </button>
+    </nav>
+  )
+}
 
 export function LibraryPage() {
   const [tracks, setTracks] = useState<Track[]>([])
@@ -37,17 +74,42 @@ export function LibraryPage() {
   const [playing, setPlaying] = useState<Track | null>(null)
   const [crateName, setCrateName] = useState('')
   const [savingCrate, setSavingCrate] = useState(false)
+  // Con resultados de YouTube en pantalla solo se ven esos
+  const [enYoutube, setEnYoutube] = useState(false)
+  // Hay muchas etiquetas: van plegadas y se pueden buscar por nombre
+  const [verEtiquetas, setVerEtiquetas] = useState(false)
+  const [buscaEtiqueta, setBuscaEtiqueta] = useState('')
   const navigate = useNavigate()
+
+  const filtros = useMemo(
+    () => ({
+      search: activeSearch,
+      tagIds: filterTagIds,
+      energyMin: energyMin ?? undefined,
+      bpmMin: bpmAplicado[0] ? Number(bpmAplicado[0]) : undefined,
+      bpmMax: bpmAplicado[1] ? Number(bpmAplicado[1]) : undefined,
+      sort,
+    }),
+    [activeSearch, filterTagIds, energyMin, bpmAplicado, sort],
+  )
+  // La pagina va con los filtros con los que se eligio: al cambiarlos se
+  // vuelve a la primera sin tener que pedir la lista dos veces
+  const [paginaDe, setPaginaDe] = useState({ filtros, n: 0 })
+  const pagina = paginaDe.filtros === filtros ? paginaDe.n : 0
+  const paginas = Math.ceil(total / POR_PAGINA)
+  const listaRef = useRef<HTMLElement>(null)
+
+  function irAPagina(n: number) {
+    setPaginaDe({ filtros, n })
+    listaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const load = useCallback(async () => {
     try {
       const page = await tracksApi.listTracks({
-        search: activeSearch,
-        tagIds: filterTagIds,
-        energyMin: energyMin ?? undefined,
-        bpmMin: bpmAplicado[0] ? Number(bpmAplicado[0]) : undefined,
-        bpmMax: bpmAplicado[1] ? Number(bpmAplicado[1]) : undefined,
-        sort,
+        ...filtros,
+        limit: POR_PAGINA,
+        offset: pagina * POR_PAGINA,
       })
       setTracks(page.items)
       setTotal(page.total)
@@ -57,7 +119,7 @@ export function LibraryPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeSearch, filterTagIds, energyMin, bpmAplicado, sort])
+  }, [filtros, pagina])
 
   useEffect(() => {
     void load()
@@ -96,18 +158,27 @@ export function LibraryPage() {
     bpmAplicado[0] !== '' ||
     bpmAplicado[1] !== ''
   // Solo tiene sentido guardar canciones utilizables: las que estan a medias
-  // de descargar no se pueden pinchar.
-  const readyTracks = tracks.filter((t) => t.status === 'ready')
+  // de descargar no se pueden pinchar. Se guardan todas las filtradas, no
+  // solo las de la pagina que se ve.
+  const hayParaGuardar = tracks.some((t) => t.status === 'ready') || paginas > 1
 
   async function saveAsCrate() {
     if (!crateName.trim()) return
     setSavingCrate(true)
     setError(null)
     try {
-      const crate = await cratesApi.createCrate(
-        crateName.trim(),
-        readyTracks.map((t) => t.id),
-      )
+      const ids: number[] = []
+      for (let offset = 0; ; offset += LOTE_MAXIMO) {
+        const lote = await tracksApi.listTracks({
+          ...filtros,
+          status: 'ready',
+          limit: LOTE_MAXIMO,
+          offset,
+        })
+        ids.push(...lote.items.map((t) => t.id))
+        if (ids.length >= lote.total || !lote.items.length) break
+      }
+      const crate = await cratesApi.createCrate(crateName.trim(), ids)
       navigate(`/crates/${crate.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo guardar el crate.')
@@ -119,8 +190,12 @@ export function LibraryPage() {
     <div className="stack">
       <h1>Biblioteca</h1>
 
-      <AddTrackPanel onAdded={() => void load()} />
+      <AddTrackPanel onAdded={() => void load()} onResults={setEnYoutube} />
 
+      {error && <Alert kind="error">{error}</Alert>}
+
+      {!enYoutube && (
+        <>
       <section className="card">
         <div className="filters">
           <form
@@ -196,9 +271,57 @@ export function LibraryPage() {
           </div>
 
           {allTags.length > 0 && (
+            <div className="filters__group">
+              <button
+                type="button"
+                className="btn btn--ghost"
+                aria-expanded={verEtiquetas}
+                onClick={() => setVerEtiquetas((v) => !v)}
+              >
+                Filtrar por etiquetas{filterTagIds.length > 0 && ` (${filterTagIds.length})`}
+                {verEtiquetas ? ' ▴' : ' ▾'}
+              </button>
+              {!verEtiquetas && (
+                <div className="chips">
+                  {allTags
+                    .filter((tag) => filterTagIds.includes(tag.id))
+                    .map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        className="chip chip--on"
+                        aria-pressed
+                        title="Quitar este filtro"
+                        onClick={() => toggleFilter(tag.id)}
+                      >
+                        {tag.name} ×
+                      </button>
+                    ))}
+                </div>
+              )}
+              {verEtiquetas && (
+                <input
+                  type="search"
+                  className="filters__buscaetiqueta"
+                  value={buscaEtiqueta}
+                  placeholder="Buscar etiqueta..."
+                  aria-label="Buscar etiqueta"
+                  autoFocus
+                  onChange={(e) => setBuscaEtiqueta(e.target.value)}
+                />
+              )}
+            </div>
+          )}
+
+          {allTags.length > 0 && verEtiquetas && (
             <div className="filters__tags">
               {KINDS.map((kind) => {
-                const tags = allTags.filter((t) => t.kind === kind)
+                const texto = buscaEtiqueta.trim().toLowerCase()
+                const tags = allTags.filter(
+                  (t) =>
+                    t.kind === kind &&
+                    (!texto || t.name.toLowerCase().includes(texto) || filterTagIds.includes(t.id)),
+                )
                 if (tags.length === 0) return null
                 return (
                   <div key={kind} className="filters__group">
@@ -236,7 +359,7 @@ export function LibraryPage() {
                 Limpiar filtros
               </button>
             )}
-            {readyTracks.length > 0 && (
+            {hayParaGuardar && (
               <form
                 className="inline-form"
                 onSubmit={(e) => {
@@ -247,7 +370,9 @@ export function LibraryPage() {
                 <input
                   type="text"
                   value={crateName}
-                  placeholder={`Guardar estas ${readyTracks.length} como crate...`}
+                  placeholder={
+                    filtering ? 'Guardar las filtradas como crate...' : 'Guardar todas como crate...'
+                  }
                   onChange={(e) => setCrateName(e.target.value)}
                 />
                 <button
@@ -263,19 +388,16 @@ export function LibraryPage() {
         </div>
       </section>
 
-      {error && <Alert kind="error">{error}</Alert>}
-
-      <BatchesPanel onProgress={() => void load()} />
-
       {loading ? (
         <Loading />
       ) : (
-        <section className="card">
+        <section className="card" ref={listaRef}>
           <div className="library__header">
             <h2>
               {total} {total === 1 ? 'cancion' : 'canciones'}
               {filtering && <span className="muted"> (filtradas)</span>}
             </h2>
+            <Paginacion pagina={pagina} paginas={paginas} onCambiar={irAPagina} />
           </div>
 
           {tracks.length === 0 ? (
@@ -306,7 +428,10 @@ export function LibraryPage() {
               ))}
             </ul>
           )}
+          <Paginacion pagina={pagina} paginas={paginas} onCambiar={irAPagina} />
         </section>
+      )}
+        </>
       )}
 
       <Player track={playing} onClose={() => setPlaying(null)} onError={setError} />

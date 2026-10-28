@@ -19,7 +19,7 @@ from app.schemas.crate import (
     CrateUpdate,
 )
 from app.schemas.track import TrackOut
-from app.services import crate_service
+from app.services import crate_service, mp3_service
 from app.services.crate_service import CrateError
 
 router = APIRouter(prefix="/crates", tags=["crates"])
@@ -118,6 +118,7 @@ def export_crate(crate_id: int, current_user: CurrentUser, db: DbSession):
 
     Es el puente con la noche del bolo: se descomprime en el USB y las
     canciones quedan en el orden del set, listas para rekordbox o un CDJ.
+    Van en mp3, que es lo que mejor leen; la primera vez hay que convertirlas.
     """
     crate = _get_or_404(db, crate_id)
     entradas = [
@@ -137,9 +138,10 @@ def export_crate(crate_id: int, current_user: CurrentUser, db: DbSession):
 
     # Sin comprimir: el audio ya viene comprimido y deflate solo gastaria CPU
     # para no ahorrar practicamente nada.
+    ficheros = mp3_service.as_mp3_many([track for _, track in entradas])
+
     with zipfile.ZipFile(destino, "w", zipfile.ZIP_STORED) as zip_file:
-        for posicion, track in entradas:
-            origen = Path(track.file_path)
+        for (posicion, track), origen in zip(entradas, ficheros):
             partes = [p for p in (track.artist_text, track.title) if p]
             nombre = _nombre_seguro(" - ".join(partes) or "track")
             zip_file.write(origen, f"{posicion:02d} - {nombre}{origen.suffix}")

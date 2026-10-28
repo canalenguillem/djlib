@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as tracksApi from '../api/tracks'
@@ -10,9 +10,12 @@ type Mode = 'url' | 'search' | 'upload'
 
 interface Props {
   onAdded: () => void
+  /** Avisa cuando se muestran (o se cierran) los resultados de YouTube, para
+   *  que la pagina deje solo eso a la vista. */
+  onResults?: (visibles: boolean) => void
 }
 
-export function AddTrackPanel({ onAdded }: Props) {
+export function AddTrackPanel({ onAdded, onResults }: Props) {
   const [mode, setMode] = useState<Mode>('url')
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
@@ -30,6 +33,11 @@ export function AddTrackPanel({ onAdded }: Props) {
   const [candidates, setCandidates] = useState<SearchCandidate[] | null>(null)
   const [addedIds, setAddedIds] = useState<string[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
+
+  const conResultados = mode === 'search' && candidates !== null
+  useEffect(() => {
+    onResults?.(conResultados)
+  }, [conResultados, onResults])
 
   // Con la busqueda basta con el titulo o el artista; con la URL, la URL.
   const nothingToSearch =
@@ -220,9 +228,16 @@ export function AddTrackPanel({ onAdded }: Props) {
         </div>
       </form>
 
-      {mode === 'search' && candidates !== null && (
+      {conResultados && (
+        <div className="grid-form__actions">
+          <button type="button" className="btn btn--ghost" onClick={() => setCandidates(null)}>
+            ← Volver a la biblioteca
+          </button>
+        </div>
+      )}
+      {conResultados && (
         <SearchCandidates
-          candidates={candidates}
+          candidates={candidates ?? []}
           addedIds={addedIds}
           addingId={addingId}
           onAdd={handleAddCandidate}

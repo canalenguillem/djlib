@@ -2,8 +2,12 @@
 
 import io
 import zipfile
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.services import mp3_service
 
 from tests.conftest import ADMIN_PASSWORD, auth_headers, login
 
@@ -96,6 +100,19 @@ def test_las_canciones_sin_energia_van_al_final(
 # --- Exportar un crate ------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def fake_ffmpeg(monkeypatch) -> list[Path]:
+    """Los ficheros de prueba no son audio: la conversion solo escribe algo."""
+    convertidos: list[Path] = []
+
+    def convertir(origen: Path, destino: Path, titulo, artista) -> None:
+        convertidos.append(origen)
+        destino.write_bytes(b"ID3" + origen.read_bytes())
+
+    monkeypatch.setattr(mp3_service, "_ffmpeg", convertir)
+    return convertidos
+
+
 def test_exportar_un_crate_a_zip(client: TestClient, admin_user, fake_downloader) -> None:
     h = headers(client)
     ids = [
@@ -114,7 +131,7 @@ def test_exportar_un_crate_a_zip(client: TestClient, admin_user, fake_downloader
     with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
         nombres = zf.namelist()
         # Numerados en el orden del set, para que el USB los muestre asi
-        assert nombres == ["01 - Blur - Primera.m4a", "02 - Blur - Segunda.m4a"]
+        assert nombres == ["01 - Blur - Primera.mp3", "02 - Blur - Segunda.mp3"]
         assert zf.read(nombres[0]) != b""
 
 
@@ -133,7 +150,7 @@ def test_el_zip_respeta_el_orden_del_crate(
 
     respuesta = client.get(f"/crates/{crate_id}/export", headers=h)
     with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
-        assert zf.namelist() == ["01 - Blur - Segunda.m4a", "02 - Blur - Primera.m4a"]
+        assert zf.namelist() == ["01 - Blur - Segunda.mp3", "02 - Blur - Primera.mp3"]
 
 
 def test_exportar_un_crate_vacio_da_404(client: TestClient, admin_user) -> None:
@@ -144,3 +161,36 @@ def test_exportar_un_crate_vacio_da_404(client: TestClient, admin_user) -> None:
 
 def test_exportar_requiere_sesion(client: TestClient) -> None:
     assert client.get("/crates/1/export").status_code == 401
+
+
+def test_la_conversion_a_mp3_se_guarda_en_cache(
+    client: TestClient, admin_user, fake_downloader, fake_ffmpeg
+) -> None:
+    h = headers(client)
+    ids = [crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)]
+    crate_id = client.post("/crates", json={"name": "Sabado", "track_ids": ids}, headers=h).json()["id"]
+
+    client.get(f"/crates/{crate_id}/export", headers=h)
+    client.get(f"/crates/{crate_id}/export", headers=h)
+    assert len(fake_ffmpeg) == 1
+
+    # Al borrar la cancion, su copia en mp3 tambien se va
+    assert list(mp3_service.cache_dir().glob("*.mp3"))
+    client.delete(f"/tracks/{ids[0]}", headers=h)
+    assert not list(mp3_service.cache_dir().glob("*.mp3"))
+
+
+def test_si_no_se_puede_convertir_va_en_su_formato(
+    client: TestClient, admin_user, fake_downloader, monkeypatch
+) -> None:
+    def falla(*_args) -> None:
+        raise mp3_service.Mp3Error("roto")
+
+    monkeypatch.setattr(mp3_service, "_ffmpeg", falla)
+    h = headers(client)
+    ids = [crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)]
+    crate_id = client.post("/crates", json={"name": "Sabado", "track_ids": ids}, headers=h).json()["id"]
+
+    respuesta = client.get(f"/crates/{crate_id}/export", headers=h)
+    with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
+        assert zf.namelist() == ["01 - Blur - Primera.m4a"]

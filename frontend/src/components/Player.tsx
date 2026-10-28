@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import * as tracksApi from '../api/tracks'
+import { ContadorEscucha } from '../lib/escuchas'
 import type { Track } from '../types/api'
 import { CloseIcon } from './icons'
 
@@ -16,6 +17,7 @@ export function Player({ track, onClose, onError }: Props) {
   const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
+  const contador = useRef<ContadorEscucha | null>(null)
 
   useEffect(() => {
     if (!track) {
@@ -25,6 +27,7 @@ export function Player({ track, onClose, onError }: Props) {
     let objectUrl: string | null = null
     let cancelled = false
     setLoading(true)
+    contador.current = new ContadorEscucha(track.id, 'player', track.duration_seconds)
     tracksApi
       .fetchTrackFile(track.id)
       .then((blob) => {
@@ -60,7 +63,13 @@ export function Player({ track, onClose, onError }: Props) {
       {loading ? (
         <span className="muted">Cargando audio...</span>
       ) : (
-        <audio ref={audioRef} src={src ?? undefined} controls className="player__audio" />
+        <audio
+          ref={audioRef}
+          src={src ?? undefined}
+          controls
+          className="player__audio"
+          onTimeUpdate={(e) => contador.current?.avanza(e.currentTarget.currentTime)}
+        />
       )}
       <button type="button" className="btn btn--ghost" onClick={onClose} aria-label="Cerrar reproductor">
         <CloseIcon />

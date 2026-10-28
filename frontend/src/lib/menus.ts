@@ -7,6 +7,7 @@ export const MENUS: { key: Menu; to: string; label: string }[] = [
   { key: 'recognize', to: '/recognize', label: 'Reconocer' },
   { key: 'mixer', to: '/mixer', label: 'Mezclar' },
   { key: 'spotify', to: '/spotify', label: 'Spotify' },
+  { key: 'beatport', to: '/beatport', label: 'Beatport' },
   { key: 'crates', to: '/crates', label: 'Crates' },
   { key: 'downloads', to: '/downloads', label: 'Descargas' },
   { key: 'listen', to: '/listen', label: 'Escuchar' },

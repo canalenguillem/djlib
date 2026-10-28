@@ -175,7 +175,7 @@ export function SpotifyPage() {
     setAnadiendo(candidate.video_id)
     setError(null)
     try {
-      const nueva = await tracksApi.addFromUrl(candidate.url)
+      const nueva = await tracksApi.addFromUrl(candidate.url, auto.crateElegido)
       setAnadidos((prev) => [...prev, candidate.video_id])
       return nueva
     } catch (err) {

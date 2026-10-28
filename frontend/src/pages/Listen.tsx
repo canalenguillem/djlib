@@ -5,6 +5,7 @@ import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { NextIcon, PauseIcon, PlayIcon, PrevIcon, ShuffleIcon } from '../components/icons'
 import { formatClock } from '../lib/audioEngine'
+import { ContadorEscucha } from '../lib/escuchas'
 import { useCrates } from '../lib/crates'
 import { formatDuration } from '../lib/format'
 import type { Crate, Track } from '../types/api'
@@ -60,6 +61,7 @@ export function ListenPage() {
   const audio = useRef<HTMLAudioElement>(null)
   // Audio ya bajado, por id de cancion: la actual y la siguiente
   const blobs = useRef(new Map<number, Promise<string>>())
+  const contador = useRef<ContadorEscucha | null>(null)
 
   const pistas = crate?.tracks ?? []
   const pista = actual !== null && orden.length ? pistas[orden[actual]] : null
@@ -128,6 +130,7 @@ export function ListenPage() {
       const track = crate.tracks[orden[puesto]]
       const siguiente = puesto + 1 < orden.length ? crate.tracks[orden[puesto + 1]] : null
       setActual(puesto)
+      contador.current = new ContadorEscucha(track.id, 'player', track.duration_seconds)
       setCargando(true)
       setError(null)
       try {
@@ -281,6 +284,7 @@ export function ListenPage() {
         onTimeUpdate={(e) => {
           const elemento = e.currentTarget
           setPosicion(elemento.currentTime)
+          contador.current?.avanza(elemento.currentTime)
           if ('mediaSession' in navigator && Number.isFinite(elemento.duration)) {
             try {
               navigator.mediaSession.setPositionState({

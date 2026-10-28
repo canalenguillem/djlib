@@ -10,6 +10,8 @@ export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
   if (filters.bpmMin) params.set('bpm_min', String(filters.bpmMin))
   if (filters.bpmMax) params.set('bpm_max', String(filters.bpmMax))
   if (filters.sort && filters.sort !== 'recent') params.set('sort', filters.sort)
+  if (filters.limit) params.set('limit', String(filters.limit))
+  if (filters.offset) params.set('offset', String(filters.offset))
   const query = params.toString()
   return apiFetch<TrackPage>(`/tracks${query ? `?${query}` : ''}`)
 }
