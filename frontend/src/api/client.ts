@@ -133,12 +133,17 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 /** Descarga binaria autenticada: el navegador no puede poner cabeceras en
  *  <audio src> ni en <a download>, asi que el fichero se trae por fetch y se
  *  convierte en una URL de blob. */
-export async function apiFetchBlob(path: string): Promise<Blob> {
+export async function apiFetchBlob(path: string, body?: unknown): Promise<Blob> {
   const send = async (token: string | null): Promise<Response> => {
     const headers: Record<string, string> = {}
     if (token) headers.Authorization = `Bearer ${token}`
+    // Con cuerpo es un POST: la lista de canciones no cabe bien en la URL
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
     try {
-      return await fetch(`${API_BASE}${path}`, { headers })
+      return await fetch(`${API_BASE}${path}`, {
+        headers,
+        ...(body !== undefined && { method: 'POST', body: JSON.stringify(body) }),
+      })
     } catch {
       throw new ApiError(0, 'No se puede contactar con el servidor.')
     }

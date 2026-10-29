@@ -9,11 +9,17 @@ export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
   if (filters.energyMin) params.set('energy_min', String(filters.energyMin))
   if (filters.bpmMin) params.set('bpm_min', String(filters.bpmMin))
   if (filters.bpmMax) params.set('bpm_max', String(filters.bpmMax))
+  if (filters.crateId) params.set('crate_id', String(filters.crateId))
   if (filters.sort && filters.sort !== 'recent') params.set('sort', filters.sort)
   if (filters.limit) params.set('limit', String(filters.limit))
   if (filters.offset) params.set('offset', String(filters.offset))
   const query = params.toString()
   return apiFetch<TrackPage>(`/tracks${query ? `?${query}` : ''}`)
+}
+
+/** Las canciones elegidas en un zip, en ese orden. */
+export function exportTracks(trackIds: number[]): Promise<Blob> {
+  return apiFetchBlob('/tracks/export', { track_ids: trackIds })
 }
 
 export function getTrack(id: number): Promise<Track> {
@@ -99,6 +105,11 @@ export function previewCandidate(url: string): Promise<Blob> {
 
 export function fetchWaveform(id: number): Promise<Waveform> {
   return apiFetch<Waveform>(`/tracks/${id}/waveform`)
+}
+
+/** La cancion para guardarla, en mp3 como las del zip. */
+export function fetchTrackMp3(id: number): Promise<Blob> {
+  return apiFetchBlob(`/tracks/${id}/mp3`)
 }
 
 export function fetchTrackFile(id: number): Promise<Blob> {

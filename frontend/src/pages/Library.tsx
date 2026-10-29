@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import * as cratesApi from '../api/crates'
 import * as tagsApi from '../api/tags'
 import * as tracksApi from '../api/tracks'
-import { AddTrackPanel } from '../components/AddTrackPanel'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
 import { Player } from '../components/Player'
@@ -74,8 +73,6 @@ export function LibraryPage() {
   const [playing, setPlaying] = useState<Track | null>(null)
   const [crateName, setCrateName] = useState('')
   const [savingCrate, setSavingCrate] = useState(false)
-  // Con resultados de YouTube en pantalla solo se ven esos
-  const [enYoutube, setEnYoutube] = useState(false)
   // Hay muchas etiquetas: van plegadas y se pueden buscar por nombre
   const [verEtiquetas, setVerEtiquetas] = useState(false)
   const [buscaEtiqueta, setBuscaEtiqueta] = useState('')
@@ -190,12 +187,8 @@ export function LibraryPage() {
     <div className="stack">
       <h1>Biblioteca</h1>
 
-      <AddTrackPanel onAdded={() => void load()} onResults={setEnYoutube} />
-
       {error && <Alert kind="error">{error}</Alert>}
 
-      {!enYoutube && (
-        <>
       <section className="card">
         <div className="filters">
           <form
@@ -430,8 +423,6 @@ export function LibraryPage() {
           )}
           <Paginacion pagina={pagina} paginas={paginas} onCambiar={irAPagina} />
         </section>
-      )}
-        </>
       )}
 
       <Player track={playing} onClose={() => setPlaying(null)} onError={setError} />

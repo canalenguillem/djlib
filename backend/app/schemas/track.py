@@ -53,6 +53,13 @@ class TrackCrateMove(BaseModel):
     from_crate_id: int | None = None
 
 
+class TrackExport(BaseModel):
+    """Canciones sueltas para bajar en un zip; el tope es el de una pagina
+    larga de la biblioteca."""
+
+    track_ids: list[int] = Field(min_length=1, max_length=500)
+
+
 class TrackPage(BaseModel):
     items: list[TrackOut]
     total: int

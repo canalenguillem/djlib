@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.core.text import normalize_key
 from app.core.time import utcnow
 from app.models.artist import EnrichmentStatus
-from app.models.crate import Crate
+from app.models.crate import Crate, CrateTrack
 from app.models.tag import Tag
 from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User
@@ -421,11 +421,17 @@ def list_tracks(
     energy_max: int | None = None,
     bpm_min: int | None = None,
     bpm_max: int | None = None,
+    crate_id: int | None = None,
     sort: str = "recent",
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list[Track], int]:
     stmt = select(Track)
+
+    if crate_id is not None:
+        stmt = stmt.join(
+            CrateTrack, (CrateTrack.track_id == Track.id) & (CrateTrack.crate_id == crate_id)
+        )
 
     if search:
         pattern = f"%{search.strip()}%"
@@ -464,6 +470,9 @@ def list_tracks(
         "bpm": (Track.bpm.is_(None), Track.bpm, Track.title),
         "title": (Track.title,),
     }
+    # El orden del set solo existe dentro de un crate
+    if crate_id is not None:
+        ordenes["crate"] = (CrateTrack.position,)
     rows = list(
         db.scalars(
             stmt.order_by(*ordenes.get(sort, ordenes["recent"])).limit(limit).offset(offset)

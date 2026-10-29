@@ -22,6 +22,7 @@ class Menu(str, enum.Enum):
     mixer = "mixer"
     spotify = "spotify"
     beatport = "beatport"
+    youtube = "youtube"
     crates = "crates"
     downloads = "downloads"
     listen = "listen"

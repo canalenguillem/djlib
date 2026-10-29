@@ -159,7 +159,7 @@ class Settings(BaseSettings):
         siempre apuntan al mismo sitio.
         """
         base = self.spotify_redirect_uri.split("/api/spotify/callback")[0]
-        return f"{base}/spotify" if base else "/spotify"
+        return f"{base}/fuentes/spotify" if base else "/fuentes/spotify"
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -150,6 +150,15 @@ select {
   width: 100%;
 }
 
+/* Las casillas no son campos de texto: a su tamano, no a todo el ancho */
+input[type='checkbox'],
+input[type='radio'] {
+  width: auto;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
 input:focus,
 select:focus {
   outline: 2px solid var(--accent);
@@ -2723,4 +2732,48 @@ input[type='file'] {
   .detected__row:has(.beatport__pos) {
     flex-wrap: wrap;
   }
+}
+
+/* --- Fuentes: un submenu por cada sitio de donde sale la musica ----------- */
+.fuentes__tabs {
+  flex-wrap: wrap;
+}
+
+.fuentes__tabs a.tab {
+  text-decoration: none;
+}
+
+/* --- Descargas: buscar en el servidor y bajar en zip ---------------------- */
+.descargas__buscar {
+  flex-wrap: wrap;
+}
+
+.descargas__buscar input {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.descargas__buscar select {
+  width: auto;
+  max-width: 14rem;
+}
+
+.descargas__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.descargas__barra .btn--primary {
+  margin-left: auto;
+}
+
+.descargas__todas {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
 }

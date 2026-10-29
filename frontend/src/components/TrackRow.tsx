@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
+import { guardarFichero, nombreCancion } from '../lib/guardar'
 import type { Tag, Track, TrackStatus } from '../types/api'
 import { CrateSelect } from './CrateSelect'
 import { EnergyPicker } from './EnergyPicker'
@@ -10,7 +11,7 @@ import { PauseIcon, PlayIcon } from './icons'
 import { TagPicker } from './TagPicker'
 import { Waveform } from './Waveform'
 
-const STATUS_LABEL: Record<TrackStatus, string> = {
+export const STATUS_LABEL: Record<TrackStatus, string> = {
   pending: 'en cola',
   downloading: 'descargando',
   ready: 'lista',
@@ -56,16 +57,8 @@ export function TrackRow({
 
   async function handleDownload() {
     await guard(async () => {
-      const blob = await tracksApi.fetchTrackFile(track.id)
-      const href = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = href
-      const name = [track.artist_text, track.title].filter(Boolean).join(' - ')
-      link.download = `${name || 'track'}.mp3`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(href)
+      const blob = await tracksApi.fetchTrackMp3(track.id)
+      guardarFichero(blob, nombreCancion(track, blob))
     })
   }
 

@@ -194,3 +194,79 @@ def test_si_no_se_puede_convertir_va_en_su_formato(
     respuesta = client.get(f"/crates/{crate_id}/export", headers=h)
     with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
         assert zf.namelist() == ["01 - Blur - Primera.m4a"]
+
+
+# --- Exportar canciones sueltas ----------------------------------------------
+
+
+def test_exportar_canciones_sueltas(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    ids = [
+        crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader),
+        crear_track(client, h, "bbbbbbbbbbb", "Segunda", fake_downloader),
+    ]
+
+    respuesta = client.post("/tracks/export", json={"track_ids": ids[::-1]}, headers=h)
+    assert respuesta.status_code == 200
+    assert respuesta.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
+        # Sin numerar: no es un set, y en el orden en que se piden
+        assert zf.namelist() == ["Blur - Segunda.mp3", "Blur - Primera.mp3"]
+
+
+def test_exportar_no_repite_nombres(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    ids = [
+        crear_track(client, h, "aaaaaaaaaaa", "Igual", fake_downloader),
+        crear_track(client, h, "bbbbbbbbbbb", "Igual", fake_downloader),
+    ]
+    respuesta = client.post("/tracks/export", json={"track_ids": ids}, headers=h)
+    with zipfile.ZipFile(io.BytesIO(respuesta.content)) as zf:
+        assert zf.namelist() == ["Blur - Igual.mp3", "Blur - Igual (2).mp3"]
+
+
+def test_exportar_sin_ninguna_descargada_da_404(client: TestClient, admin_user) -> None:
+    h = headers(client)
+    assert client.post("/tracks/export", json={"track_ids": [999]}, headers=h).status_code == 404
+    assert client.post("/tracks/export", json={"track_ids": []}, headers=h).status_code == 422
+
+
+def test_exportar_sueltas_requiere_sesion(client: TestClient) -> None:
+    assert client.post("/tracks/export", json={"track_ids": [1]}).status_code == 401
+
+
+def test_bajar_una_sola_en_mp3(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    track_id = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+
+    respuesta = client.get(f"/tracks/{track_id}/mp3", headers=h)
+    assert respuesta.status_code == 200
+    assert respuesta.headers["content-type"] == "audio/mpeg"
+    assert "Blur%20-%20Primera.mp3" in respuesta.headers["content-disposition"]
+    assert respuesta.content.startswith(b"ID3")
+
+
+def test_bajar_una_que_no_existe_da_404(client: TestClient, admin_user) -> None:
+    assert client.get("/tracks/999/mp3", headers=headers(client)).status_code == 404
+
+
+def test_listar_las_de_un_crate_en_su_orden(
+    client: TestClient, admin_user, fake_downloader
+) -> None:
+    h = headers(client)
+    ids = [
+        crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader),
+        crear_track(client, h, "bbbbbbbbbbb", "Segunda", fake_downloader),
+        crear_track(client, h, "ccccccccccc", "Fuera", fake_downloader),
+    ]
+    crate_id = client.post(
+        "/crates", json={"name": "Sabado", "track_ids": [ids[1], ids[0]]}, headers=h
+    ).json()["id"]
+
+    page = client.get(f"/tracks?crate_id={crate_id}&sort=crate", headers=h).json()
+    assert page["total"] == 2
+    assert [t["title"] for t in page["items"]] == ["Segunda", "Primera"]
+
+    # Combinado con la busqueda
+    page = client.get(f"/tracks?crate_id={crate_id}&search=prim", headers=h).json()
+    assert [t["title"] for t in page["items"]] == ["Primera"]

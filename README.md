@@ -294,6 +294,7 @@ Biblioteca (todo requiere sesion):
 | PUT | `/tracks/{id}/tags` | Fijar las etiquetas de una cancion |
 | POST | `/tracks/{id}/retry` | Reintentar una descarga fallida |
 | GET | `/tracks/{id}/file` | El mp3 (soporta Range para el reproductor) |
+| POST | `/tracks/export` | Las canciones elegidas en un zip, en mp3 |
 | DELETE | `/tracks/{id}` | Borra el registro y el fichero |
 | POST | `/tracks/upload` | Subir un fichero propio (multipart) |
 | GET | `/crates/{id}/export` | El crate entero en un zip, numerado en orden |

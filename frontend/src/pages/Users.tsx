@@ -227,7 +227,7 @@ export function UsersPage() {
                                 disabled={busyId === u.id}
                                 onChange={() => toggleMenu(u, m.key)}
                               />
-                              {m.label}
+                              {m.fuente ? `Fuentes · ${m.label}` : m.label}
                             </label>
                           ))}
                         </div>

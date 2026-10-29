@@ -6,6 +6,7 @@ export type Menu =
   | 'mixer'
   | 'spotify'
   | 'beatport'
+  | 'youtube'
   | 'crates'
   | 'downloads'
   | 'listen'
@@ -91,7 +92,8 @@ export interface TrackPage {
   offset: number
 }
 
-export type TrackSort = 'recent' | 'energy' | 'energy_asc' | 'bpm' | 'title'
+/** 'crate' es el orden del set y solo vale filtrando por un crate. */
+export type TrackSort = 'recent' | 'energy' | 'energy_asc' | 'bpm' | 'title' | 'crate'
 
 export interface TrackFilters {
   search?: string
@@ -100,6 +102,7 @@ export interface TrackFilters {
   energyMin?: number
   bpmMin?: number
   bpmMax?: number
+  crateId?: number
   sort?: TrackSort
   limit?: number
   offset?: number

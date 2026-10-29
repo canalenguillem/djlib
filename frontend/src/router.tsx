@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom'
 
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RequireAdmin } from './auth/RequireAdmin'
@@ -10,9 +10,11 @@ import { AccountPage } from './pages/Account'
 import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
 import { BeatportPage } from './pages/Beatport'
+import { ColaPage } from './pages/Cola'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
 import { DownloadsPage } from './pages/Downloads'
+import { FuentesLayout } from './pages/Fuentes'
 import { LibraryPage } from './pages/Library'
 import { ListenPage } from './pages/Listen'
 import { MixerPage } from './pages/Mixer'
@@ -22,11 +24,18 @@ import { NotFoundPage } from './pages/NotFound'
 import { RecognizePage } from './pages/Recognize'
 import { TagsPage } from './pages/Tags'
 import { UsersPage } from './pages/Users'
+import { YoutubePage } from './pages/Youtube'
 
 /** La portada es el primer apartado que tenga cada uno. */
 function Inicio() {
   const { user } = useAuth()
   return <Navigate to={inicio(user)} replace />
+}
+
+/** Las fuentes vivian sueltas en el menu: los enlaces viejos siguen valiendo. */
+function Movida({ to }: { to: string }) {
+  const { search } = useLocation()
+  return <Navigate to={`${to}${search}`} replace />
 }
 
 export const router = createBrowserRouter([
@@ -48,8 +57,18 @@ export const router = createBrowserRouter([
             ],
           },
           { element: <RequireMenu menu="mixer" />, children: [{ path: '/mixer', element: <MixerPage /> }] },
-          { element: <RequireMenu menu="spotify" />, children: [{ path: '/spotify', element: <SpotifyPage /> }] },
-          { element: <RequireMenu menu="beatport" />, children: [{ path: '/beatport', element: <BeatportPage /> }] },
+          {
+            path: '/fuentes',
+            element: <FuentesLayout />,
+            children: [
+              { element: <RequireMenu menu="spotify" />, children: [{ path: 'spotify', element: <SpotifyPage /> }] },
+              { element: <RequireMenu menu="beatport" />, children: [{ path: 'beatport', element: <BeatportPage /> }] },
+              { element: <RequireMenu menu="youtube" />, children: [{ path: 'youtube', element: <YoutubePage /> }] },
+              { path: 'cola', element: <ColaPage /> },
+            ],
+          },
+          { path: '/spotify', element: <Movida to="/fuentes/spotify" /> },
+          { path: '/beatport', element: <Movida to="/fuentes/beatport" /> },
           {
             element: <RequireMenu menu="crates" />,
             children: [

@@ -10,6 +10,7 @@ import { Player } from '../components/Player'
 import { PlayIcon, PauseIcon } from '../components/icons'
 import { formatTotal } from '../lib/duration'
 import { formatDuration } from '../lib/format'
+import { guardarFichero } from '../lib/guardar'
 import type { Crate, Track } from '../types/api'
 
 export function CrateDetailPage() {
@@ -146,15 +147,7 @@ export function CrateDetailPage() {
           disabled={busy || crate.track_count === 0}
           onClick={() =>
             guard(async () => {
-              const blob = await cratesApi.exportCrate(id)
-              const href = URL.createObjectURL(blob)
-              const enlace = document.createElement('a')
-              enlace.href = href
-              enlace.download = `${crate.name}.zip`
-              document.body.appendChild(enlace)
-              enlace.click()
-              enlace.remove()
-              URL.revokeObjectURL(href)
+              guardarFichero(await cratesApi.exportCrate(id), `${crate.name}.zip`)
             })
           }
         >

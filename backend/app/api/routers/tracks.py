@@ -12,17 +12,20 @@ from fastapi import (
     status,
 )
 from fastapi.responses import FileResponse
+from sqlalchemy import select
+from starlette.background import BackgroundTask
 
 from app.api.deps import CurrentUser, DbSession, SessionFactory
 from app.core.config import settings
 from app.core.time import utcnow
 from app.models.artist import EnrichmentStatus
-from app.models.track import TrackStatus
+from app.models.track import Track, TrackStatus
 from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
     SearchCandidate,
     SearchResults,
     TrackCrateMove,
+    TrackExport,
     TrackFromSearch,
     TrackFromUrl,
     TrackOut,
@@ -34,10 +37,12 @@ from app.schemas.track import (
 from app.services import (
     artist_service,
     downloader,
+    mp3_service,
     preview,
     tag_service,
     track_service,
     waveform as waveform_service,
+    zip_export,
 )
 from app.services.audio_file import AudioFileError
 from app.services.downloader import DownloadError
@@ -64,7 +69,8 @@ def list_tracks(
     energy_max: int | None = Query(default=None, ge=1, le=5),
     bpm_min: int | None = Query(default=None, ge=20, le=400),
     bpm_max: int | None = Query(default=None, ge=20, le=400),
-    sort: str = Query(default="recent", pattern="^(recent|energy|energy_asc|bpm|title)$"),
+    crate_id: int | None = None,
+    sort: str = Query(default="recent", pattern="^(recent|energy|energy_asc|bpm|title|crate)$"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ) -> TrackPage:
@@ -77,6 +83,7 @@ def list_tracks(
         energy_max=energy_max,
         bpm_min=bpm_min,
         bpm_max=bpm_max,
+        crate_id=crate_id,
         sort=sort,
         limit=limit,
         offset=offset,
@@ -384,6 +391,30 @@ def retry_track(
     return result
 
 
+@router.post("/export")
+def export_tracks(payload: TrackExport, current_user: CurrentUser, db: DbSession):
+    """Las canciones elegidas en un zip, en el orden en que llegan."""
+    por_id = {
+        t.id: t
+        for t in db.scalars(select(Track).where(Track.id.in_(payload.track_ids)))
+    }
+    pedidas = [por_id[i] for i in dict.fromkeys(payload.track_ids) if i in por_id]
+    tracks = zip_export.descargadas(pedidas)
+    if not tracks:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ninguna de esas canciones esta descargada en el servidor.",
+        )
+
+    destino = zip_export.build_zip([("", t) for t in tracks])
+    return FileResponse(
+        destino,
+        media_type="application/zip",
+        filename=f"djwill-{utcnow():%Y%m%d-%H%M}.zip",
+        background=BackgroundTask(destino.unlink, missing_ok=True),
+    )
+
+
 @router.get("/{track_id}/file")
 def get_track_file(track_id: int, current_user: CurrentUser, db: DbSession):
     """Sirve el mp3 para reproducir o descargar. Soporta peticiones Range, que
@@ -405,6 +436,21 @@ def get_track_file(track_id: int, current_user: CurrentUser, db: DbSession):
         filename=track_service.download_filename(track),
         content_disposition_type="inline",
     )
+
+
+@router.get("/{track_id}/mp3")
+def get_track_mp3(track_id: int, current_user: CurrentUser, db: DbSession):
+    """La cancion para guardarla, en mp3 como las del zip. Si no se puede
+    convertir, va en su formato original."""
+    track = _get_or_404(db, track_id)
+    if track.status != TrackStatus.ready or not zip_export.descargadas([track]):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La cancion no esta descargada en el servidor.",
+        )
+    (path,) = mp3_service.as_mp3_many([track])
+    nombre = Path(track_service.download_filename(track)).with_suffix(path.suffix).name
+    return FileResponse(path, media_type=track_service.media_type(path), filename=nombre)
 
 
 @router.get("/{track_id}/waveform", response_model=WaveformOut)
