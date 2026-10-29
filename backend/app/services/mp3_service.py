@@ -1,8 +1,9 @@
 """Copias en mp3 de las canciones, para sacarlas del servidor.
 
 YouTube sirve m4a, pero los CDJ y rekordbox se llevan mejor con mp3. Se
-convierte bajo demanda (al exportar un crate) y se guarda en cache: la segunda
-vez que se exporta la misma cancion sale al instante.
+convierte al terminar cada descarga y se guarda en cache junto al original,
+que sigue siendo el que suena en el reproductor; asi bajarla del servidor,
+suelta o en un zip, sale al instante. Si aun no esta, se convierte al pedirla.
 
 MP3 a 320 kbps constantes: el VBR hace que algunos CDJ calculen mal el tiempo
 y salten mal a los cues. El original ya viene con perdida, asi que no gana

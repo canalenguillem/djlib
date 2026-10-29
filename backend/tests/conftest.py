@@ -19,7 +19,7 @@ from app.models.user import User, UserRole
 from app.services import bpm as bpm_service
 from app.services import spotify as spotify_service
 from app.services import waveform as waveform_service
-from app.services import downloader, enrichment, preview as preview_service
+from app.services import downloader, enrichment, mp3_service, preview as preview_service
 from app.services import recognition, screenshot, user_service
 
 # Sin esto, al crear el cliente de pruebas la app recuperaria descargas y
@@ -395,6 +395,20 @@ def fake_waveform(monkeypatch) -> FakeWaveform:
     fake = FakeWaveform()
     monkeypatch.setattr(waveform_service, "analyze", fake.analyze)
     return fake
+
+
+@pytest.fixture(autouse=True)
+def fake_ffmpeg(monkeypatch) -> list[Path]:
+    """autouse tambien: cada descarga deja hecha su copia en mp3. Los ficheros
+    de prueba no son audio, asi que la conversion solo escribe algo."""
+    convertidos: list[Path] = []
+
+    def convertir(origen: Path, destino: Path, titulo, artista) -> None:
+        convertidos.append(origen)
+        destino.write_bytes(b"ID3" + origen.read_bytes())
+
+    monkeypatch.setattr(mp3_service, "_ffmpeg", convertir)
+    return convertidos
 
 
 class FakeSpotify:

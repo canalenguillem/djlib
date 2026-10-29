@@ -281,6 +281,7 @@ def run_download(session_factory, track_id: int) -> None:
 
     analyze_bpm(session_factory, track_id)
     compute_waveform(session_factory, track_id)
+    prepare_mp3(session_factory, track_id)
 
 
 def _join_pending_crate(db: Session, track: Track) -> None:
@@ -353,6 +354,34 @@ def analyze_bpm(session_factory, track_id: int, *, force: bool = False) -> int |
 # que se piden, y una pagina del listado las pide todas a la vez. Con dos ffmpeg
 # simultaneos como mucho, el resto espera en vez de saturar la maquina.
 _waveform_slots = threading.Semaphore(2)
+
+
+# Convertir a mp3 es lo mas pesado de todo: pocas a la vez, aunque entren
+# muchas descargas de golpe
+_mp3_slots = threading.Semaphore(2)
+
+
+def prepare_mp3(session_factory, track_id: int) -> None:
+    """Deja hecha la copia en mp3 nada mas descargar, para que bajarla del
+    servidor, suelta o en un zip, sea inmediato. Si falla no pasa nada: se
+    intentara otra vez al pedirla."""
+    if not settings.mp3_on_download:
+        return
+    with session_factory() as db:
+        track = db.get(Track, track_id)
+        if track is None or not track.file_path or track.status != TrackStatus.ready:
+            return
+        if not Path(track.file_path).exists():
+            return
+        db.expunge(track)
+
+    try:
+        with _mp3_slots:
+            mp3_service.as_mp3(track)
+    except mp3_service.Mp3Error as exc:
+        logger.info("No se pudo pasar a mp3 el track %s: %s", track_id, exc)
+    except Exception:  # pragma: no cover - nunca tumbar la tarea de fondo
+        logger.exception("Fallo inesperado pasando a mp3 el track %s", track_id)
 
 
 def compute_waveform(session_factory, track_id: int) -> bytes | None:

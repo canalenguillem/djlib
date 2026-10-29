@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     bpm_analysis_seconds: int = 120
     bpm_timeout_seconds: int = 120
 
+    # --- Copia en mp3 ---
+    # Al terminar cada descarga: asi bajarla del servidor no espera a ffmpeg
+    mp3_on_download: bool = True
+
     # --- Forma de onda ---
     waveform_enabled: bool = True
     # Tramos de la onda: los mismos que tiene de ancho, mas o menos, la vista

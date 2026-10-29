@@ -254,6 +254,7 @@ def upload_track(
         background.add_task(artist_service.run_enrichment, session_factory, nuevos)
     background.add_task(track_service.analyze_bpm, session_factory, track.id)
     background.add_task(track_service.compute_waveform, session_factory, track.id)
+    background.add_task(track_service.prepare_mp3, session_factory, track.id)
     return resultado
 
 
@@ -271,9 +272,15 @@ def get_track(track_id: int, current_user: CurrentUser, db: DbSession) -> TrackO
 
 @router.patch("/{track_id}", response_model=TrackOut)
 def update_track(
-    track_id: int, payload: TrackUpdate, current_user: CurrentUser, db: DbSession
+    track_id: int,
+    payload: TrackUpdate,
+    background: BackgroundTasks,
+    current_user: CurrentUser,
+    db: DbSession,
+    session_factory: SessionFactory,
 ) -> TrackOut:
     track = _get_or_404(db, track_id)
+    nombre_antes = (track.title, track.artist_text)
     if payload.title is not None:
         track.title = payload.title.strip()
     if payload.artist_text is not None:
@@ -285,6 +292,10 @@ def update_track(
     track.updated_at = utcnow()
     db.commit()
     db.refresh(track)
+    # El mp3 lleva el titulo y el artista dentro: con otros, se rehace
+    if (track.title, track.artist_text) != nombre_antes:
+        mp3_service.forget(track.file_path)
+        background.add_task(track_service.prepare_mp3, session_factory, track.id)
     return TrackOut.model_validate(track)
 
 

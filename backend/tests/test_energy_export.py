@@ -2,9 +2,7 @@
 
 import io
 import zipfile
-from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app.services import mp3_service
@@ -98,19 +96,6 @@ def test_las_canciones_sin_energia_van_al_final(
 
 
 # --- Exportar un crate ------------------------------------------------------
-
-
-@pytest.fixture(autouse=True)
-def fake_ffmpeg(monkeypatch) -> list[Path]:
-    """Los ficheros de prueba no son audio: la conversion solo escribe algo."""
-    convertidos: list[Path] = []
-
-    def convertir(origen: Path, destino: Path, titulo, artista) -> None:
-        convertidos.append(origen)
-        destino.write_bytes(b"ID3" + origen.read_bytes())
-
-    monkeypatch.setattr(mp3_service, "_ffmpeg", convertir)
-    return convertidos
 
 
 def test_exportar_un_crate_a_zip(client: TestClient, admin_user, fake_downloader) -> None:
@@ -270,3 +255,25 @@ def test_listar_las_de_un_crate_en_su_orden(
     # Combinado con la busqueda
     page = client.get(f"/tracks?crate_id={crate_id}&search=prim", headers=h).json()
     assert [t["title"] for t in page["items"]] == ["Primera"]
+
+
+def test_la_copia_en_mp3_se_hace_al_descargar(
+    client: TestClient, admin_user, fake_downloader, fake_ffmpeg
+) -> None:
+    h = headers(client)
+    crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    # Antes de que nadie la pida: bajarla ya no espera a ffmpeg
+    assert len(fake_ffmpeg) == 1
+    assert list(mp3_service.cache_dir().glob("*.mp3"))
+
+
+def test_cambiar_el_titulo_rehace_el_mp3(
+    client: TestClient, admin_user, fake_downloader, fake_ffmpeg
+) -> None:
+    h = headers(client)
+    track_id = crear_track(client, h, "aaaaaaaaaaa", "Primera", fake_downloader)
+    client.patch(f"/tracks/{track_id}", json={"energy": 3}, headers=h)
+    assert len(fake_ffmpeg) == 1
+
+    client.patch(f"/tracks/{track_id}", json={"title": "Otra"}, headers=h)
+    assert len(fake_ffmpeg) == 2
