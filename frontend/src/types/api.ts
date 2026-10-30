@@ -372,12 +372,16 @@ export interface ChartTrack {
   url: string | null
   /** En que listas esta y en que puesto. */
   positions: { source: string; position: number }[]
+  /** "Beatport" (suena en cabina), "Deezer" (lo escucha el publico) o los dos. */
+  groups: string[]
   score: number
   already_in_library: boolean
 }
 
 export interface ChartCombined {
   items: ChartTrack[]
+  /** Sobre todas las canciones distintas, no solo las devueltas. */
+  summary: { total: number; both: number; several: number }
   /** Listas que no se han podido leer; las demas salen igual. */
   errors: { source: string; message: string }[]
 }

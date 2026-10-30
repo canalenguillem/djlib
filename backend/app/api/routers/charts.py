@@ -8,6 +8,7 @@ from app.schemas.charts import (
     ChartError,
     ChartPosition,
     ChartSource,
+    ChartSummary,
     ChartTrackOut,
 )
 from app.services import charts
@@ -37,7 +38,8 @@ def chart_combined(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=next(iter(errores.values()))
         )
 
-    combinadas = charts.combinar(listas, sources)[:limit]
+    todas = charts.combinar(listas, sources)
+    combinadas = todas[:limit]
     claves = set().union(*(c.claves for c in combinadas)) if combinadas else set()
     existentes = (
         set(
@@ -69,10 +71,16 @@ def chart_combined(
                 sample_url=c.entrada.sample_url,
                 url=c.entrada.url,
                 positions=[ChartPosition(source=f, position=p) for f, p in c.posiciones],
+                groups=c.grupos,
                 score=round(c.score, 2),
                 already_in_library=bool(c.claves & existentes),
             )
             for c in combinadas
         ],
+        summary=ChartSummary(
+            total=len(todas),
+            both=sum(len(c.grupos) > 1 for c in todas),
+            several=sum(len(c.posiciones) > 1 for c in todas),
+        ),
         errors=[ChartError(source=f, message=m) for f, m in errores.items()],
     )

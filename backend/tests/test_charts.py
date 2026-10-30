@@ -64,8 +64,22 @@ def test_cruza_sin_repetir_y_ordena_por_presencia(client: TestClient, admin_user
     assert {p["source"] for p in datos["items"][0]["positions"]} == {
         "deezer:es", "deezer:uk", "beatport:top",
     }
-    # Con lo mismo, gana la mejor posicion: el 1 de Deezer antes que el 2 de Beatport
+    assert datos["items"][0]["groups"] == ["Beatport", "Deezer"]
+    # Despues, por el mejor puesto: el 1 de Deezer antes que el 2 de Beatport
     assert titulos[1:] == ["Solo Radio", "Solo Club (Extended Mix)"]
+    assert datos["summary"] == {"total": 3, "both": 1, "several": 1}
+
+
+def test_muchos_paises_no_entierran_lo_de_cabina(monkeypatch, client: TestClient, admin_user) -> None:
+    """Cuatro tops de pais casi iguales no deben tapar el 1 de un genero."""
+    monkeypatch.setattr(beatport, "top100", lambda genero=None: [bp(1, "Club", "DJ")])
+    monkeypatch.setattr(deezer, "top", lambda pais: [dz(30, "Pop", "Estrella")])
+    datos = client.get(
+        "/charts/combined",
+        params=[("source", f"deezer:{p}") for p in ("es", "uk", "de", "world")] + [("source", "beatport:89")],
+        headers=headers(client),
+    ).json()
+    assert [i["title"] for i in datos["items"]] == ["Club (Extended Mix)", "Pop"]
 
 
 def test_marca_lo_que_ya_esta(client: TestClient, admin_user, fake_downloader, tops) -> None:

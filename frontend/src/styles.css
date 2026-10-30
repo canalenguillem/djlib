@@ -2793,3 +2793,16 @@ input[type='file'] {
 .charts__filtro {
   margin: 0.75rem 0;
 }
+
+.charts__aviso {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.charts__resumen {
+  margin: 0 0 0.75rem;
+}
+
+.charts__lados {
+  margin-bottom: 0.75rem;
+}

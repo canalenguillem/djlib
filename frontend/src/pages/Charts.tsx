@@ -15,6 +15,22 @@ const CLAVE_FUENTES = 'charts.fuentes'
 const CLAVE_CUANTAS = 'charts.cuantas'
 const CUANTAS = [50, 100, 200]
 
+type Lado = 'todo' | 'ambos' | 'cabina' | 'publico'
+const LADOS: { valor: Lado; nombre: string; titulo: string }[] = [
+  { valor: 'todo', nombre: 'Todo', titulo: 'Todas las canciones cruzadas' },
+  { valor: 'ambos', nombre: 'Público + cabina', titulo: 'En Deezer y en Beatport a la vez' },
+  { valor: 'cabina', nombre: 'Solo cabina', titulo: 'Solo en Beatport' },
+  { valor: 'publico', nombre: 'Solo público', titulo: 'Solo en Deezer' },
+]
+
+function enLado(p: ChartTrack, lado: Lado): boolean {
+  const ambos = p.groups.length > 1
+  if (lado === 'ambos') return ambos
+  if (lado === 'cabina') return !ambos && p.groups.includes('Beatport')
+  if (lado === 'publico') return !ambos && p.groups.includes('Deezer')
+  return true
+}
+
 /** Combinaciones de partida segun el tipo de bolo. Son solo un atajo: luego
  *  se marca o desmarca lo que se quiera. */
 const ATAJOS: { nombre: string; fuentes: string[] }[] = [
@@ -53,8 +69,9 @@ export function ChartsPage() {
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filtro, setFiltro] = useState('')
+  const [lado, setLado] = useState<Lado>('todo')
 
-  const auto = useAutoDownload(`charts:${[...cruzadas].sort().join(',')}`)
+  const auto = useAutoDownload(`charts:${[...cruzadas].sort().join(',')}`, { recordarCrate: false })
 
   // La cancion con los candidatos de YouTube abiertos
   const [abierta, setAbierta] = useState<number | null>(null)
@@ -99,6 +116,7 @@ export function ChartsPage() {
       setResultado(await chartsApi.combined(elegidas, cuantas))
       setCruzadas(elegidas)
       setFiltro('')
+      setLado('todo')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudieron cruzar las listas.')
     } finally {
@@ -157,8 +175,13 @@ export function ChartsPage() {
   const items = resultado?.items ?? []
   const visibles = items
     .map((p, indice) => ({ p, indice }))
+    .filter(({ p }) => enLado(p, lado))
     .filter(({ p }) => !texto || `${p.title} ${p.artist}`.toLowerCase().includes(texto))
+  // Lo que se descarga es lo que se ve: con un lado elegido, solo ese
+  const aDescargar = visibles.map(({ p }) => p)
   const faltan = items.filter((p) => !p.already_in_library).length
+  const resumen = resultado?.summary
+  const ladosCruzados = new Set(cruzadas.map((f) => nombres.get(f)?.group))
   const nombreTanda = `Combinar: ${cruzadas.map((f) => nombres.get(f)?.name ?? f).join(', ')}`.slice(0, 180)
 
   function chip(f: ChartSource) {
@@ -237,6 +260,12 @@ export function ChartsPage() {
               ))}
             </select>
           </label>
+          {elegidas.length === 1 && (
+            <p className="muted charts__aviso">
+              Con una sola lista no se cruza nada: sale igual que en su web. Marca al menos
+              otra; lo más útil es mezclar países de Deezer con géneros de Beatport.
+            </p>
+          )}
           <button
             type="button"
             className="btn btn--primary"
@@ -257,11 +286,42 @@ export function ChartsPage() {
               {nombres.get(e.source)?.name ?? e.source}: {e.message}
             </Alert>
           ))}
-          <p className="muted">
-            {items.length} canciones, {items.length - faltan} ya en la biblioteca.
-          </p>
+          {resumen && (
+            <p className="charts__resumen">
+              {resumen.total} canciones distintas
+              {ladosCruzados.size > 1 && (
+                <>
+                  {' · '}
+                  <strong>{resumen.both} en público + cabina</strong>
+                </>
+              )}
+              {' · '}
+              {resumen.several} en varias listas
+              <span className="muted">
+                {' · '}
+                se ven las {items.length} primeras, {items.length - faltan} ya en la biblioteca
+              </span>
+            </p>
+          )}
+          {ladosCruzados.size > 1 && (
+            <div className="chips charts__lados" role="group" aria-label="Lado">
+              {LADOS.map((l) => (
+                <button
+                  key={l.valor}
+                  type="button"
+                  className={lado === l.valor ? 'chip chip--on' : 'chip'}
+                  aria-pressed={lado === l.valor}
+                  title={l.titulo}
+                  onClick={() => setLado(l.valor)}
+                >
+                  {l.nombre}
+                  {l.valor === 'ambos' && resumen ? ` (${items.filter((p) => p.groups.length > 1).length})` : ''}
+                </button>
+              ))}
+            </div>
+          )}
           <AutoDownloadBar
-            canciones={items}
+            canciones={aDescargar}
             auto={auto}
             nombreTanda={nombreTanda}
             nombreSugerido="Top combinado"
@@ -306,6 +366,14 @@ export function ChartsPage() {
                           {nombres.get(pos.source)?.name ?? pos.source} #{pos.position}
                         </span>
                       ))}
+                      {p.groups.length > 1 && (
+                        <span
+                          className="badge badge--busy"
+                          title="Lo escucha el público (Deezer) y suena en cabina (Beatport)"
+                        >
+                          público + cabina
+                        </span>
+                      )}
                       {p.already_in_library && <span className="badge badge--ok">ya en la biblioteca</span>}
                       <EstadoDescarga estado={auto.estados[claveCancion(p)]} />
                     </div>

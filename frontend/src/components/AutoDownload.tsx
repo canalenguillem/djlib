@@ -110,17 +110,20 @@ export function claveCancion(song: Cancion): string {
  *
  *  `origen` identifica de donde salen las canciones (las capturas, una lista
  *  de Spotify concreta): al volver ahi se ve como van sus tandas. */
-export function useAutoDownload(origen: string) {
+export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
   const [tandas, setTandas] = useState<Batch[]>([])
   const [error, setError] = useState<string | null>(null)
-  // Crate de la barra: lo usan la descarga de todas y el "Anadir" suelto
+  // Crate de la barra: lo usan la descarga de todas y el "Anadir" suelto. Sin
+  // `recordarCrate` empieza en ninguno: donde se baja mucho de golpe, mejor
+  // elegirlo cada vez que meter cien temas en el crate de otro dia
   const crates = useCrates()
-  const [crateId, setCrateId] = useState<number | null>(crateGuardado)
+  const [crateId, setCrateId] = useState<number | null>(() => (recordarCrate ? crateGuardado() : null))
   // El crate recordado puede haberse borrado
   const crateElegido = crates.some((c) => c.id === crateId) ? crateId : null
 
   function elegirCrate(id: number | null) {
     setCrateId(id)
+    if (!recordarCrate) return
     try {
       if (id) localStorage.setItem(CLAVE_CRATE, String(id))
       else localStorage.removeItem(CLAVE_CRATE)

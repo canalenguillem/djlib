@@ -2,7 +2,13 @@
 
 Para saber que pide la gente hay que mirar mas de un sitio: Beatport dice que
 suena en las cabinas y Deezer que escucha el publico de cada pais. Aqui se
-juntan, sin repetir, y sale antes lo que esta en mas listas y mas arriba.
+juntan, sin repetir.
+
+Lo que mas interesa es lo que esta en los dos lados a la vez: lo conoce el
+publico y ademas suena en cabina. Eso va primero. Despues, cada lado pesa lo
+mismo: los tops de Deezer se parecen mucho entre paises y los generos de
+Beatport casi no comparten temas, asi que si cada lista sumara por su cuenta,
+marcar cuatro paises enterraria todo lo de Beatport.
 """
 
 from __future__ import annotations
@@ -16,6 +22,8 @@ from app.services import beatport, deezer
 
 # Mas no aporta y tarda: cada lista nueva es una consulta a otro sitio
 MAX_FUENTES = 12
+# Lo que suma estar en otra lista del mismo lado: desempata, no manda
+EXTRA_POR_LISTA = 0.05
 
 
 class ChartError(RuntimeError):
@@ -52,12 +60,17 @@ class Combinada:
     posiciones: list[tuple[str, int]] = field(default_factory=list)
     # Todas las formas en que viene escrita, para buscarla en la biblioteca
     claves: set[str] = field(default_factory=set)
+    # Lo que vale, segun en cuantas listas de cada lado esta y en que puesto
+    score: float = 0.0
 
     @property
-    def score(self) -> float:
-        # Un numero 1 vale 1; un 100, casi nada. Sumado entre listas: estar en
-        # tres a media tabla pesa mas que ser el 1 de una sola
-        return sum((101 - posicion) / 100 for _, posicion in self.posiciones)
+    def grupos(self) -> list[str]:
+        """Los lados en los que esta ("Beatport", "Deezer")."""
+        return sorted({_grupo(f) for f, _ in self.posiciones})
+
+
+def _grupo(fuente: str) -> str:
+    return "Beatport" if fuente.startswith("beatport:") else "Deezer"
 
 
 def fuentes() -> list[Fuente]:
@@ -151,7 +164,19 @@ def combinar(listas: dict[str, list[Entrada]], orden: list[str]) -> list[Combina
             combinada = por_clave.setdefault(clave, Combinada(entrada))
             combinada.posiciones.append((fuente, entrada.position))
             combinada.claves.add(normalize_key(entrada.artist, entrada.name))
+
+    for c in por_clave.values():
+        # Un numero 1 vale 1; un 100, casi nada. De cada lado cuenta el mejor
+        # puesto, y cada lista mas de ese lado anade un poco: asi el 1 de Afro
+        # House y el 1 de tres paises quedan a la par
+        puestos: dict[str, list[int]] = {}
+        for fuente, posicion in c.posiciones:
+            puestos.setdefault(_grupo(fuente), []).append(posicion)
+        c.score = sum(
+            (101 - min(lista)) / 100 + EXTRA_POR_LISTA * (len(lista) - 1)
+            for lista in puestos.values()
+        )
     return sorted(
         por_clave.values(),
-        key=lambda c: (-c.score, min(p for _, p in c.posiciones)),
+        key=lambda c: (-len(c.grupos), -c.score, min(p for _, p in c.posiciones)),
     )
