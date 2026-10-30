@@ -2777,3 +2777,19 @@ input[type='file'] {
   padding-bottom: 0.6rem;
   border-bottom: 1px solid var(--border);
 }
+
+/* --- Combinar tops --------------------------------------------------------- */
+.charts__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.charts__acciones .field {
+  flex: 0 1 12rem;
+}
+
+.charts__filtro {
+  margin: 0.75rem 0;
+}

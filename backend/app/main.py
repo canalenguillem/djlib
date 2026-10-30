@@ -9,6 +9,7 @@ from app.api.routers import (
     auth,
     batches,
     beatport,
+    charts,
     crates,
     listens,
     recognition,
@@ -78,6 +79,7 @@ app.include_router(tags.router)
 app.include_router(batches.router)
 app.include_router(listens.router)
 app.include_router(beatport.router)
+app.include_router(charts.router)
 
 
 @app.get("/health", tags=["health"])

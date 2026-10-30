@@ -10,6 +10,7 @@ import { AccountPage } from './pages/Account'
 import { ArtistDetailPage } from './pages/ArtistDetail'
 import { ArtistsPage } from './pages/Artists'
 import { BeatportPage } from './pages/Beatport'
+import { ChartsPage } from './pages/Charts'
 import { ColaPage } from './pages/Cola'
 import { CrateDetailPage } from './pages/CrateDetail'
 import { CratesPage } from './pages/Crates'
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
               { element: <RequireMenu menu="spotify" />, children: [{ path: 'spotify', element: <SpotifyPage /> }] },
               { element: <RequireMenu menu="beatport" />, children: [{ path: 'beatport', element: <BeatportPage /> }] },
               { element: <RequireMenu menu="youtube" />, children: [{ path: 'youtube', element: <YoutubePage /> }] },
+              { element: <RequireMenu menu="charts" />, children: [{ path: 'combinar', element: <ChartsPage /> }] },
               { path: 'cola', element: <ColaPage /> },
             ],
           },

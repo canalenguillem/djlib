@@ -7,6 +7,7 @@ export type Menu =
   | 'spotify'
   | 'beatport'
   | 'youtube'
+  | 'charts'
   | 'crates'
   | 'downloads'
   | 'listen'
@@ -348,6 +349,37 @@ export interface BeatportTrack {
   sample_url: string | null
   beatport_url: string
   already_in_library: boolean
+}
+
+export interface ChartSource {
+  /** "deezer:es", "beatport:11", "beatport:top"... */
+  id: string
+  name: string
+  group: string
+}
+
+export interface ChartTrack {
+  /** Con la mezcla si viene de Beatport: es lo que se busca. */
+  title: string
+  name: string
+  mix: string | null
+  artist: string
+  bpm: number | null
+  key: string | null
+  duration_seconds: number | null
+  image_url: string | null
+  sample_url: string | null
+  url: string | null
+  /** En que listas esta y en que puesto. */
+  positions: { source: string; position: number }[]
+  score: number
+  already_in_library: boolean
+}
+
+export interface ChartCombined {
+  items: ChartTrack[]
+  /** Listas que no se han podido leer; las demas salen igual. */
+  errors: { source: string; message: string }[]
 }
 
 export interface BeatportTop {
