@@ -75,6 +75,8 @@ def _grupo(fuente: str) -> str:
 
 def fuentes() -> list[Fuente]:
     lista = [Fuente(f"deezer:{clave}", f"Top {nombre}", "Deezer") for clave, nombre, _ in deezer.TOPS]
+    # Se ven aparte, pero cuentan como Deezer: lo que escucha el publico
+    lista += [Fuente(f"deezer:{clave}", nombre, "Reggaeton") for clave, nombre, _ in deezer.REGGAETON]
     lista.append(Fuente("beatport:top", "Top 100 general", "Beatport"))
     lista += [Fuente(f"beatport:{i}", nombre, "Beatport") for i, nombre, _ in beatport.GENEROS]
     return lista

@@ -37,6 +37,7 @@ const ATAJOS: { nombre: string; fuentes: string[] }[] = [
   { nombre: 'Comercial', fuentes: ['deezer:es', 'deezer:world', 'deezer:uk', 'deezer:de'] },
   { nombre: 'Beach club', fuentes: ['beatport:89', 'beatport:93', 'beatport:90', 'beatport:12'] },
   { nombre: 'Club', fuentes: ['beatport:top', 'beatport:11', 'beatport:5', 'deezer:es'] },
+  { nombre: 'Perreo', fuentes: ['deezer:perreo', 'deezer:fuego-latino', 'deezer:reggaeton-hits', 'deezer:es'] },
 ]
 
 function leerGuardado<T>(clave: string, porDefecto: T): T {
@@ -94,6 +95,7 @@ export function ChartsPage() {
   const nombres = useMemo(() => new Map(fuentes.map((f) => [f.id, f])), [fuentes])
   const deezer = fuentes.filter((f) => f.group === 'Deezer')
   const beatport = fuentes.filter((f) => f.group === 'Beatport')
+  const reggaeton = fuentes.filter((f) => f.group === 'Reggaeton')
   // Los generos de Beatport elegidos se ven siempre, aunque la lista este plegada
   const beatportVisibles = verBeatport ? beatport : beatport.filter((f) => elegidas.includes(f.id))
 
@@ -181,7 +183,8 @@ export function ChartsPage() {
   const aDescargar = visibles.map(({ p }) => p)
   const faltan = items.filter((p) => !p.already_in_library).length
   const resumen = resultado?.summary
-  const ladosCruzados = new Set(cruzadas.map((f) => nombres.get(f)?.group))
+  // Las de reggaeton son de Deezer: lo que escucha el publico, no la cabina
+  const ladosCruzados = new Set(cruzadas.map((f) => (f.startsWith('beatport:') ? 'Beatport' : 'Deezer')))
   const nombreTanda = `Combinar: ${cruzadas.map((f) => nombres.get(f)?.name ?? f).join(', ')}`.slice(0, 180)
 
   function chip(f: ChartSource) {
@@ -231,6 +234,11 @@ export function ChartsPage() {
         <div className="filters__group">
           <span className="filters__label">Deezer</span>
           <div className="chips">{deezer.map(chip)}</div>
+        </div>
+
+        <div className="filters__group">
+          <span className="filters__label">Reggaeton</span>
+          <div className="chips">{reggaeton.map(chip)}</div>
         </div>
 
         <div className="filters__group">

@@ -1,4 +1,4 @@
-"""Tops por pais de Deezer.
+"""Tops por pais y listas de genero de Deezer.
 
 Spotify ya no deja leer sus listas editoriales (Top 50 España y compañia) a
 aplicaciones como esta, pero Deezer publica las suyas en una API abierta, sin
@@ -30,7 +30,20 @@ TOPS: list[tuple[str, str, int]] = [
     ("it", "Italia", 1116187241),
     ("nl", "Países Bajos", 1266971851),
 ]
-_POR_CLAVE = {clave: (nombre, lista) for clave, nombre, lista in TOPS}
+
+# (clave, nombre, id de la lista). Las de reggaeton de los editores latinos de
+# Deezer ("Camojada - Deezer Latin Editor"): Beatport no tiene reggaeton y en
+# los tops de pais va mezclado con todo lo demas.
+REGGAETON: list[tuple[str, str, int]] = [
+    ("perreo", "Club Perreo", 10777825362),
+    ("reggaeton-hits", "Reggaeton Hits", 1273315391),
+    ("fuego-latino", "Fuego Latino", 178699142),
+    ("new-reggaeton", "New Reggaeton", 11120289724),
+    ("reggaeton-classics", "Reggaeton Classics", 789123393),
+    ("bombon", "Bombón", 10759132562),
+    ("sol-y-playa", "Sol y Playa", 254227453),
+]
+_POR_CLAVE = {clave: (nombre, lista) for clave, nombre, lista in TOPS + REGGAETON}
 
 
 class DeezerError(RuntimeError):
@@ -73,9 +86,10 @@ def parse(datos: dict) -> list[DeezerTrack]:
 
 
 def top(pais: str) -> list[DeezerTrack]:
-    """El top 100 de un pais. LookupError si no esta en TOPS."""
+    """Las 100 primeras de un top de pais o de una lista de REGGAETON.
+    LookupError si no esta en ninguna de las dos."""
     if pais not in _POR_CLAVE:
-        raise LookupError("Ese top no existe en Deezer.")
+        raise LookupError("Esa lista no existe en Deezer.")
     with _cache_lock:
         guardado = _cache.get(pais)
         if guardado and time.monotonic() - guardado[0] < CACHE_SEGUNDOS:

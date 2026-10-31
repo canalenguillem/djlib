@@ -116,6 +116,19 @@ def test_fuentes(client: TestClient, admin_user) -> None:
     fuentes = client.get("/charts/sources", headers=headers(client)).json()
     assert {"id": "deezer:es", "name": "Top España", "group": "Deezer"} in fuentes
     assert {"id": "beatport:11", "name": "Tech House", "group": "Beatport"} in fuentes
+    assert {"id": "deezer:perreo", "name": "Club Perreo", "group": "Reggaeton"} in fuentes
+
+
+def test_las_de_reggaeton_cuentan_como_publico(monkeypatch, client: TestClient, admin_user) -> None:
+    listas = {"perreo": [dz(1, "Gasolina", "Daddy Yankee")], "es": [dz(5, "Gasolina", "Daddy Yankee")]}
+    monkeypatch.setattr(deezer, "top", lambda clave: listas[clave])
+    datos = client.get(
+        "/charts/combined",
+        params=[("source", "deezer:perreo"), ("source", "deezer:es")],
+        headers=headers(client),
+    ).json()
+    assert datos["items"][0]["groups"] == ["Deezer"]
+    assert datos["summary"] == {"total": 1, "both": 0, "several": 1}
 
 
 def test_lee_la_lista_de_deezer() -> None:
