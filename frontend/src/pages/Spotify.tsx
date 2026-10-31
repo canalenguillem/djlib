@@ -14,6 +14,7 @@ import type {
   SpotifyPlaylist,
   SpotifyPlaylistTracks,
   SpotifyStatus,
+  Version,
 } from '../types/api'
 
 type Vista = 'recientes' | 'shazam' | 'listas'
@@ -156,13 +157,13 @@ export function SpotifyPage() {
     }
   }
 
-  async function buscar(indice: string, cancion: PlayedTrack) {
+  async function buscar(indice: string, cancion: PlayedTrack, version: Version | null = auto.version) {
     setAbierta(indice)
     setCandidatos(null)
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(cancion.title, cancion.artist)
+      const resultado = await tracksApi.previewSearch(cancion.title, cancion.artist, version)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -230,6 +231,11 @@ export function SpotifyPage() {
                   addedIds={anadidos}
                   addingId={anadiendo}
                   onAdd={anadir}
+                  version={auto.version}
+                  onVersion={(v) => {
+                    auto.elegirVersion(v)
+                    void buscar(indice, cancion, v)
+                  }}
                 />
               )}
             </li>

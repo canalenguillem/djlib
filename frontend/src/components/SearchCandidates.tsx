@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
-import type { SearchCandidate, Track } from '../types/api'
+import { VersionChips, nombreVersion } from '../lib/versiones'
+import type { SearchCandidate, Track, Version } from '../types/api'
 import { CrateSelect } from './CrateSelect'
 import { PauseIcon, PlayIcon } from './icons'
 
@@ -12,6 +13,9 @@ interface Props {
   addingId: string | null
   /** Devuelve la cancion creada, para poder meterla en un crate desde aqui. */
   onAdd: (candidate: SearchCandidate) => Promise<Track | undefined> | void
+  /** Con esto se ven botones para repetir la busqueda en otra version. */
+  version?: Version | null
+  onVersion?: (version: Version | null) => void
 }
 
 /** Resultados de YouTube para que el usuario elija.
@@ -21,7 +25,7 @@ interface Props {
  *  canal y decida. El primer resultado de una busqueda imprecisa suele ser un
  *  mix de una hora, y con la duracion delante eso se ve de un vistazo.
  */
-export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Props) {
+export function SearchCandidates({ candidates, addedIds, addingId, onAdd, version = null, onVersion }: Props) {
   // Fragmento que se esta escuchando, si hay alguno
   const [sonando, setSonando] = useState<string | null>(null)
   const [cargando, setCargando] = useState<string | null>(null)
@@ -71,12 +75,20 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Prop
     }
   }
 
+  const versiones = onVersion && <VersionChips version={version} onChange={onVersion} />
+
   if (candidates.length === 0) {
-    return <p className="muted">YouTube no ha devuelto resultados. Prueba con otras palabras.</p>
+    return (
+      <>
+        {versiones}
+        <p className="muted">YouTube no ha devuelto resultados. Prueba con otras palabras.</p>
+      </>
+    )
   }
 
   return (
     <>
+      {versiones}
       {fallo && <p className="candidate__fallo">{fallo}</p>}
     <ul className="candidates">
       {candidates.map((candidate) => {
@@ -108,6 +120,12 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd }: Prop
                 </span>
                 {candidate.too_long && (
                   <span className="badge badge--off">parece un mix, no una cancion</span>
+                )}
+                {candidate.duration_seconds !== null && candidate.duration_seconds < 90 && (
+                  <span className="badge badge--off">muy corta, quizá un avance</span>
+                )}
+                {!candidate.matches_version && (
+                  <span className="badge badge--off">no parece {nombreVersion(version).toLowerCase()}</span>
                 )}
                 {inLibrary && <span className="badge badge--ok">ya en la biblioteca</span>}
               </div>

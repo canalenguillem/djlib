@@ -4,7 +4,8 @@ import type { FormEvent } from 'react'
 import * as batchesApi from '../api/batches'
 import * as cratesApi from '../api/crates'
 import { refrescarCrates, useCrates } from '../lib/crates'
-import type { Batch, BatchItem } from '../types/api'
+import { VERSIONES, nombreVersion } from '../lib/versiones'
+import type { Batch, BatchItem, Version } from '../types/api'
 
 /** Lo minimo para buscar una cancion en YouTube. */
 export interface Cancion {
@@ -118,6 +119,9 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
   // elegirlo cada vez que meter cien temas en el crate de otro dia
   const crates = useCrates()
   const [crateId, setCrateId] = useState<number | null>(() => (recordarCrate ? crateGuardado() : null))
+  // Version para DJ que se busca de cada una: la de la barra y la de "Buscar
+  // en YouTube" son la misma, se elige una vez para toda la pagina
+  const [version, setVersion] = useState<Version | null>(null)
   // El crate recordado puede haberse borrado
   const crateElegido = crates.some((c) => c.id === crateId) ? crateId : null
 
@@ -170,7 +174,9 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
   const estados: Record<string, Estado> = {}
   // Pista de las que ya estan en la biblioteca (bajadas o que ya estaban)
   const pistas: Record<string, number> = {}
-  for (const tanda of [...tandas].sort((a, b) => a.id - b.id)) {
+  // Solo cuentan las tandas de la version elegida: tener la original no quita
+  // de buscar su mashup
+  for (const tanda of [...tandas].filter((t) => (t.version ?? null) === version).sort((a, b) => a.id - b.id)) {
     for (const item of tanda.items) {
       const estado = estadoDe(item)
       if (!estado) continue
@@ -204,9 +210,10 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
       if (destino !== null) await meterEnCrate(canciones, destino)
       if (!faltan.length) return
       const tanda = await batchesApi.createBatch(
-        nombre,
+        version ? `${nombre} · ${nombreVersion(version)}`.slice(0, 200) : nombre,
         destino,
         faltan.map((c) => ({ title: c.title, artist: c.artist })),
+        version,
       )
       setTandas((prev) => [...prev, tanda])
       guardarTandas(origen, [...tandasGuardadas(origen), tanda.id])
@@ -245,6 +252,8 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
     estados,
     crateElegido,
     elegirCrate,
+    version,
+    elegirVersion: setVersion,
     enCola: enMarcha.length > 0,
     progreso,
     error,
@@ -351,6 +360,20 @@ export function AutoDownloadBar({
           </select>
         </label>
       )}
+      <label className="autoload__crate">
+        <span>Versión</span>
+        <select
+          value={auto.version ?? ''}
+          disabled={auto.enCola}
+          onChange={(e) => auto.elegirVersion((e.target.value || null) as Version | null)}
+        >
+          {VERSIONES.map((v) => (
+            <option key={v.nombre} value={v.valor ?? ''} title={v.titulo}>
+              {v.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
       {auto.enCola ? (
         <button type="button" className="btn btn--ghost" onClick={auto.parar}>
           Parar
@@ -360,7 +383,11 @@ export function AutoDownloadBar({
           type="button"
           className="btn btn--primary"
           disabled={disabled || creando || (pendientes === 0 && elegido === null)}
-          title="Busca cada una en YouTube y descarga el primer resultado que no sea un mix"
+          title={
+            auto.version
+              ? `Busca la versión ${nombreVersion(auto.version)} de cada una; si YouTube no la tiene, la deja sin resultado`
+              : 'Busca cada una en YouTube y descarga el primer resultado que no sea un mix'
+          }
           onClick={() => void auto.descargar(canciones, elegido, nombreTanda)}
         >
           {pendientes === 0

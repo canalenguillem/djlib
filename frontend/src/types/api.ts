@@ -156,6 +156,9 @@ export interface ArtistPage {
   offset: number
 }
 
+/** Versiones para DJ que se pueden buscar; sin ninguna, la normal. */
+export type Version = 'extended' | 'remix' | 'mashup' | 'edit'
+
 export interface SearchCandidate {
   video_id: string
   title: string
@@ -165,6 +168,8 @@ export interface SearchCandidate {
   thumbnail_url: string | null
   already_in_library: boolean
   too_long: boolean
+  /** Si el titulo parece de la version pedida (siempre si no se pidio ninguna). */
+  matches_version: boolean
   /** Si ya esta en la biblioteca, cual es y en que crate. */
   track_id: number | null
   crate_ids: number[]
@@ -286,6 +291,7 @@ export interface BatchSummary {
   name: string
   crate_id: number | null
   crate_name: string | null
+  version: Version | null
   status: 'active' | 'done' | 'cancelled'
   created_at: string
   total: number

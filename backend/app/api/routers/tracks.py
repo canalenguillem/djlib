@@ -131,7 +131,7 @@ def preview_search(
     porque solo pide el listado, no los metadatos completos de cada video.
     """
     try:
-        resultados = downloader.search(payload.title, payload.artist)
+        resultados = downloader.search(payload.title, payload.artist, payload.version)
     except DownloadError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
@@ -141,7 +141,7 @@ def preview_search(
     limite = settings.max_song_duration_seconds
 
     return SearchResults(
-        query=downloader.search_query(payload.title, payload.artist),
+        query=downloader.search_query(payload.title, payload.artist, payload.version),
         candidates=[
             SearchCandidate(
                 video_id=r.video_id,
@@ -151,6 +151,7 @@ def preview_search(
                 url=r.url,
                 thumbnail_url=r.thumbnail_url,
                 too_long=bool(r.duration_seconds and r.duration_seconds > limite),
+                matches_version=downloader.es_version(r.title, payload.version),
                 **track_service.library_fields(ya_estan.get(r.video_id)),
             )
             for r in resultados

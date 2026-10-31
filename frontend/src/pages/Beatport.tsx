@@ -7,7 +7,7 @@ import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from '
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
-import type { BeatportGenre, BeatportTop, BeatportTrack, SearchCandidate } from '../types/api'
+import type { BeatportGenre, BeatportTop, BeatportTrack, SearchCandidate, Version } from '../types/api'
 
 // Genero elegido, recordado entre visitas ('' es el top general)
 const CLAVE_GENERO = 'beatport.genero'
@@ -101,13 +101,13 @@ export function BeatportPage() {
     })
   }
 
-  async function buscar(pista: BeatportTrack) {
+  async function buscar(pista: BeatportTrack, version: Version | null = auto.version) {
     setAbierta(pista.position)
     setCandidatos(null)
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(pista.title, pista.artist)
+      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -250,6 +250,11 @@ export function BeatportPage() {
                       addedIds={anadidos}
                       addingId={anadiendo}
                       onAdd={anadir}
+                      version={auto.version}
+                      onVersion={(v) => {
+                        auto.elegirVersion(v)
+                        void buscar(p, v)
+                      }}
                     />
                   )}
                 </li>

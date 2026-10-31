@@ -8,7 +8,7 @@ import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
 import { formatDuration } from '../lib/format'
-import type { ChartCombined, ChartSource, ChartTrack, SearchCandidate } from '../types/api'
+import type { ChartCombined, ChartSource, ChartTrack, SearchCandidate, Version } from '../types/api'
 
 // Listas elegidas y cuantas sacar, recordadas entre visitas
 const CLAVE_FUENTES = 'charts.fuentes'
@@ -144,13 +144,13 @@ export function ChartsPage() {
     })
   }
 
-  async function buscar(indice: number, pista: ChartTrack) {
+  async function buscar(indice: number, pista: ChartTrack, version: Version | null = auto.version) {
     setAbierta(indice)
     setCandidatos(null)
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(pista.title, pista.artist)
+      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -401,6 +401,11 @@ export function ChartsPage() {
                     addedIds={anadidos}
                     addingId={anadiendo}
                     onAdd={anadir}
+                    version={auto.version}
+                    onVersion={(v) => {
+                      auto.elegirVersion(v)
+                      void buscar(indice, p, v)
+                    }}
                   />
                 )}
               </li>

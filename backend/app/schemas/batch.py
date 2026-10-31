@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.track import Version
+
 
 class BatchSong(BaseModel):
     title: str = Field(min_length=1, max_length=300)
@@ -13,6 +15,8 @@ class BatchCreate(BaseModel):
 
     name: str = Field(min_length=1, max_length=200)
     crate_id: int | None = None
+    # Buscar de cada una esa version para DJ; sin ella, la normal
+    version: Version | None = None
     songs: list[BatchSong] = Field(min_length=1, max_length=1000)
 
 
@@ -34,6 +38,7 @@ class BatchSummary(BaseModel):
     name: str
     crate_id: int | None = None
     crate_name: str | None = None
+    version: str | None = None
     status: str
     created_at: datetime
     total: int

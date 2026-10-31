@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as tracksApi from '../api/tracks'
-import type { SearchCandidate } from '../types/api'
+import type { SearchCandidate, Version } from '../types/api'
 import { Alert } from './Alert'
 import { SearchCandidates } from './SearchCandidates'
 
@@ -33,6 +33,7 @@ export function AddTrackPanel({ onAdded, onResults }: Props) {
   const [candidates, setCandidates] = useState<SearchCandidate[] | null>(null)
   const [addedIds, setAddedIds] = useState<string[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
+  const [version, setVersion] = useState<Version | null>(null)
 
   const conResultados = mode === 'search' && candidates !== null
   useEffect(() => {
@@ -68,12 +69,27 @@ export function AddTrackPanel({ onAdded, onResults }: Props) {
         const resultados = await tracksApi.previewSearch(
           title.trim() || null,
           artist.trim() || null,
+          version,
         )
         setCandidates(resultados.candidates)
         setAddedIds([])
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo completar la operacion.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function otraVersion(nueva: Version | null) {
+    setVersion(nueva)
+    setError(null)
+    setSending(true)
+    try {
+      const resultados = await tracksApi.previewSearch(title.trim() || null, artist.trim() || null, nueva)
+      setCandidates(resultados.candidates)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
     } finally {
       setSending(false)
     }
@@ -241,6 +257,8 @@ export function AddTrackPanel({ onAdded, onResults }: Props) {
           addedIds={addedIds}
           addingId={addingId}
           onAdd={handleAddCandidate}
+          version={version}
+          onVersion={(v) => void otraVersion(v)}
         />
       )}
     </section>

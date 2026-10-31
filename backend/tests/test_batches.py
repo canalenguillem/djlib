@@ -1,5 +1,7 @@
 """Tandas de descarga que el servidor hace solo, sin el navegador abierto."""
 
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 
 from app.models.batch import BatchItemStatus, DownloadBatchItem
@@ -153,3 +155,50 @@ def test_crate_inexistente_se_rechaza(client: TestClient, admin_user) -> None:
         headers=headers(client),
     )
     assert respuesta.status_code == 404
+
+
+def test_con_version_solo_baja_la_que_lo_dice(client: TestClient, admin_user, fake_downloader) -> None:
+    """Pidiendo mashups, la version normal no vale: YouTube la da cuando no
+    encuentra otra, y bajarla como mashup engañaria."""
+    h = headers(client)
+    respuesta = client.post(
+        "/batches",
+        json={"name": "Perreo", "version": "mashup", "songs": [{"title": "Song 2", "artist": "Blur"}]},
+        headers=h,
+    )
+    assert respuesta.json()["version"] == "mashup"
+    trabajar()
+    item = client.get(f"/batches/{respuesta.json()['id']}", headers=h).json()["items"][0]
+    assert fake_downloader.versions == ["mashup"]
+    assert item["status"] == "not_found"
+    assert item["message"] == "No hay versión mashup en YouTube."
+
+    fake_downloader.results[1] = replace(fake_downloader.results[1], title="Blur x Gorillaz - Song 2 (Mashup)")
+    tanda = client.post(
+        "/batches",
+        json={"name": "Perreo", "version": "mashup", "songs": [{"title": "Song 2", "artist": "Blur"}]},
+        headers=h,
+    ).json()
+    trabajar()
+    item = client.get(f"/batches/{tanda['id']}", headers=h).json()["items"][0]
+    assert item["status"] == "done"
+    assert item["video_title"] == "Blur x Gorillaz - Song 2 (Mashup)"
+
+
+def test_salta_los_avances_de_pocos_segundos(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    fake_downloader.results.insert(1, replace(fake_downloader.results[1], video_id="avance12345", duration_seconds=21))
+    tanda = crear_tanda(client, h, None)
+    trabajar()
+    item = client.get(f"/batches/{tanda['id']}", headers=h).json()["items"][0]
+    assert item["status"] == "done"
+    assert fake_downloader.downloaded_queries[-1].endswith("dQw4w9WgXcQ")
+
+
+def test_version_que_no_existe(client: TestClient, admin_user) -> None:
+    r = client.post(
+        "/batches",
+        json={"name": "X", "version": "karaoke", "songs": [{"title": "A"}]},
+        headers=headers(client),
+    )
+    assert r.status_code == 422

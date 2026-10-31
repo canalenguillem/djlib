@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
-import type { DetectedSong, SearchCandidate } from '../types/api'
+import type { DetectedSong, SearchCandidate, Version } from '../types/api'
 import { Alert } from './Alert'
 import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from './AutoDownload'
 import { SearchCandidates } from './SearchCandidates'
@@ -102,13 +102,13 @@ export function ScreenshotReader() {
     return () => window.removeEventListener('paste', onPaste)
   }, [])
 
-  async function buscar(index: number, song: DetectedSong) {
+  async function buscar(index: number, song: DetectedSong, version: Version | null = auto.version) {
     setOpenIndex(index)
     setCandidates(null)
     setSearching(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(song.title, song.artist)
+      const resultado = await tracksApi.previewSearch(song.title, song.artist, version)
       setCandidates(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -239,6 +239,11 @@ export function ScreenshotReader() {
                       addedIds={addedIds}
                       addingId={addingId}
                       onAdd={anadir}
+                      version={auto.version}
+                      onVersion={(v) => {
+                        auto.elegirVersion(v)
+                        void buscar(index, song, v)
+                      }}
                     />
                   )}
                 </li>

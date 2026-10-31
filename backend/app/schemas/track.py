@@ -1,10 +1,14 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from app.models.track import TrackSource, TrackStatus
 from app.schemas.artist import ArtistBrief
 from app.schemas.tag import TagOut
+
+Version = Literal["extended", "remix", "mashup", "edit"]
 
 
 class TrackOut(BaseModel):
@@ -79,6 +83,8 @@ class TrackFromSearch(BaseModel):
 
     title: str | None = Field(default=None, max_length=300)
     artist: str | None = Field(default=None, max_length=300)
+    # Una version para DJ ("extended", "remix", "mashup", "edit"); sin ella, la normal
+    version: Version | None = None
 
     @model_validator(mode="after")
     def al_menos_uno(self) -> "TrackFromSearch":
@@ -116,6 +122,8 @@ class SearchCandidate(BaseModel):
     # Marcas para que se vea de un vistazo que conviene y que no
     already_in_library: bool = False
     too_long: bool = False
+    # Si el titulo parece de la version pedida (siempre si no se pidio ninguna)
+    matches_version: bool = True
     # Si ya esta, la cancion de la biblioteca: para poder meterla en un crate
     # desde los propios resultados
     track_id: int | None = None

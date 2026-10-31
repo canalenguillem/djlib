@@ -81,3 +81,18 @@ def test_una_url_directa_no_pasa_por_la_eleccion() -> None:
     info = _parse_info(payload)
     assert info.video_id == "abc"
     assert info.duration_seconds == 2000
+
+
+def test_versiones_para_dj() -> None:
+    from app.services import downloader
+
+    assert downloader.search_query("Gasolina", "Daddy Yankee", "extended").endswith(
+        ":Daddy Yankee Gasolina extended mix"
+    )
+    assert downloader.es_version("Gasolina (Extended Mix)", "extended")
+    assert downloader.es_version("Gasolina x Tusa MASHUP", "mashup")
+    assert downloader.es_version("Gasolina (DJ Edit Intro)", "edit")
+    # Un radio edit no es una version para DJ
+    assert not downloader.es_version("Gasolina (Radio Edit)", "edit")
+    assert not downloader.es_version("Gasolina (Official Video)", "remix")
+    assert downloader.es_version("Gasolina (Official Video)", None)

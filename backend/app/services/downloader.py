@@ -82,13 +82,36 @@ def is_supported_url(value: str) -> bool:
     return value.startswith("http://") or value.startswith("https://")
 
 
-def search_query(title: str | None, artist: str | None) -> str:
+# Versiones para DJ que se pueden pedir: lo que se anade a la busqueda y las
+# palabras que tiene que llevar el titulo del video para darla por buena
+VERSIONES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "extended": ("extended mix", ("extended", "club mix")),
+    "remix": ("remix", ("remix", "rmx")),
+    "mashup": ("mashup", ("mashup", "mash up", "mash-up")),
+    "edit": ("dj edit", ("edit", "intro", "rework", "bootleg", "blend")),
+}
+# Llevan "edit" pero son justo lo contrario de una version para DJ
+_NO_SON_EDIT = re.compile(r"\b(radio|single|clean|tiktok)\s+edit\b", re.I)
+
+
+def es_version(titulo: str, version: str | None) -> bool:
+    """Si el titulo de un video parece de esa version. Sin version, todo vale."""
+    if not version:
+        return True
+    texto = titulo.lower()
+    if version == "edit":
+        texto = _NO_SON_EDIT.sub(" ", texto)
+    return any(palabra in texto for palabra in VERSIONES[version][1])
+
+
+def search_query(title: str | None, artist: str | None, version: str | None = None) -> str:
     """Consulta para yt-dlp. Se piden varios resultados, no uno: el primero
     suele ser un mix largo cuando la consulta no es exacta.
 
     Sin titulo se esta explorando a un artista, asi que se piden mas.
     """
-    terms = " ".join(part.strip() for part in (artist, title) if part and part.strip())
+    extra = VERSIONES[version][0] if version else None
+    terms = " ".join(part.strip() for part in (artist, title, extra) if part and part.strip())
     cuantos = (
         settings.search_candidates
         if (title or "").strip()
@@ -256,7 +279,7 @@ def _video_url(data: dict) -> str:
     )
 
 
-def search(title: str | None, artist: str | None) -> list[SearchResult]:
+def search(title: str | None, artist: str | None, version: str | None = None) -> list[SearchResult]:
     """Lista los candidatos de una busqueda sin descargar nada.
 
     Usa --flat-playlist: pedir los metadatos completos de cinco videos tarda
@@ -265,7 +288,7 @@ def search(title: str | None, artist: str | None) -> list[SearchResult]:
     elegir.
     """
     payload = _run(
-        _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist)]
+        _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist, version)]
     )
     resultados = []
     for data in _candidates(payload):

@@ -30,6 +30,11 @@ from app.models.user import User
 from app.services import downloader, track_service
 from app.services.downloader import DownloadError
 
+# Menos que esto es un avance o un trozo para redes, no la cancion: pasa mucho
+# con extended y mashups, que se anuncian con 20 segundos en YouTube
+MIN_SEGUNDOS = 90
+NOMBRE_VERSION = {"extended": "extended", "remix": "remix", "mashup": "mashup", "edit": "DJ edit"}
+
 logger = logging.getLogger(__name__)
 
 # Sin trabajo, cada cuanto se vuelve a mirar
@@ -45,12 +50,15 @@ def create_batch(
     name: str,
     crate_id: int | None,
     songs: list[tuple[str, str | None]],
+    version: str | None = None,
 ) -> DownloadBatch:
     """Crea la tanda con sus canciones pendientes. LookupError si el crate no
     existe."""
     if crate_id is not None and db.get(Crate, crate_id) is None:
         raise LookupError("Crate no encontrado.")
-    batch = DownloadBatch(user_id=user.id, name=name.strip()[:200] or "Descargas", crate_id=crate_id)
+    batch = DownloadBatch(
+        user_id=user.id, name=name.strip()[:200] or "Descargas", crate_id=crate_id, version=version
+    )
     for posicion, (titulo, artista) in enumerate(songs):
         batch.items.append(
             DownloadBatchItem(
@@ -145,7 +153,7 @@ def process_item(session_factory, item_id: int) -> None:
         if item is None:
             return
         batch = item.batch
-        titulo, artista, crate_id = item.title, item.artist, batch.crate_id
+        titulo, artista, crate_id, version = item.title, item.artist, batch.crate_id, batch.version
         user = db.get(User, batch.user_id) if batch.user_id else None
         track_id = item.track_id
 
@@ -155,19 +163,32 @@ def process_item(session_factory, item_id: int) -> None:
         return
 
     try:
-        resultados = downloader.search(titulo, artista)
+        resultados = downloader.search(titulo, artista, version)
     except DownloadError as exc:
         _poner(session_factory, item_id, BatchItemStatus.error, message=str(exc))
         return
 
     limite = settings.max_song_duration_seconds
-    # El primero de YouTube que no sea un mix de una hora
+    # El primero de YouTube que no sea un mix de una hora y, si se pidio una
+    # version, que lo diga el titulo: YouTube devuelve la normal cuando no hay
+    # otra, y bajarla como si fuera un mashup engañaria
     elegido = next(
-        (r for r in resultados if not (r.duration_seconds and r.duration_seconds > limite)),
+        (
+            r
+            for r in resultados
+            if not (r.duration_seconds and r.duration_seconds > limite)
+            and not (r.duration_seconds and r.duration_seconds < MIN_SEGUNDOS)
+            and downloader.es_version(r.title, version)
+        ),
         None,
     )
     if elegido is None:
-        _poner(session_factory, item_id, BatchItemStatus.not_found)
+        _poner(
+            session_factory,
+            item_id,
+            BatchItemStatus.not_found,
+            message=f"No hay versión {NOMBRE_VERSION[version]} en YouTube." if version else None,
+        )
         return
 
     with session_factory() as db:

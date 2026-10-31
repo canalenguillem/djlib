@@ -22,6 +22,7 @@ def _summary(db, batch: DownloadBatch) -> dict:
         "name": batch.name,
         "crate_id": batch.crate_id,
         "crate_name": crate.name if crate else None,
+        "version": batch.version,
         "status": batch.status,
         "created_at": batch.created_at,
         "total": len(batch.items),
@@ -59,6 +60,7 @@ def create_batch(payload: BatchCreate, current_user: CurrentUser, db: DbSession)
             payload.name,
             payload.crate_id,
             [(s.title, s.artist) for s in payload.songs],
+            version=payload.version,
         )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
