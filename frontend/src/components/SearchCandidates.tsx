@@ -1,11 +1,41 @@
 import { useEffect, useRef, useState } from 'react'
 
+import * as artistsApi from '../api/artists'
 import * as tracksApi from '../api/tracks'
 import { formatDuration } from '../lib/format'
 import { VersionChips, nombreVersion } from '../lib/versiones'
 import type { SearchCandidate, Track, Version } from '../types/api'
 import { CrateSelect } from './CrateSelect'
 import { PauseIcon, PlayIcon } from './icons'
+
+const SEPARA = /\s*(?:,|&|\bx\b|\bfeat\.?|\bft\.?|\bvs\.?)\s*/i
+// "(Kennan Mashup Edit)", "[DJ Larry G Remix]": quien hizo la version
+const AUTOR_VERSION = /[([]([^()[\]]+?)\s+(?:remix|mashup|edit|rework|bootleg|extended|mix)\b/gi
+// Trozos de titulo que no son de nadie: "(Lyric Video / Remix)"
+const NO_ES_NOMBRE = /[/@#]|\b(?:video|lyrics?|letra|visualizer|audio)\b/i
+const NO_SON_NOMBRES = /^(official|video|audio|lyric|letra|visualizer|extended|radio|club|original|dj|the|mashup|remix)$/i
+
+/** Nombres que salen en un resultado y por los que puede interesar buscar mas:
+ *  el canal, los artistas de antes del guion y quien firma el remix o mashup. */
+function nombresDe(candidate: SearchCandidate): string[] {
+  const nombres: string[] = []
+  const guion = candidate.title.split(/\s+[-–|]\s+/)
+  if (guion.length > 1) nombres.push(...guion[0].split(SEPARA))
+  for (const m of candidate.title.matchAll(AUTOR_VERSION)) nombres.push(m[1])
+  if (candidate.channel) nombres.push(candidate.channel.replace(/\s*-\s*Topic$/i, ''))
+  const vistos = new Set<string>()
+  return nombres
+    .map((n) => n.replace(/\b(?:official|oficial)\b.*$/i, '').trim())
+    .map((n) => n.replace(/\s+mix$/i, '').trim())
+    .filter((n) => n.length > 1 && n.length <= 40 && !NO_SON_NOMBRES.test(n) && !NO_ES_NOMBRE.test(n))
+    .filter((n) => {
+      const clave = n.toLowerCase()
+      if (vistos.has(clave)) return false
+      vistos.add(clave)
+      return true
+    })
+    .slice(0, 5)
+}
 
 interface Props {
   candidates: SearchCandidate[]
@@ -75,13 +105,95 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     }
   }
 
+  // Busqueda de un artista o DJ que ha salido en los resultados: se ve aqui
+  // mismo, en lugar de la de antes, hasta que se vuelve
+  const [otra, setOtra] = useState<{ nombre: string; version: Version | null; lista: SearchCandidate[] } | null>(null)
+  const [escrito, setEscrito] = useState('')
+  const [buscandoOtra, setBuscandoOtra] = useState(false)
+  const [guardado, setGuardado] = useState<string | null>(null)
+
+  async function buscarArtista(nombre: string, enVersion: Version | null = null) {
+    const limpio = nombre.trim()
+    if (!limpio) return
+    parar()
+    setFallo(null)
+    setBuscandoOtra(true)
+    try {
+      const resultado = await tracksApi.previewSearch(null, limpio, enVersion)
+      setOtra({ nombre: limpio, version: enVersion, lista: resultado.candidates })
+      setEscrito('')
+    } catch (err) {
+      setFallo(err instanceof Error ? err.message : 'La busqueda ha fallado.')
+    } finally {
+      setBuscandoOtra(false)
+    }
+  }
+
+  async function guardarArtista(nombre: string) {
+    setFallo(null)
+    try {
+      await artistsApi.createArtist(nombre)
+      setGuardado(nombre)
+    } catch (err) {
+      setFallo(err instanceof Error ? err.message : 'No se pudo guardar el artista.')
+    }
+  }
+
+  const lista = otra ? otra.lista : candidates
+
   // Lo que ya se tenia antes de buscar no se ofrece: estorba para ver lo nuevo.
   // Lo anadido desde aqui si se queda, para poder elegirle crate
   const [verTenidas, setVerTenidas] = useState(false)
-  const tenidas = candidates.filter((c) => c.already_in_library && !nuevas[c.video_id])
-  const visibles = verTenidas ? candidates : candidates.filter((c) => !tenidas.includes(c))
+  const tenidas = lista.filter((c) => c.already_in_library && !nuevas[c.video_id])
+  const visibles = verTenidas ? lista : lista.filter((c) => !tenidas.includes(c))
 
-  const versiones = onVersion && <VersionChips version={version} onChange={onVersion} />
+  const versiones = otra ? (
+    <VersionChips version={otra.version} onChange={(v) => void buscarArtista(otra.nombre, v)} disabled={buscandoOtra} />
+  ) : (
+    onVersion && <VersionChips version={version} onChange={onVersion} />
+  )
+  const cabecera = (
+    <>
+      {otra && (
+        <div className="candidates__otra">
+          <strong>Más de «{otra.nombre}»</strong>
+          <button type="button" className="btn btn--ghost" onClick={() => setOtra(null)}>
+            ← Volver a la búsqueda
+          </button>
+          {guardado === otra.nombre ? (
+            <span className="badge badge--ok">guardado en Artistas</span>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--ghost"
+              title="Para tenerlo en Artistas y volver a él cuando quieras"
+              onClick={() => void guardarArtista(otra.nombre)}
+            >
+              Guardar en Artistas
+            </button>
+          )}
+        </div>
+      )}
+      <form
+        className="candidates__otra"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void buscarArtista(escrito)
+        }}
+      >
+        <input
+          value={escrito}
+          placeholder="Buscar más de un artista o DJ..."
+          aria-label="Artista o DJ"
+          onChange={(e) => setEscrito(e.target.value)}
+        />
+        <button type="submit" className="btn btn--ghost" disabled={buscandoOtra || !escrito.trim()}>
+          {buscandoOtra ? 'Buscando...' : 'Buscar'}
+        </button>
+      </form>
+      {versiones}
+    </>
+  )
   const avisoTenidas = tenidas.length > 0 && (
     <p className="muted candidates__tenidas">
       {verTenidas
@@ -93,10 +205,11 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     </p>
   )
 
-  if (candidates.length === 0) {
+  if (lista.length === 0) {
     return (
       <>
-        {versiones}
+        {cabecera}
+        {fallo && <p className="candidate__fallo">{fallo}</p>}
         <p className="muted">YouTube no ha devuelto resultados. Prueba con otras palabras.</p>
       </>
     )
@@ -104,10 +217,10 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
 
   return (
     <>
-      {versiones}
+      {cabecera}
       {fallo && <p className="candidate__fallo">{fallo}</p>}
       {avisoTenidas}
-      {visibles.length === 0 && candidates.length > 0 && (
+      {visibles.length === 0 && lista.length > 0 && (
         <p className="muted">Todo lo que ha encontrado YouTube ya lo tienes. Prueba otra versión.</p>
       )}
     <ul className="candidates">
@@ -145,9 +258,25 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
                   <span className="badge badge--off">muy corta, quizá un avance</span>
                 )}
                 {!candidate.matches_version && (
-                  <span className="badge badge--off">no parece {nombreVersion(version).toLowerCase()}</span>
+                  <span className="badge badge--off">
+                    no parece {nombreVersion(otra ? otra.version : version).toLowerCase()}
+                  </span>
                 )}
                 {inLibrary && <span className="badge badge--ok">ya en la biblioteca</span>}
+              </div>
+              <div className="candidate__nombres">
+                {nombresDe(candidate).map((nombre) => (
+                  <button
+                    key={nombre}
+                    type="button"
+                    className="candidate__nombre"
+                    title={`Buscar más de ${nombre}`}
+                    disabled={buscandoOtra}
+                    onClick={() => void buscarArtista(nombre)}
+                  >
+                    {nombre}
+                  </button>
+                ))}
               </div>
             </div>
             <button

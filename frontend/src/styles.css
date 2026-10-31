@@ -2813,3 +2813,41 @@ input[type='file'] {
   gap: 0.5rem;
   margin: 0.5rem 0;
 }
+
+.candidates__otra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.candidates__otra input {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.candidate__nombres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+}
+
+.candidate__nombre {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent, #8b7bff);
+  cursor: pointer;
+}
+
+.candidate__nombre::before {
+  content: '↗ ';
+  opacity: 0.6;
+}
+
+.candidate__nombre:hover {
+  text-decoration: underline;
+}
