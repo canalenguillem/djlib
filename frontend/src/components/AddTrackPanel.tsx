@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as tracksApi from '../api/tracks'
-import type { SearchCandidate, Version } from '../types/api'
+import { nombreVersion } from '../lib/versiones'
+import type { SearchCandidate, SearchHistoryEntry, Version } from '../types/api'
 import { Alert } from './Alert'
 import { SearchCandidates } from './SearchCandidates'
 
@@ -34,8 +35,45 @@ export function AddTrackPanel({ onAdded, onResults }: Props) {
   const [addedIds, setAddedIds] = useState<string[]>([])
   const [addingId, setAddingId] = useState<string | null>(null)
   const [version, setVersion] = useState<Version | null>(null)
+  // Ultimas busquedas (de aqui y de cualquier "Buscar en YouTube"), por si se pierde alguna
+  const [historial, setHistorial] = useState<SearchHistoryEntry[]>([])
 
   const conResultados = mode === 'search' && candidates !== null
+
+  useEffect(() => {
+    if (mode !== 'search' || candidates !== null) return
+    tracksApi
+      .searchHistory()
+      .then(setHistorial)
+      .catch(() => undefined)
+  }, [mode, candidates])
+
+  async function repetir(b: SearchHistoryEntry) {
+    setTitle(b.title ?? '')
+    setArtist(b.artist ?? '')
+    setVersion(b.version)
+    setError(null)
+    setOk(null)
+    setSending(true)
+    try {
+      const resultados = await tracksApi.previewSearch(b.title, b.artist, b.version)
+      setCandidates(resultados.candidates)
+      setAddedIds([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function borrarHistorial() {
+    try {
+      await tracksApi.clearSearchHistory()
+      setHistorial([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo borrar el historial.')
+    }
+  }
   useEffect(() => {
     onResults?.(conResultados)
   }, [conResultados, onResults])
@@ -244,6 +282,40 @@ export function AddTrackPanel({ onAdded, onResults }: Props) {
         </div>
       </form>
 
+      {mode === 'search' && !conResultados && historial.length > 0 && (
+        <div className="historial">
+          <div className="historial__cabecera">
+            <h3>Últimas búsquedas</h3>
+            <button type="button" className="btn btn--ghost" onClick={() => void borrarHistorial()}>
+              Borrar
+            </button>
+          </div>
+          <ul className="historial__lista">
+            {historial.map((b) => (
+              <li key={b.id}>
+                <button
+                  type="button"
+                  className="historial__item"
+                  disabled={sending}
+                  title="Buscar otra vez"
+                  onClick={() => void repetir(b)}
+                >
+                  <span>{[b.artist, b.title].filter(Boolean).join(' – ')}</span>
+                  {b.version && <span className="badge">{nombreVersion(b.version)}</span>}
+                  <span className="muted historial__fecha">
+                    {new Date(b.created_at + (b.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString('es-ES', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {conResultados && (
         <div className="grid-form__actions">
           <button type="button" className="btn btn--ghost" onClick={() => setCandidates(null)}>

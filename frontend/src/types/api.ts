@@ -396,3 +396,20 @@ export interface BeatportTop {
   genre: BeatportGenre | null
   items: BeatportTrack[]
 }
+
+/** Un crate donde podria ir una cancion, y por que. */
+export interface CrateSuggestion {
+  crate_id: number
+  name: string
+  reasons: string[]
+}
+
+/** Una busqueda en YouTube ya hecha, para repetirla. */
+export interface SearchHistoryEntry {
+  id: number
+  title: string | null
+  artist: string | null
+  version: Version | null
+  results: number
+  created_at: string
+}

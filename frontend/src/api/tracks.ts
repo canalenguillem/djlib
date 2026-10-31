@@ -1,4 +1,4 @@
-import type { SearchResults, Track, TrackFilters, TrackPage, Version, Waveform } from '../types/api'
+import type { CrateSuggestion, SearchHistoryEntry, SearchResults, Track, TrackFilters, TrackPage, Version, Waveform } from '../types/api'
 import { apiFetch, apiFetchBlob, apiFetchForm } from './client'
 
 export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
@@ -115,4 +115,17 @@ export function fetchTrackMp3(id: number): Promise<Blob> {
 
 export function fetchTrackFile(id: number): Promise<Blob> {
   return apiFetchBlob(`/tracks/${id}/file`)
+}
+
+/** Hasta tres crates donde encajaria la cancion, con el porque. */
+export function crateSuggestions(id: number): Promise<CrateSuggestion[]> {
+  return apiFetch<CrateSuggestion[]>(`/tracks/${id}/crate-suggestions`)
+}
+
+export function searchHistory(limit = 30): Promise<SearchHistoryEntry[]> {
+  return apiFetch<SearchHistoryEntry[]>(`/tracks/search/history?limit=${limit}`)
+}
+
+export function clearSearchHistory(): Promise<void> {
+  return apiFetch<void>('/tracks/search/history', { method: 'DELETE' })
 }

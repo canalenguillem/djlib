@@ -2851,3 +2851,66 @@ input[type='file'] {
 .candidate__nombre:hover {
   text-decoration: underline;
 }
+
+.crateselect {
+  flex-wrap: wrap;
+}
+
+.crateselect__sugerencias {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  flex-basis: 100%;
+}
+
+.crateselect__sugerencias .chip {
+  font-size: 0.8rem;
+  padding: 0.1rem 0.5rem;
+}
+
+.historial {
+  margin-top: 1rem;
+}
+
+.historial__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.historial__cabecera h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.historial__lista {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.historial__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.25rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border, #2a2a33);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.historial__item:hover {
+  color: var(--accent-hover);
+}
+
+.historial__fecha {
+  margin-left: auto;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}

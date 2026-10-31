@@ -22,6 +22,8 @@ from app.models.artist import EnrichmentStatus
 from app.models.track import Track, TrackStatus
 from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
+    CrateSuggestion,
+    SearchHistoryOut,
     SearchCandidate,
     SearchResults,
     TrackCrateMove,
@@ -34,6 +36,8 @@ from app.schemas.track import (
     TrackUpdate,
     WaveformOut,
 )
+from app.services import crate_suggestions as crate_suggestions_service
+from app.services import search_history
 from app.services import (
     artist_service,
     downloader,
@@ -139,6 +143,8 @@ def preview_search(
 
     ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
     limite = settings.max_song_duration_seconds
+    search_history.record(db, current_user, payload.title, payload.artist, payload.version, len(resultados))
+    db.commit()
 
     return SearchResults(
         query=downloader.search_query(payload.title, payload.artist, payload.version),
@@ -157,6 +163,20 @@ def preview_search(
             for r in resultados
         ],
     )
+
+
+@router.get("/search/history", response_model=list[SearchHistoryOut])
+def search_history_list(
+    current_user: CurrentUser, db: DbSession, limit: int = Query(30, ge=1, le=100)
+) -> list[SearchHistoryOut]:
+    """Las ultimas busquedas en YouTube, la mas reciente primero."""
+    return [SearchHistoryOut.model_validate(h) for h in search_history.recent(db, current_user, limit)]
+
+
+@router.delete("/search/history", status_code=status.HTTP_204_NO_CONTENT)
+def search_history_clear(current_user: CurrentUser, db: DbSession) -> None:
+    search_history.clear(db, current_user)
+    db.commit()
 
 
 @router.post("/search", response_model=TrackOut, status_code=status.HTTP_202_ACCEPTED)
@@ -298,6 +318,16 @@ def update_track(
         mp3_service.forget(track.file_path)
         background.add_task(track_service.prepare_mp3, session_factory, track.id)
     return TrackOut.model_validate(track)
+
+
+@router.get("/{track_id}/crate-suggestions", response_model=list[CrateSuggestion])
+def crate_suggestions(track_id: int, current_user: CurrentUser, db: DbSession) -> list[CrateSuggestion]:
+    """Hasta tres crates donde encajaria, por lo que ya hay dentro de cada uno."""
+    track = _get_or_404(db, track_id)
+    return [
+        CrateSuggestion(crate_id=s.crate.id, name=s.crate.name, reasons=s.motivos)
+        for s in crate_suggestions_service.suggest(db, track)
+    ]
 
 
 @router.put("/{track_id}/crate", response_model=TrackOut)

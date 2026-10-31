@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react'
 
 import * as tracksApi from '../api/tracks'
 import { useCrates } from '../lib/crates'
+import type { CrateSuggestion } from '../types/api'
 
 interface Props {
   trackId: number
   crateIds: number[]
   pendingCrateId: number | null
+  /** Proponer crates segun lo que ya hay en cada uno (al bajar una nueva). */
+  sugerir?: boolean
 }
 
 /** Desplegable para meter una cancion en un crate o cambiarla de crate. Si
  *  aun se esta descargando, entra en el crate al terminar. */
-export function CrateSelect({ trackId, crateIds, pendingCrateId }: Props) {
+export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false }: Props) {
   const crates = useCrates()
   const [actuales, setActuales] = useState(crateIds)
   const [pendienteId, setPendienteId] = useState(pendingCrateId)
@@ -30,6 +33,24 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId }: Props) {
   // Si esta en varios, se muestra el primero y se avisa de los demas
   const actual = pendienteId ?? actuales[0] ?? null
   const otros = actuales.length - 1
+
+  // Solo mientras no tenga crate: despues ya no hace falta
+  const [sugerencias, setSugerencias] = useState<CrateSuggestion[]>([])
+  const sinCrate = actual === null
+  useEffect(() => {
+    if (!sugerir || !sinCrate) {
+      setSugerencias([])
+      return
+    }
+    let vivo = true
+    tracksApi
+      .crateSuggestions(trackId)
+      .then((s) => vivo && setSugerencias(s))
+      .catch(() => undefined)
+    return () => {
+      vivo = false
+    }
+  }, [sugerir, sinCrate, trackId])
 
   async function cambiar(destino: number | null) {
     if (destino === actual) return
@@ -65,6 +86,23 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId }: Props) {
       {otros > 0 && (
         <span className="crateselect__more" title="También está en otros crates">
           +{otros}
+        </span>
+      )}
+      {sugerencias.length > 0 && (
+        <span className="crateselect__sugerencias">
+          <span className="crateselect__more">Sugeridos:</span>
+          {sugerencias.map((s) => (
+            <button
+              key={s.crate_id}
+              type="button"
+              className="chip"
+              title={s.reasons.join(' · ')}
+              disabled={guardando}
+              onClick={() => void cambiar(s.crate_id)}
+            >
+              {s.name}
+            </button>
+          ))}
         </span>
       )}
       {error && <span className="crateselect__error">{error}</span>}

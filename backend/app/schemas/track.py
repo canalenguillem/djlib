@@ -143,3 +143,22 @@ class WaveformOut(BaseModel):
     low: list[int]
     mid: list[int]
     high: list[int]
+
+
+class CrateSuggestion(BaseModel):
+    """Un crate donde podria ir una cancion, y por que."""
+
+    crate_id: int
+    name: str
+    reasons: list[str]
+
+
+class SearchHistoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str | None = None
+    artist: str | None = None
+    version: str | None = None
+    results: int
+    created_at: datetime

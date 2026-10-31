@@ -305,6 +305,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
                 trackId={enBiblioteca.id}
                 crateIds={enBiblioteca.crateIds}
                 pendingCrateId={enBiblioteca.pending}
+                sugerir={nueva !== undefined}
               />
             ) : (
               <button
