@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
 import * as artistsApi from '../api/artists'
+import * as cratesApi from '../api/crates'
 import * as tracksApi from '../api/tracks'
+import { refrescarCrates, useCrates } from '../lib/crates'
 import { formatDuration } from '../lib/format'
 import { VersionChips, nombreVersion } from '../lib/versiones'
 import type { SearchCandidate, Track, Version } from '../types/api'
@@ -147,6 +149,123 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
   const tenidas = lista.filter((c) => c.already_in_library && !nuevas[c.video_id])
   const visibles = verTenidas ? lista : lista.filter((c) => !tenidas.includes(c))
 
+  // Guardar toda la busqueda en un crate: las nuevas se bajan y las que ya se
+  // tenian solo entran. Los mixes largos y los avances cortos se dejan fuera
+  const crates = useCrates()
+  const [crateTodas, setCrateTodas] = useState<number | null>(null)
+  const [nombreNuevo, setNombreNuevo] = useState<string | null>(null)
+  const [guardandoTodas, setGuardandoTodas] = useState<{ hechas: number; total: number } | null>(null)
+  const [hechoTodas, setHechoTodas] = useState<string | null>(null)
+  const utiles = lista.filter(
+    (c) => !c.too_long && !(c.duration_seconds !== null && c.duration_seconds < 90),
+  )
+
+  async function guardarTodas() {
+    setFallo(null)
+    setHechoTodas(null)
+    let destino = crateTodas
+    try {
+      if (nombreNuevo !== null) {
+        if (!nombreNuevo.trim()) return
+        destino = (await cratesApi.createCrate(nombreNuevo.trim())).id
+        await refrescarCrates()
+        setCrateTodas(destino)
+        setNombreNuevo(null)
+      }
+    } catch (err) {
+      setFallo(err instanceof Error ? err.message : 'No se pudo crear el crate.')
+      return
+    }
+    if (destino === null) return
+    const crateId = destino
+    let hechas = 0
+    let fallidas = 0
+    setGuardandoTodas({ hechas, total: utiles.length })
+    const pendientes = [...utiles]
+    async function trabajador() {
+      for (let c = pendientes.shift(); c; c = pendientes.shift()) {
+        try {
+          const ya = nuevas[c.video_id]?.id ?? c.track_id
+          if (ya !== null) {
+            // Sin sacarla de donde este; si aun se descarga, entra al terminar
+            const track = await tracksApi.moveTrackToCrate(ya, crateId, null)
+            const id = c.video_id
+            setNuevas((prev) => ({ ...prev, [id]: track }))
+          } else {
+            const track = await tracksApi.addFromUrl(c.url, crateId)
+            const id = c.video_id
+            setNuevas((prev) => ({ ...prev, [id]: track }))
+          }
+        } catch {
+          fallidas += 1
+        }
+        hechas += 1
+        setGuardandoTodas({ hechas, total: utiles.length })
+      }
+    }
+    // De tres en tres: cada una pide a YouTube sus datos antes de responder
+    await Promise.all([trabajador(), trabajador(), trabajador()])
+    await refrescarCrates()
+    setGuardandoTodas(null)
+    const nombre = crates.find((c) => c.id === crateId)?.name ?? 'el crate'
+    setHechoTodas(
+      `${utiles.length - fallidas} guardadas en «${nombre}»` +
+        (fallidas ? `; ${fallidas} no se pudieron añadir.` : '. Las nuevas se están descargando.'),
+    )
+  }
+
+  const barraTodas = utiles.length > 0 && (
+    <div className="candidates__otra">
+      <span>Guardar las {utiles.length} en</span>
+      {nombreNuevo !== null ? (
+        <input
+          value={nombreNuevo}
+          autoFocus
+          placeholder="Nombre del crate nuevo"
+          aria-label="Nombre del crate nuevo"
+          onChange={(e) => setNombreNuevo(e.target.value)}
+        />
+      ) : (
+        <select
+          aria-label="Crate para toda la búsqueda"
+          value={crateTodas ?? ''}
+          disabled={guardandoTodas !== null}
+          onChange={(e) => {
+            if (e.target.value === 'nuevo') setNombreNuevo(otra?.nombre ?? '')
+            else setCrateTodas(e.target.value ? Number(e.target.value) : null)
+          }}
+        >
+          <option value="">Elige un crate...</option>
+          {crates.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+          <option value="nuevo">+ Crear uno nuevo...</option>
+        </select>
+      )}
+      <button
+        type="button"
+        className="btn btn--primary"
+        disabled={
+          guardandoTodas !== null || (nombreNuevo !== null ? !nombreNuevo.trim() : crateTodas === null)
+        }
+        title="Las que no tienes se descargan; las que ya tienes solo entran en el crate. Se dejan fuera los mixes largos y los avances cortos."
+        onClick={() => void guardarTodas()}
+      >
+        {guardandoTodas
+          ? `Guardando ${guardandoTodas.hechas} de ${guardandoTodas.total}...`
+          : 'Guardar todas'}
+      </button>
+      {nombreNuevo !== null && guardandoTodas === null && (
+        <button type="button" className="btn btn--ghost" onClick={() => setNombreNuevo(null)}>
+          Cancelar
+        </button>
+      )}
+      {hechoTodas && <span className="badge badge--ok">{hechoTodas}</span>}
+    </div>
+  )
+
   const versiones = otra ? (
     <VersionChips version={otra.version} onChange={(v) => void buscarArtista(otra.nombre, v)} disabled={buscandoOtra} />
   ) : (
@@ -192,6 +311,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
         </button>
       </form>
       {versiones}
+      {barraTodas}
     </>
   )
   const avisoTenidas = tenidas.length > 0 && (
