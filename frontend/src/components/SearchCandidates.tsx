@@ -75,7 +75,23 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     }
   }
 
+  // Lo que ya se tenia antes de buscar no se ofrece: estorba para ver lo nuevo.
+  // Lo anadido desde aqui si se queda, para poder elegirle crate
+  const [verTenidas, setVerTenidas] = useState(false)
+  const tenidas = candidates.filter((c) => c.already_in_library && !nuevas[c.video_id])
+  const visibles = verTenidas ? candidates : candidates.filter((c) => !tenidas.includes(c))
+
   const versiones = onVersion && <VersionChips version={version} onChange={onVersion} />
+  const avisoTenidas = tenidas.length > 0 && (
+    <p className="muted candidates__tenidas">
+      {verTenidas
+        ? `Se ven también las ${tenidas.length} que ya tienes.`
+        : `${tenidas.length === 1 ? 'Oculta 1 que ya tienes' : `Ocultas ${tenidas.length} que ya tienes`}.`}{' '}
+      <button type="button" className="btn btn--ghost" onClick={() => setVerTenidas((v) => !v)}>
+        {verTenidas ? 'Ocultarlas' : 'Verlas'}
+      </button>
+    </p>
+  )
 
   if (candidates.length === 0) {
     return (
@@ -90,8 +106,12 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     <>
       {versiones}
       {fallo && <p className="candidate__fallo">{fallo}</p>}
+      {avisoTenidas}
+      {visibles.length === 0 && candidates.length > 0 && (
+        <p className="muted">Todo lo que ha encontrado YouTube ya lo tienes. Prueba otra versión.</p>
+      )}
     <ul className="candidates">
-      {candidates.map((candidate) => {
+      {visibles.map((candidate) => {
         const added = addedIds.includes(candidate.video_id)
         const inLibrary = candidate.already_in_library || added
         const nueva = nuevas[candidate.video_id]

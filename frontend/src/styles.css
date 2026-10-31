@@ -2806,3 +2806,10 @@ input[type='file'] {
 .charts__lados {
   margin-bottom: 0.75rem;
 }
+
+.candidates__tenidas {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
