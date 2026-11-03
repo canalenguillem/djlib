@@ -13,10 +13,10 @@ import type { EqBand } from '../lib/audioEngine'
 import { COLOR_FX } from '../lib/colorFx'
 import type { ColorFxId } from '../lib/colorFx'
 import { ContadorEscucha } from '../lib/escuchas'
-import { EQUIPOS, equipoGuardado, guardarEquipo, rangoCercano } from '../lib/equipos'
+import { MESA, rangoQueCabe } from '../lib/equipos'
 import type { Equipo } from '../lib/equipos'
 import { BANDS, analyzeBuffer } from '../lib/waveform'
-import { detectBeatGrid, setDownbeat } from '../lib/beatgrid'
+import { BEATS_PER_BAR, beatPosition, detectBeatGrid, modulo, setDownbeat } from '../lib/beatgrid'
 import type { BeatGrid } from '../lib/beatgrid'
 import type { DeckWaveformData } from '../lib/waveform'
 import { formatDuration } from '../lib/format'
@@ -95,11 +95,11 @@ export function MixerPage() {
   const cargas = useRef<[number, number]>([0, 0])
   // Si cada plato esta sonando solo mientras se mantiene pulsado el CUE
   const preescucha = useRef<[boolean, boolean]>([false, false])
-  // Modelo de cabina que se simula; se recuerda entre visitas
-  const [equipo, setEquipo] = useState(equipoGuardado)
-  // Para los barridos de EQ, que leen el equipo desde una animacion
-  const equipoRef = useRef(equipo)
-  equipoRef.current = equipo
+  // Una sola mesa: platos tipo CDJ y mezclador tipo DJM
+  const equipo = MESA
+  // Plato con SYNC encendido: sigue el tempo del otro y, al darle a PLAY,
+  // entra a la par de sus golpes. Solo uno a la vez, el otro manda
+  const [sync, setSync] = useState<0 | 1 | null>(null)
   const [estados, setEstados] = useState<[EstadoPlato, EstadoPlato]>(() => [
     platoInicial(equipo),
     platoInicial(equipo),
@@ -258,9 +258,56 @@ export function MixerPage() {
       preescucha.current[indice] = false
       return
     }
-    if (deck.playing) deck.pause()
-    else deck.play()
-    actualizar(indice, { playing: deck.playing })
+    if (deck.playing) {
+      deck.pause()
+    } else {
+      // Con SYNC, arranca en el punto que cae a la par del otro plato
+      if (sync === indice) {
+        const enFase = posicionEnFase(indice)
+        if (enFase !== null) deck.seek(enFase)
+      }
+      deck.play()
+    }
+    actualizar(indice, { playing: deck.playing, position: deck.position })
+  }
+
+  /** Donde tendria que estar un plato para que sus golpes caigan con los del
+   *  otro, que es el que suena: en el mismo tiempo del compas y lo mas cerca
+   *  posible de donde esta ahora. Hace falta la rejilla de los dos. */
+  function posicionEnFase(indice: 0 | 1): number | null {
+    const otro = indice === 0 ? 1 : 0
+    const propio = decks.current?.[indice]
+    const guia = decks.current?.[otro]
+    const gPropia = estados[indice].grid
+    const gGuia = estados[otro].grid
+    if (!propio?.loaded || !guia?.playing || !gPropia || !gGuia) return null
+    const fase = modulo(beatPosition(gGuia, guia.position), BEATS_PER_BAR)
+    const ahora = beatPosition(gPropia, propio.position)
+    const compas = Math.round((ahora - fase) / BEATS_PER_BAR)
+    const periodo = 60 / gPropia.bpm
+    let destino = gPropia.first + (compas * BEATS_PER_BAR + fase) * periodo
+    while (destino < 0) destino += BEATS_PER_BAR * periodo
+    return Math.min(destino, propio.duration)
+  }
+
+  /** El boton SYNC: iguala el tempo al del otro plato y, si los dos suenan,
+   *  los pone a la par ya; si este esta en pausa, al darle a PLAY. Pulsarlo
+   *  otra vez lo apaga y el tempo se queda donde esta. */
+  function pulsarSync(indice: 0 | 1) {
+    if (sync === indice) {
+      setSync(null)
+      return
+    }
+    if (!igualar(indice, true)) return
+    setSync(indice)
+    const deck = decks.current?.[indice]
+    if (deck?.playing) {
+      const enFase = posicionEnFase(indice)
+      if (enFase !== null) {
+        deck.seek(enFase)
+        actualizar(indice, { position: enFase })
+      }
+    }
   }
 
   /** El boton CUE de un CDJ, en el modo por defecto. */
@@ -296,7 +343,7 @@ export function MixerPage() {
   }
 
   function cambiarEq(indice: 0 | 1, banda: EqBand, posicion: number) {
-    const { eqMinDb, eqMaxDb } = equipoRef.current
+    const { eqMinDb, eqMaxDb } = MESA
     decks.current?.[indice].setEq(banda, eqDb(posicion, eqMinDb, eqMaxDb))
     setEstados((previo) => {
       const copia = [...previo] as [EstadoPlato, EstadoPlato]
@@ -405,16 +452,30 @@ export function MixerPage() {
     actualizar(indice, { tempo: 1 })
   }
 
-  /** Ajusta el tempo de un plato para que suene al mismo BPM que el otro. */
-  function igualar(indice: 0 | 1) {
+  /** Ajusta el tempo de un plato para que suene al mismo BPM que el otro.
+   *  Con `ampliar`, como hace SYNC, abre el recorrido del fader si no cabe. */
+  function igualar(indice: 0 | 1, ampliar = false): boolean {
     const propio = bpmDe(indice)
     const objetivo = sonandoA(indice === 0 ? 1 : 0)
-    if (!propio || !objetivo) return
-    const limite = estados[indice].range / 100
+    if (!propio || !objetivo) return false
+    const range = ampliar ? rangoQueCabe(MESA, estados[indice].range, objetivo / propio) : estados[indice].range
+    const limite = range / 100
     const ratio = Math.max(1 - limite, Math.min(1 + limite, objetivo / propio))
     decks.current?.[indice].setTempo(ratio)
-    actualizar(indice, { tempo: ratio })
+    actualizar(indice, { tempo: ratio, range })
+    return true
   }
+
+  // Con SYNC, si el otro plato cambia de tempo, este lo sigue
+  // (y tambien si se carga otra cancion en el, o se afina su rejilla)
+  const bpmGuia = sync === null ? null : sonandoA(sync === 0 ? 1 : 0)
+  const bpmPropio = sync === null ? null : bpmDe(sync)
+  useEffect(() => {
+    if (sync === null || bpmGuia === null || bpmPropio === null) return
+    const propio = sonandoA(sync)
+    if (propio !== null && Math.abs(propio - bpmGuia) > 0.001) igualar(sync, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync, bpmGuia, bpmPropio])
 
   /** Cambiar el recorrido del fader no debe mover el tempo, salvo que el valor
    *  actual se salga del nuevo rango. */
@@ -428,40 +489,10 @@ export function MixerPage() {
     actualizar(indice, { range: valor, tempo: ajustado })
   }
 
-  /** Pasar a otro modelo sin parar la musica: lo que suena sigue sonando y
-   *  solo cambia lo que el modelo nuevo hace distinto. */
-  function cambiarEquipo(id: string) {
-    const nuevo = EQUIPOS.find((e) => e.id === id)
-    if (!nuevo || nuevo.id === equipo.id) return
-    setEquipo(nuevo)
-    equipoRef.current = nuevo
-    // Si la mesa nueva no tiene el efecto encendido, se apaga
-    if (colorFx && !nuevo.colorFx.includes(colorFx)) setColorFx(null)
-    guardarEquipo(nuevo)
-    estados.forEach((estado, i) => {
-      const indice = i as 0 | 1
-      const range = rangoCercano(nuevo, estado.range)
-      const limite = range / 100
-      const tempo = Math.max(1 - limite, Math.min(1 + limite, estado.tempo))
-      if (tempo !== estado.tempo) decks.current?.[indice].setTempo(tempo)
-      // Los hot cues que caben se conservan; los que sobran se pierden
-      const cues = Array.from({ length: nuevo.hotCues }, (_, k) => estado.cues[k] ?? null)
-      actualizar(indice, { range, tempo, cues })
-      // La rueda de una mesa no significa lo mismo en la otra: vuelve al centro
-      decks.current?.[indice].colorFx.aplicar(null, 0, 0.5)
-      actualizar(indice, { color: 0 })
-      for (const banda of Object.keys(estado.eq) as EqBand[]) {
-        decks.current?.[indice].setEq(banda, eqDb(estado.eq[banda], nuevo.eqMinDb, nuevo.eqMaxDb))
-      }
-    })
-  }
-
-  /** Pone el SOUND COLOR FX de un canal como dicen la mesa y su rueda. Con
-   *  una rueda CFX de controladora no hay botones: siempre es un filtro. */
+  /** Pone el SOUND COLOR FX de un canal como dicen la mesa y su rueda. */
   function aplicarColor(indice: 0 | 1, efecto: ColorFxId | null, color: number, param: number) {
-    const cfx = equipoRef.current.cfx
     // PARAMETER va de -1 a 1 como todas las ruedas; el efecto lo quiere de 0 a 1
-    decks.current?.[indice].colorFx.aplicar(cfx ? 'filter' : efecto, color, cfx ? 0.2 : (param + 1) / 2)
+    decks.current?.[indice].colorFx.aplicar(efecto, color, (param + 1) / 2)
   }
 
   function elegirColorFx(id: ColorFxId) {
@@ -503,19 +534,7 @@ export function MixerPage() {
 
   return (
     <div className="stack">
-      <div className="mixer__cabecera">
-        <h1>Mesa de mezclas</h1>
-        <label className="field mixer__equipo">
-          <span>Equipo que se simula</span>
-          <select value={equipo.id} onChange={(e) => cambiarEquipo(e.target.value)}>
-            {EQUIPOS.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <h1>Mesa de mezclas</h1>
       <p className="muted">
         Dos platos con crossfader para practicar transiciones con tu propia
         biblioteca. El tempo cambia el tono, como en un plato de verdad. No sustituye
@@ -537,15 +556,23 @@ export function MixerPage() {
           {...estados[0]}
           otherBpm={sonandoA(1)}
           onMatch={() => igualar(0)}
+          sync={sync === 0}
+          canSync={sonandoA(1) !== null && bpmDe(0) !== null}
+          onSync={() => pulsarSync(0)}
           ranges={equipo.rangosTempo}
           onRange={(v) => cambiarRango(0, v)}
-          onResetTempo={() => tempoOriginal(0)}
+          onResetTempo={() => {
+            if (sync === 0) setSync(null)
+            tempoOriginal(0)
+          }}
           onPlayPause={() => alternar(0)}
           onSeek={(s) => {
             decks.current?.[0].seek(s)
             actualizar(0, { position: s })
           }}
           onTempo={(v) => {
+            // Mover el tempo a mano suelta el SYNC, como en un CDJ
+            if (sync === 0) setSync(null)
             decks.current?.[0].setTempo(v)
             actualizar(0, { tempo: v })
           }}
@@ -582,21 +609,6 @@ export function MixerPage() {
                     }}
                   />
                 ))}
-                {equipo.cfx && (
-                  <Knob
-                    label="CFX"
-                    color="#4fc3f7"
-                    value={estados[indice].color}
-                    valueText={
-                      estados[indice].color === 0
-                        ? 'Sin filtro'
-                        : estados[indice].color < 0
-                          ? `Quita agudos ${Math.round(-estados[indice].color * 100)}`
-                          : `Quita graves ${Math.round(estados[indice].color * 100)}`
-                    }
-                    onChange={(v) => girarColor(indice, v)}
-                  />
-                )}
                 {equipo.colorFx.length > 0 && (
                   <Knob
                     label="COLOR"
@@ -743,15 +755,23 @@ export function MixerPage() {
           {...estados[1]}
           otherBpm={sonandoA(0)}
           onMatch={() => igualar(1)}
+          sync={sync === 1}
+          canSync={sonandoA(0) !== null && bpmDe(1) !== null}
+          onSync={() => pulsarSync(1)}
           ranges={equipo.rangosTempo}
           onRange={(v) => cambiarRango(1, v)}
-          onResetTempo={() => tempoOriginal(1)}
+          onResetTempo={() => {
+            if (sync === 1) setSync(null)
+            tempoOriginal(1)
+          }}
           onPlayPause={() => alternar(1)}
           onSeek={(s) => {
             decks.current?.[1].seek(s)
             actualizar(1, { position: s })
           }}
           onTempo={(v) => {
+            // Mover el tempo a mano suelta el SYNC, como en un CDJ
+            if (sync === 1) setSync(null)
             decks.current?.[1].setTempo(v)
             actualizar(1, { tempo: v })
           }}

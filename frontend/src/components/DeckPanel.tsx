@@ -29,6 +29,11 @@ export interface DeckControls {
   ranges: number[]
   onRange: (valor: number) => void
   onMatch: () => void
+  /** SYNC encendido: sigue el tempo del otro y entra a la par al darle a PLAY. */
+  sync: boolean
+  /** Hace falta BPM en los dos platos y que el otro tenga algo cargado. */
+  canSync: boolean
+  onSync: () => void
   onResetTempo: () => void
   onPlayPause: () => void
   onSeek: (segundos: number) => void
@@ -239,6 +244,22 @@ export function DeckPanel(props: DeckControls) {
             onClick={props.onPlayPause}
           >
             {playing ? <PauseIcon /> : <PlayIcon />}
+          </button>
+          <button
+            type="button"
+            className={`syncbtn${props.sync ? ' syncbtn--on' : ''}`}
+            disabled={!listo || (!props.sync && !props.canSync)}
+            aria-pressed={props.sync}
+            title={
+              props.sync
+                ? 'SYNC encendido: sigue el tempo del otro plato. Púlsalo para soltarlo.'
+                : props.canSync
+                  ? 'Iguala el tempo al otro plato y pone los golpes a la par: ya, si suenan los dos, o al darle a PLAY si este está en pausa'
+                  : 'Hace falta una canción con BPM en los dos platos'
+            }
+            onClick={props.onSync}
+          >
+            SYNC
           </button>
         </div>
 
