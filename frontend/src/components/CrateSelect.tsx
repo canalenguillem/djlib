@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 
+import * as cratesApi from '../api/crates'
 import * as tracksApi from '../api/tracks'
-import { useCrates } from '../lib/crates'
+import { refrescarCrates, useCrates } from '../lib/crates'
 import type { CrateSuggestion } from '../types/api'
+
+const NUEVA = 'nueva'
 
 interface Props {
   trackId: number
@@ -20,6 +23,8 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false
   const [pendienteId, setPendienteId] = useState(pendingCrateId)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Nombre de la playlist nueva mientras se escribe; null si no se esta creando
+  const [nueva, setNueva] = useState<string | null>(null)
 
   // La lista se refresca mientras hay descargas: al terminar, el crate
   // apuntado pasa a ser uno de verdad
@@ -67,21 +72,75 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false
     }
   }
 
+  async function crear() {
+    const nombre = (nueva ?? '').trim()
+    if (!nombre) return
+    setGuardando(true)
+    setError(null)
+    try {
+      const creada = await cratesApi.createCrate(nombre)
+      await refrescarCrates()
+      setNueva(null)
+      const track = await tracksApi.moveTrackToCrate(trackId, creada.id, actual)
+      setActuales(track.crate_ids)
+      setPendienteId(track.pending_crate_id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear la playlist.')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  if (nueva !== null) {
+    return (
+      <form
+        className="crateselect crateselect--nueva"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void crear()
+        }}
+      >
+        <input
+          value={nueva}
+          autoFocus
+          placeholder="Nombre de la playlist nueva"
+          aria-label="Nombre de la playlist nueva"
+          onChange={(e) => setNueva(e.target.value)}
+        />
+        <button type="submit" className="btn btn--primary" disabled={guardando || !nueva.trim()}>
+          {guardando ? 'Creando...' : 'Crear'}
+        </button>
+        <button type="button" className="btn btn--ghost" onClick={() => setNueva(null)}>
+          Cancelar
+        </button>
+        {error && <span className="crateselect__error">{error}</span>}
+      </form>
+    )
+  }
+
   return (
     <span className={`crateselect${actual !== null ? ' crateselect--set' : ''}`}>
       <select
         aria-label="Playlist"
         title={pendienteId !== null ? 'Entrará en esta playlist al terminar de descargarse' : 'Playlist de la canción'}
         value={actual ?? ''}
-        disabled={guardando || crates.length === 0}
-        onChange={(e) => void cambiar(e.target.value ? Number(e.target.value) : null)}
+        disabled={guardando}
+        onChange={(e) => {
+          if (e.target.value === NUEVA) {
+            setError(null)
+            setNueva('')
+          } else {
+            void cambiar(e.target.value ? Number(e.target.value) : null)
+          }
+        }}
       >
-        <option value="">{crates.length === 0 ? 'No hay playlists' : 'Sin playlist'}</option>
+        <option value="">Sin playlist</option>
         {crates.map((crate) => (
           <option key={crate.id} value={crate.id}>
             {crate.name}
           </option>
         ))}
+        <option value={NUEVA}>+ Crear una nueva...</option>
       </select>
       {otros > 0 && (
         <span className="crateselect__more" title="También está en otras playlists">

@@ -23,6 +23,7 @@ from app.models.track import Track, TrackStatus
 from app.schemas.artist import TrackArtistsUpdate
 from app.schemas.track import (
     CrateSuggestion,
+    LinkPreview,
     SearchHistoryOut,
     SearchCandidate,
     SearchResults,
@@ -160,6 +161,34 @@ def preview_search(
                 thumbnail_url=r.thumbnail_url,
                 too_long=bool(r.duration_seconds and r.duration_seconds > limite),
                 matches_version=downloader.es_version(r.title, payload.version),
+                **track_service.library_fields(ya_estan.get(r.video_id)),
+            )
+            for r in resultados
+        ],
+    )
+
+
+@router.post("/link/preview", response_model=SearchResults)
+def preview_link(payload: LinkPreview, current_user: CurrentUser, db: DbSession) -> SearchResults:
+    """Lo que hay detras de un enlace (una cancion o una playlist entera) para
+    elegir que bajar, como los resultados de una busqueda."""
+    try:
+        resultados = downloader.list_link(payload.url)
+    except DownloadError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
+    limite = settings.max_song_duration_seconds
+    return SearchResults(
+        query=payload.url,
+        candidates=[
+            SearchCandidate(
+                video_id=r.video_id,
+                title=r.title,
+                channel=r.channel,
+                duration_seconds=r.duration_seconds,
+                url=r.url,
+                thumbnail_url=r.thumbnail_url,
+                too_long=bool(r.duration_seconds and r.duration_seconds > limite),
                 **track_service.library_fields(ya_estan.get(r.video_id)),
             )
             for r in resultados

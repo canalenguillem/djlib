@@ -77,6 +77,10 @@ class TrackFromUrl(BaseModel):
     crate_id: int | None = None
 
 
+class LinkPreview(BaseModel):
+    url: str = Field(min_length=5, max_length=500)
+
+
 class TrackFromSearch(BaseModel):
     """Basta con uno de los dos. Solo con el artista se piden sus temas mas
     relevantes, que es como se explora a alguien de quien no recuerdas titulos."""

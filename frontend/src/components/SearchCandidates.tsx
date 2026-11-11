@@ -218,7 +218,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
 
   const barraTodas = utiles.length > 0 && (
     <div className="candidates__otra">
-      <span>Guardar las {utiles.length} en</span>
+      <span>{utiles.length === 1 ? 'Guardar la canción en' : `Guardar las ${utiles.length} en`}</span>
       {nombreNuevo !== null ? (
         <input
           value={nombreNuevo}
@@ -257,7 +257,9 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
       >
         {guardandoTodas
           ? `Guardando ${guardandoTodas.hechas} de ${guardandoTodas.total}...`
-          : 'Guardar todas'}
+          : utiles.length === 1
+            ? 'Guardar'
+            : 'Guardar todas'}
       </button>
       {nombreNuevo !== null && guardandoTodas === null && (
         <button type="button" className="btn btn--ghost" onClick={() => setNombreNuevo(null)}>

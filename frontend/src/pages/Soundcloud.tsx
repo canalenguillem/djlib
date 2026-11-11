@@ -21,6 +21,8 @@ export function SoundcloudPage() {
   const [anadidos, setAnadidos] = useState<string[]>([])
   const [anadiendo, setAnadiendo] = useState<string | null>(null)
   const [historial, setHistorial] = useState<SearchHistoryEntry[]>([])
+  // Lo que se ve viene de un enlace pegado, no de una busqueda
+  const [esEnlace, setEsEnlace] = useState(false)
 
   useEffect(() => {
     if (candidatos !== null) return
@@ -33,11 +35,16 @@ export function SoundcloudPage() {
   async function buscar(consulta: string, enVersion: Version | null) {
     const limpia = consulta.trim()
     if (!limpia) return
+    if (/^https?:\/\//i.test(limpia)) {
+      await abrirEnlace(limpia)
+      return
+    }
     setBuscando(true)
     setError(null)
     setOk(null)
     setTexto(limpia)
     setBuscado(limpia)
+    setEsEnlace(false)
     setVersion(enVersion)
     try {
       // Va como "artista": asi se piden mas resultados, que en SoundCloud
@@ -47,6 +54,25 @@ export function SoundcloudPage() {
       setAnadidos([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La búsqueda en SoundCloud ha fallado.')
+    } finally {
+      setBuscando(false)
+    }
+  }
+
+  /** Un enlace pegado: una cancion, o todas las de un set, para bajar una o
+   *  guardarlas todas en una playlist. */
+  async function abrirEnlace(url: string) {
+    setBuscando(true)
+    setError(null)
+    setOk(null)
+    setBuscado(url)
+    setEsEnlace(true)
+    try {
+      const resultado = await tracksApi.previewLink(url)
+      setCandidatos(resultado.candidates)
+      setAnadidos([])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo abrir el enlace.')
     } finally {
       setBuscando(false)
     }
@@ -72,7 +98,8 @@ export function SoundcloudPage() {
       <h1>SoundCloud</h1>
       <p className="muted">
         Donde los DJ suben sus edits, bootlegs y mashups. Busca un tema, un artista o
-        un DJ y baja lo que te guste, o guárdalo todo en una playlist. SoundCloud da el
+        un DJ, o pega el enlace de una canción o de un set, y baja lo que te guste o
+        guárdalo todo en una playlist. SoundCloud da el
         audio a 160 kbps como mucho; si el autor deja descargar el original, se baja
         ese.
       </p>
@@ -91,12 +118,16 @@ export function SoundcloudPage() {
           <input
             type="search"
             value={texto}
-            placeholder="Tema, artista o DJ: «bad gyal edit», «Charly Chaser»..."
+            placeholder="Tema, artista o DJ («bad gyal edit»), o pega un enlace de SoundCloud"
             aria-label="Buscar en SoundCloud"
             onChange={(e) => setTexto(e.target.value)}
           />
           <button type="submit" className="btn btn--primary" disabled={buscando || !texto.trim()}>
-            {buscando ? 'Buscando...' : 'Buscar en SoundCloud'}
+            {buscando
+              ? 'Buscando...'
+              : /^https?:\/\//i.test(texto.trim())
+                ? 'Abrir el enlace'
+                : 'Buscar en SoundCloud'}
           </button>
           {candidatos !== null && (
             <button type="button" className="btn btn--ghost" onClick={() => setCandidatos(null)}>
@@ -145,7 +176,7 @@ export function SoundcloudPage() {
             addingId={anadiendo}
             onAdd={anadir}
             version={version}
-            onVersion={(v) => void buscar(buscado, v)}
+            onVersion={esEnlace ? undefined : (v) => void buscar(buscado, v)}
             source="soundcloud"
           />
         )}

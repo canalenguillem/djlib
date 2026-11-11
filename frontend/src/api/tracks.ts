@@ -46,6 +46,11 @@ export function previewSearch(
   })
 }
 
+/** Lo que hay detras de un enlace: una cancion o una playlist entera. */
+export function previewLink(url: string): Promise<SearchResults> {
+  return apiFetch<SearchResults>('/tracks/link/preview', { method: 'POST', body: { url } })
+}
+
 export function addFromSearch(title: string | null, artist: string | null): Promise<Track> {
   return apiFetch<Track>('/tracks/search', { method: 'POST', body: { title, artist } })
 }

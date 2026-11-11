@@ -160,7 +160,9 @@ def _base_args() -> list[str]:
     return args
 
 
-def _run(args: list[str]) -> str:
+def _run(args: list[str], parcial: bool = False) -> str:
+    """Lanza yt-dlp y devuelve lo que escribe. Con `parcial`, si algo ha
+    salido (una playlist con alguna cancion que falla) se da por bueno."""
     try:
         completed = subprocess.run(
             args,
@@ -172,7 +174,7 @@ def _run(args: list[str]) -> str:
     except subprocess.TimeoutExpired as exc:
         raise DownloadError("La descarga ha tardado demasiado y se ha cancelado.") from exc
 
-    if completed.returncode != 0:
+    if completed.returncode != 0 and not (parcial and completed.stdout.strip()):
         raise DownloadError(_explain(completed.stderr))
     return completed.stdout
 
@@ -314,6 +316,40 @@ def search(
     payload = _run(
         _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist, version, sitio)]
     )
+    return _resultados(payload)
+
+
+# Lo mas que se lista de una playlist pegada: las de SoundCloud pueden ser enormes
+MAX_DE_UN_ENLACE = 200
+# Y de las que hay que pedir una a una, menos, para no esperar minutos
+MAX_COMPLETOS = 100
+
+
+def list_link(url: str) -> list[SearchResult]:
+    """Lo que hay detras de un enlace, sin descargar nada: una cancion, o todas
+    las de una playlist (un "set" de SoundCloud, una lista de YouTube)."""
+    if not is_supported_url(url):
+        raise DownloadError("Pega un enlace que empiece por http:// o https://")
+    args = [a for a in _base_args() if a != "--no-playlist"]
+    url = url.strip()
+    payload = _run(
+        args + ["--flat-playlist", "--dump-json", "--playlist-end", str(MAX_DE_UN_ENLACE), url]
+    )
+    resultados = _resultados(payload)
+    if resultados and all(r.title == "Sin titulo" for r in resultados):
+        # Los sets de SoundCloud listados de prisa no traen ni titulo ni
+        # duracion: hay que pedir cada cancion (menos de un segundo cada una).
+        # Las protegidas con DRM fallan y se quedan fuera: no se podrian bajar
+        payload = _run(
+            args
+            + ["--skip-download", "--dump-json", "--ignore-errors", "--playlist-end", str(MAX_COMPLETOS), url],
+            parcial=True,
+        )
+        resultados = _resultados(payload)
+    return resultados
+
+
+def _resultados(payload: str) -> list[SearchResult]:
     resultados = []
     for data in _candidates(payload):
         video_id = str(data.get("id") or "")
