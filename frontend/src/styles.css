@@ -2936,3 +2936,49 @@ input[type='file'] {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Lo que suena: tarjetas de tipo de sesion */
+.sesiones__titulo {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.sesiones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+}
+
+.sesion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sesion span {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.sesion:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+}
+
+.sesion--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+}
+
+.sesion:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
