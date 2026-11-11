@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as beatportApi from '../api/beatport'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
@@ -107,7 +107,7 @@ export function BeatportPage() {
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version)
+      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version, auto.sitio)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -241,7 +241,7 @@ export function BeatportPage() {
                       disabled={buscando}
                       onClick={() => void buscar(p)}
                     >
-                      {buscando && abierta === p.position ? 'Buscando...' : 'Buscar en YouTube'}
+                      {buscando && abierta === p.position ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
                     </button>
                   </div>
                   {abierta === p.position && candidatos !== null && (
@@ -251,6 +251,7 @@ export function BeatportPage() {
                       addingId={anadiendo}
                       onAdd={anadir}
                       version={auto.version}
+                      source={auto.sitio}
                       onVersion={(v) => {
                         auto.elegirVersion(v)
                         void buscar(p, v)

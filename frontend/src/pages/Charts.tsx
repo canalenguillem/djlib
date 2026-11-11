@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as chartsApi from '../api/charts'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
@@ -150,7 +150,7 @@ export function ChartsPage() {
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version)
+      const resultado = await tracksApi.previewSearch(pista.title, pista.artist, version, auto.sitio)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -392,7 +392,7 @@ export function ChartsPage() {
                     disabled={buscando}
                     onClick={() => void buscar(indice, p)}
                   >
-                    {buscando && abierta === indice ? 'Buscando...' : 'Buscar en YouTube'}
+                    {buscando && abierta === indice ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
                   </button>
                 </div>
                 {abierta === indice && candidatos !== null && (
@@ -402,6 +402,7 @@ export function ChartsPage() {
                     addingId={anadiendo}
                     onAdd={anadir}
                     version={auto.version}
+                    source={auto.sitio}
                     onVersion={(v) => {
                       auto.elegirVersion(v)
                       void buscar(indice, p, v)

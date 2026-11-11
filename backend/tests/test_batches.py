@@ -202,3 +202,15 @@ def test_version_que_no_existe(client: TestClient, admin_user) -> None:
         headers=headers(client),
     )
     assert r.status_code == 422
+
+
+def test_tanda_en_soundcloud(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    tanda = client.post(
+        "/batches",
+        json={"name": "Perreo", "source": "soundcloud", "songs": [{"title": "Song 2", "artist": "Blur"}]},
+        headers=h,
+    ).json()
+    assert tanda["source"] == "soundcloud"
+    trabajar()
+    assert fake_downloader.sitios == ["soundcloud"]

@@ -5,7 +5,7 @@ import * as batchesApi from '../api/batches'
 import * as cratesApi from '../api/crates'
 import { refrescarCrates, useCrates } from '../lib/crates'
 import { VERSIONES, nombreVersion } from '../lib/versiones'
-import type { Batch, BatchItem, Version } from '../types/api'
+import type { Batch, BatchItem, Sitio, Version } from '../types/api'
 
 /** Lo minimo para buscar una cancion en YouTube. */
 export interface Cancion {
@@ -29,6 +29,21 @@ function crateGuardado(): number | null {
   } catch {
     return null
   }
+}
+
+const CLAVE_SITIO = 'djlib.sitio_busqueda'
+
+function sitioGuardado(): Sitio {
+  try {
+    return localStorage.getItem(CLAVE_SITIO) === 'soundcloud' ? 'soundcloud' : 'youtube'
+  } catch {
+    return 'youtube'
+  }
+}
+
+/** "YouTube" o "SoundCloud", para los textos. */
+export function nombreSitio(sitio: Sitio): string {
+  return sitio === 'soundcloud' ? 'SoundCloud' : 'YouTube'
 }
 
 function tandasGuardadas(origen: string): number[] {
@@ -122,6 +137,16 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
   // Version para DJ que se busca de cada una: la de la barra y la de "Buscar
   // en YouTube" son la misma, se elige una vez para toda la pagina
   const [version, setVersion] = useState<Version | null>(null)
+  // Y donde se busca: YouTube o SoundCloud, tambien para toda la pagina
+  const [sitio, setSitio] = useState<Sitio>(sitioGuardado)
+  function elegirSitio(nuevo: Sitio) {
+    setSitio(nuevo)
+    try {
+      localStorage.setItem(CLAVE_SITIO, nuevo)
+    } catch {
+      // Solo se pierde el recordarlo
+    }
+  }
   // El crate recordado puede haberse borrado
   const crateElegido = crates.some((c) => c.id === crateId) ? crateId : null
 
@@ -176,7 +201,8 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
   const pistas: Record<string, number> = {}
   // Solo cuentan las tandas de la version elegida: tener la original no quita
   // de buscar su mashup
-  for (const tanda of [...tandas].filter((t) => (t.version ?? null) === version).sort((a, b) => a.id - b.id)) {
+  const deEsta = (t: Batch) => (t.version ?? null) === version && (t.source ?? 'youtube') === sitio
+  for (const tanda of [...tandas].filter(deEsta).sort((a, b) => a.id - b.id)) {
     for (const item of tanda.items) {
       const estado = estadoDe(item)
       if (!estado) continue
@@ -210,10 +236,14 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
       if (destino !== null) await meterEnCrate(canciones, destino)
       if (!faltan.length) return
       const tanda = await batchesApi.createBatch(
-        version ? `${nombre} · ${nombreVersion(version)}`.slice(0, 200) : nombre,
+        [nombre, version && nombreVersion(version), sitio === 'soundcloud' && 'SoundCloud']
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 200),
         destino,
         faltan.map((c) => ({ title: c.title, artist: c.artist })),
         version,
+        sitio,
       )
       setTandas((prev) => [...prev, tanda])
       guardarTandas(origen, [...tandasGuardadas(origen), tanda.id])
@@ -254,6 +284,8 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
     elegirCrate,
     version,
     elegirVersion: setVersion,
+    sitio,
+    elegirSitio,
     enCola: enMarcha.length > 0,
     progreso,
     error,
@@ -361,6 +393,17 @@ export function AutoDownloadBar({
         </label>
       )}
       <label className="autoload__crate">
+        <span>Buscar en</span>
+        <select
+          value={auto.sitio}
+          disabled={auto.enCola}
+          onChange={(e) => auto.elegirSitio(e.target.value as Sitio)}
+        >
+          <option value="youtube">YouTube</option>
+          <option value="soundcloud">SoundCloud</option>
+        </select>
+      </label>
+      <label className="autoload__crate">
         <span>Versión</span>
         <select
           value={auto.version ?? ''}
@@ -385,8 +428,8 @@ export function AutoDownloadBar({
           disabled={disabled || creando || (pendientes === 0 && elegido === null)}
           title={
             auto.version
-              ? `Busca la versión ${nombreVersion(auto.version)} de cada una; si YouTube no la tiene, la deja sin resultado`
-              : 'Busca cada una en YouTube y descarga el primer resultado que no sea un mix'
+              ? `Busca la versión ${nombreVersion(auto.version)} de cada una en ${nombreSitio(auto.sitio)}; si no la hay, la deja sin resultado`
+              : `Busca cada una en ${nombreSitio(auto.sitio)} y descarga el primer resultado que no sea un mix`
           }
           onClick={() => void auto.descargar(canciones, elegido, nombreTanda)}
         >

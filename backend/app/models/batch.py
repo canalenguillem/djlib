@@ -53,6 +53,8 @@ class DownloadBatch(Base):
     )
     # Version para DJ que se busca de cada cancion ("extended", "mashup"...)
     version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Donde se busca cada cancion: "youtube" o "soundcloud"
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="youtube")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default=BatchStatus.active)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(

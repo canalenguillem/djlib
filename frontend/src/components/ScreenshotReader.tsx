@@ -4,7 +4,7 @@ import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
 import type { DetectedSong, SearchCandidate, Version } from '../types/api'
 import { Alert } from './Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from './AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from './AutoDownload'
 import { SearchCandidates } from './SearchCandidates'
 
 // Capturas leidas a la vez: el modelo tarda un par de segundos por imagen, y
@@ -108,7 +108,7 @@ export function ScreenshotReader() {
     setSearching(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(song.title, song.artist, version)
+      const resultado = await tracksApi.previewSearch(song.title, song.artist, version, auto.sitio)
       setCandidates(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -230,7 +230,7 @@ export function ScreenshotReader() {
                       disabled={searching}
                       onClick={() => buscar(index, song)}
                     >
-                      {searching && openIndex === index ? 'Buscando...' : 'Buscar en YouTube'}
+                      {searching && openIndex === index ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
                     </button>
                   </div>
                   {openIndex === index && candidates !== null && (
@@ -240,6 +240,7 @@ export function ScreenshotReader() {
                       addingId={addingId}
                       onAdd={anadir}
                       version={auto.version}
+                      source={auto.sitio}
                       onVersion={(v) => {
                         auto.elegirVersion(v)
                         void buscar(index, song, v)

@@ -33,6 +33,7 @@ from app.services.downloader import DownloadError
 # Menos que esto es un avance o un trozo para redes, no la cancion: pasa mucho
 # con extended y mashups, que se anuncian con 20 segundos en YouTube
 MIN_SEGUNDOS = 90
+NOMBRE_SITIO = {"youtube": "YouTube", "soundcloud": "SoundCloud"}
 NOMBRE_VERSION = {"extended": "extended", "remix": "remix", "mashup": "mashup", "edit": "DJ edit"}
 
 logger = logging.getLogger(__name__)
@@ -51,13 +52,14 @@ def create_batch(
     crate_id: int | None,
     songs: list[tuple[str, str | None]],
     version: str | None = None,
+    source: str = "youtube",
 ) -> DownloadBatch:
     """Crea la tanda con sus canciones pendientes. LookupError si el crate no
     existe."""
     if crate_id is not None and db.get(Crate, crate_id) is None:
         raise LookupError("Playlist no encontrada.")
     batch = DownloadBatch(
-        user_id=user.id, name=name.strip()[:200] or "Descargas", crate_id=crate_id, version=version
+        user_id=user.id, name=name.strip()[:200] or "Descargas", crate_id=crate_id, version=version, source=source
     )
     for posicion, (titulo, artista) in enumerate(songs):
         batch.items.append(
@@ -153,7 +155,8 @@ def process_item(session_factory, item_id: int) -> None:
         if item is None:
             return
         batch = item.batch
-        titulo, artista, crate_id, version = item.title, item.artist, batch.crate_id, batch.version
+        titulo, artista, crate_id = item.title, item.artist, batch.crate_id
+        version, sitio = batch.version, batch.source
         user = db.get(User, batch.user_id) if batch.user_id else None
         track_id = item.track_id
 
@@ -163,7 +166,7 @@ def process_item(session_factory, item_id: int) -> None:
         return
 
     try:
-        resultados = downloader.search(titulo, artista, version)
+        resultados = downloader.search(titulo, artista, version, sitio)
     except DownloadError as exc:
         _poner(session_factory, item_id, BatchItemStatus.error, message=str(exc))
         return
@@ -187,7 +190,9 @@ def process_item(session_factory, item_id: int) -> None:
             session_factory,
             item_id,
             BatchItemStatus.not_found,
-            message=f"No hay versión {NOMBRE_VERSION[version]} en YouTube." if version else None,
+            message=(
+                f"No hay versión {NOMBRE_VERSION[version]} en {NOMBRE_SITIO[sitio]}." if version else None
+            ),
         )
         return
 

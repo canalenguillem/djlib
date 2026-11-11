@@ -293,6 +293,7 @@ export interface BatchSummary {
   crate_id: number | null
   crate_name: string | null
   version: Version | null
+  source: Sitio
   status: 'active' | 'done' | 'cancelled'
   created_at: string
   total: number

@@ -1,4 +1,4 @@
-import type { Batch, BatchSummary, Version } from '../types/api'
+import type { Batch, BatchSummary, Sitio, Version } from '../types/api'
 import { apiFetch } from './client'
 
 /** Deja en el servidor una tanda de canciones para buscar y descargar solo. */
@@ -7,10 +7,11 @@ export function createBatch(
   crateId: number | null,
   songs: Array<{ title: string; artist: string | null }>,
   version: Version | null = null,
+  source: Sitio = 'youtube',
 ): Promise<Batch> {
   return apiFetch<Batch>('/batches', {
     method: 'POST',
-    body: { name, crate_id: crateId, songs, version },
+    body: { name, crate_id: crateId, songs, version, source },
   })
 }
 

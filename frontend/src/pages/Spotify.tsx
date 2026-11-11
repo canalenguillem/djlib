@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import * as spotifyApi from '../api/spotify'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
 import type {
@@ -163,7 +163,7 @@ export function SpotifyPage() {
     setBuscando(true)
     setError(null)
     try {
-      const resultado = await tracksApi.previewSearch(cancion.title, cancion.artist, version)
+      const resultado = await tracksApi.previewSearch(cancion.title, cancion.artist, version, auto.sitio)
       setCandidatos(resultado.candidates)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La busqueda ha fallado.')
@@ -222,7 +222,7 @@ export function SpotifyPage() {
                   disabled={buscando}
                   onClick={() => buscar(indice, cancion)}
                 >
-                  {buscando && abierta === indice ? 'Buscando...' : 'Buscar en YouTube'}
+                  {buscando && abierta === indice ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
                 </button>
               </div>
               {abierta === indice && candidatos !== null && (
@@ -232,6 +232,7 @@ export function SpotifyPage() {
                   addingId={anadiendo}
                   onAdd={anadir}
                   version={auto.version}
+                  source={auto.sitio}
                   onVersion={(v) => {
                     auto.elegirVersion(v)
                     void buscar(indice, cancion, v)

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,6 +18,7 @@ class BatchCreate(BaseModel):
     crate_id: int | None = None
     # Buscar de cada una esa version para DJ; sin ella, la normal
     version: Version | None = None
+    source: Literal["youtube", "soundcloud"] = "youtube"
     songs: list[BatchSong] = Field(min_length=1, max_length=1000)
 
 
@@ -39,6 +41,7 @@ class BatchSummary(BaseModel):
     crate_id: int | None = None
     crate_name: str | None = None
     version: str | None = None
+    source: str = "youtube"
     status: str
     created_at: datetime
     total: int
