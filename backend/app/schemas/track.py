@@ -140,6 +140,9 @@ class SearchCandidate(BaseModel):
 class SearchResults(BaseModel):
     query: str
     candidates: list[SearchCandidate]
+    # Un aviso para el usuario, p. ej. que el enlace estaba protegido y se
+    # muestra lo que hay del mismo tema en YouTube
+    notice: str | None = None
 
 
 class WaveformOut(BaseModel):

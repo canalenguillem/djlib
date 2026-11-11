@@ -59,3 +59,19 @@ def test_enlace_lista_lo_que_hay(client: TestClient, admin_user, fake_downloader
     datos = r.json()
     assert pedidos == ["https://soundcloud.com/x/sets/pack"]
     assert [c["too_long"] for c in datos["candidates"]] == [True, False]
+
+
+def test_enlace_protegido_busca_en_youtube(client: TestClient, admin_user, fake_downloader, monkeypatch) -> None:
+    from app.services import downloader, soundcloud
+
+    def protegido(url: str):
+        raise downloader.ProtegidoError("Esta protegida con DRM y no se puede bajar.")
+
+    monkeypatch.setattr(downloader, "list_link", protegido)
+    monkeypatch.setattr(soundcloud, "titulo_y_artista", lambda url: ("Cry for Love (Extended Mix)", "Riordan"))
+    datos = client.post(
+        "/tracks/link/preview", json={"url": "https://on.soundcloud.com/abc"}, headers=headers(client)
+    ).json()
+    assert fake_downloader.searched[-1] == ("Cry for Love (Extended Mix)", "Riordan")
+    assert "DRM" in datos["notice"]
+    assert len(datos["candidates"]) == 2

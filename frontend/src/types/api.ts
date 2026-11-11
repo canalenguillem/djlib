@@ -180,6 +180,9 @@ export interface SearchCandidate {
 export interface SearchResults {
   query: string
   candidates: SearchCandidate[]
+  /** Aviso para el usuario: p. ej. que el enlace estaba protegido y se
+   *  muestra el mismo tema en YouTube. */
+  notice?: string | null
 }
 
 export interface RecognitionStatus {

@@ -38,7 +38,7 @@ from app.schemas.track import (
     WaveformOut,
 )
 from app.services import crate_suggestions as crate_suggestions_service
-from app.services import search_history
+from app.services import search_history, soundcloud
 from app.services import (
     artist_service,
     downloader,
@@ -50,7 +50,7 @@ from app.services import (
     zip_export,
 )
 from app.services.audio_file import AudioFileError
-from app.services.downloader import DownloadError
+from app.services.downloader import DownloadError, ProtegidoError
 from app.services.tag_service import TagError
 from app.services.track_service import DuplicateTrackError
 
@@ -172,14 +172,32 @@ def preview_search(
 def preview_link(payload: LinkPreview, current_user: CurrentUser, db: DbSession) -> SearchResults:
     """Lo que hay detras de un enlace (una cancion o una playlist entera) para
     elegir que bajar, como los resultados de una busqueda."""
+    aviso = None
     try:
         resultados = downloader.list_link(payload.url)
+    except ProtegidoError as exc:
+        # Protegido con DRM: no se salta. Se busca el mismo tema en YouTube,
+        # que es lo que hacen las webs de "SoundCloud a mp3" con estos temas
+        datos = soundcloud.titulo_y_artista(payload.url) if "soundcloud" in payload.url else None
+        if datos is None:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        titulo, artista = datos
+        try:
+            resultados = downloader.search(titulo, artista)
+        except DownloadError as exc2:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc2)) from exc2
+        nombre = f"{artista} – {titulo}" if artista else titulo
+        aviso = (
+            f"«{nombre}» está protegido con DRM en SoundCloud (es de una discográfica) y no "
+            "se puede bajar de allí. Esto es lo que hay del mismo tema en YouTube."
+        )
     except DownloadError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
     limite = settings.max_song_duration_seconds
     return SearchResults(
         query=payload.url,
+        notice=aviso,
         candidates=[
             SearchCandidate(
                 video_id=r.video_id,

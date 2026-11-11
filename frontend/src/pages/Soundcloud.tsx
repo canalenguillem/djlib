@@ -23,6 +23,8 @@ export function SoundcloudPage() {
   const [historial, setHistorial] = useState<SearchHistoryEntry[]>([])
   // Lo que se ve viene de un enlace pegado, no de una busqueda
   const [esEnlace, setEsEnlace] = useState(false)
+  // Si el enlace estaba protegido, lo que se ve es de YouTube y se avisa
+  const [aviso, setAviso] = useState<string | null>(null)
 
   useEffect(() => {
     if (candidatos !== null) return
@@ -51,6 +53,7 @@ export function SoundcloudPage() {
       // conviene, porque hay muchas versiones de cada tema
       const resultado = await tracksApi.previewSearch(null, limpia, enVersion, 'soundcloud')
       setCandidatos(resultado.candidates)
+      setAviso(null)
       setAnadidos([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La búsqueda en SoundCloud ha fallado.')
@@ -70,6 +73,7 @@ export function SoundcloudPage() {
     try {
       const resultado = await tracksApi.previewLink(url)
       setCandidatos(resultado.candidates)
+      setAviso(resultado.notice ?? null)
       setAnadidos([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo abrir el enlace.')
@@ -105,6 +109,7 @@ export function SoundcloudPage() {
       </p>
 
       {error && <Alert kind="error">{error}</Alert>}
+      {aviso && candidatos !== null && <Alert kind="info">{aviso}</Alert>}
       {ok && <Alert kind="success">{ok}</Alert>}
 
       <section className="card">
@@ -177,7 +182,7 @@ export function SoundcloudPage() {
             onAdd={anadir}
             version={version}
             onVersion={esEnlace ? undefined : (v) => void buscar(buscado, v)}
-            source="soundcloud"
+            source={aviso ? 'youtube' : 'soundcloud'}
           />
         )}
       </section>

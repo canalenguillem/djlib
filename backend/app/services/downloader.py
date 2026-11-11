@@ -31,6 +31,11 @@ class DownloadError(RuntimeError):
     """Fallo recuperable y explicable al usuario (video privado, borrado...)."""
 
 
+class ProtegidoError(DownloadError):
+    """El audio esta protegido con DRM (en SoundCloud, los temas de las
+    discograficas): no se puede bajar, y no se intenta saltar la proteccion."""
+
+
 @dataclass(frozen=True)
 class SearchResult:
     """Un candidato del listado de YouTube, para que el usuario elija.
@@ -175,6 +180,8 @@ def _run(args: list[str], parcial: bool = False) -> str:
         raise DownloadError("La descarga ha tardado demasiado y se ha cancelado.") from exc
 
     if completed.returncode != 0 and not (parcial and completed.stdout.strip()):
+        if "drm protected" in (completed.stderr or "").lower():
+            raise ProtegidoError(_explain(completed.stderr))
         raise DownloadError(_explain(completed.stderr))
     return completed.stdout
 
@@ -196,6 +203,8 @@ def _explain(stderr: str) -> str:
         )
     if "unsupported url" in lowered:
         return "Esa URL no esta soportada."
+    if "drm protected" in lowered:
+        return "Esta protegida con DRM y no se puede bajar."
     last_line = text.splitlines()[-1] if text else ""
     return last_line[:400] or "yt-dlp ha fallado sin dar detalles."
 
