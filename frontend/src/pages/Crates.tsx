@@ -20,7 +20,7 @@ export function CratesPage() {
       setCrates(await cratesApi.listCrates())
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudieron cargar los crates.')
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar las playlists.')
     } finally {
       setLoading(false)
     }
@@ -40,7 +40,7 @@ export function CratesPage() {
       setCrates((prev) => [...prev, crate].sort((a, b) => a.name.localeCompare(b.name)))
       setName('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el crate.')
+      setError(err instanceof Error ? err.message : 'No se pudo crear la playlist.')
     } finally {
       setCreating(false)
     }
@@ -50,11 +50,11 @@ export function CratesPage() {
 
   return (
     <div className="stack">
-      <h1>Crates</h1>
+      <h1>Playlists</h1>
       <p className="muted">
         Selecciones de canciones con nombre y orden propio, como las cajas de vinilos
-        que se llevaban al bar. A diferencia de un filtro, un crate no cambia solo:
-        lo montas una vez y sigue igual la semana que viene.
+        que se llevaban al bar. A diferencia de un filtro, una playlist no cambia sola:
+        la montas una vez y sigue igual la semana que viene.
       </p>
 
       {error && <Alert kind="error">{error}</Alert>}
@@ -64,7 +64,7 @@ export function CratesPage() {
           <input
             type="text"
             value={name}
-            placeholder="Nombre del crate: Warm-up del sabado"
+            placeholder="Nombre de la playlist: Warm-up del sabado"
             onChange={(e) => setName(e.target.value)}
           />
           <button type="submit" className="btn btn--primary" disabled={creating || !name.trim()}>
@@ -79,13 +79,13 @@ export function CratesPage() {
 
       {crates.length === 0 ? (
         <section className="card">
-          <p className="muted">Todavia no hay ningun crate.</p>
+          <p className="muted">Todavía no hay ninguna playlist.</p>
         </section>
       ) : (
         <ul className="cratelist">
           {crates.map((crate) => (
             <li key={crate.id} className="cratecard">
-              <Link to={`/crates/${crate.id}`} className="cratecard__name">
+              <Link to={`/playlists/${crate.id}`} className="cratecard__name">
                 {crate.name}
               </Link>
               <span className="muted">

@@ -55,7 +55,7 @@ def create_batch(
     """Crea la tanda con sus canciones pendientes. LookupError si el crate no
     existe."""
     if crate_id is not None and db.get(Crate, crate_id) is None:
-        raise LookupError("Crate no encontrado.")
+        raise LookupError("Playlist no encontrada.")
     batch = DownloadBatch(
         user_id=user.id, name=name.strip()[:200] or "Descargas", crate_id=crate_id, version=version
     )

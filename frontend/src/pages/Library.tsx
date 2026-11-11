@@ -176,9 +176,9 @@ export function LibraryPage() {
         if (ids.length >= lote.total || !lote.items.length) break
       }
       const crate = await cratesApi.createCrate(crateName.trim(), ids)
-      navigate(`/crates/${crate.id}`)
+      navigate(`/playlists/${crate.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar el crate.')
+      setError(err instanceof Error ? err.message : 'No se pudo guardar la playlist.')
       setSavingCrate(false)
     }
   }
@@ -364,7 +364,7 @@ export function LibraryPage() {
                   type="text"
                   value={crateName}
                   placeholder={
-                    filtering ? 'Guardar las filtradas como crate...' : 'Guardar todas como crate...'
+                    filtering ? 'Guardar las filtradas como playlist...' : 'Guardar todas como playlist...'
                   }
                   onChange={(e) => setCrateName(e.target.value)}
                 />
@@ -373,7 +373,7 @@ export function LibraryPage() {
                   className="btn btn--ghost"
                   disabled={savingCrate || !crateName.trim()}
                 >
-                  {savingCrate ? 'Guardando...' : 'Guardar crate'}
+                  {savingCrate ? 'Guardando...' : 'Guardar playlist'}
                 </button>
               </form>
             )}

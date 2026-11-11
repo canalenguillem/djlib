@@ -80,7 +80,7 @@ export function ListenPage() {
         setOrden(encontrado.tracks.map((_, i) => i))
         setActual(null)
       })
-      .catch((err) => vivo && setError(err instanceof Error ? err.message : 'No se pudo cargar el crate.'))
+      .catch((err) => vivo && setError(err instanceof Error ? err.message : 'No se pudo cargar la playlist.'))
     return () => {
       vivo = false
     }
@@ -261,9 +261,9 @@ export function ListenPage() {
       <h1>Escuchar</h1>
 
       <label className="listen__crate">
-        <span>Crate</span>
+        <span>Playlist</span>
         <select value={crateId ?? ''} onChange={(e) => elegirCrate(e.target.value ? Number(e.target.value) : null)}>
-          <option value="">Elige un crate...</option>
+          <option value="">Elige una playlist...</option>
           {crates.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name} ({c.track_count})
@@ -373,7 +373,7 @@ export function ListenPage() {
 
       {crate &&
         (pistas.length === 0 ? (
-          <p className="muted">Este crate está vacío.</p>
+          <p className="muted">Esta playlist está vacía.</p>
         ) : (
           <ol className="listen__list">
             {orden.map((indice, puesto) => {

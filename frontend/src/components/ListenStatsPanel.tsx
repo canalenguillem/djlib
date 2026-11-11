@@ -40,7 +40,7 @@ export function ListenStatsPanel() {
       <h2>Escuchas</h2>
       <p className="muted">
         Cuenta cuando una canción ha sonado al menos 30 segundos (o la mitad, si es más corta).
-        «Reproductor» es la biblioteca, los crates y Escuchar; «Mezclas», los platos del mezclador.
+        «Reproductor» es la biblioteca, las playlists y Escuchar; «Mezclas», los platos del mezclador.
       </p>
       {error && <Alert kind="error">{error}</Alert>}
       {!stats && !error && <Loading />}

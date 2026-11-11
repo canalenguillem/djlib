@@ -173,7 +173,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
         setNombreNuevo(null)
       }
     } catch (err) {
-      setFallo(err instanceof Error ? err.message : 'No se pudo crear el crate.')
+      setFallo(err instanceof Error ? err.message : 'No se pudo crear la playlist.')
       return
     }
     if (destino === null) return
@@ -207,7 +207,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     await Promise.all([trabajador(), trabajador(), trabajador()])
     await refrescarCrates()
     setGuardandoTodas(null)
-    const nombre = crates.find((c) => c.id === crateId)?.name ?? 'el crate'
+    const nombre = crates.find((c) => c.id === crateId)?.name ?? 'la playlist'
     setHechoTodas(
       `${utiles.length - fallidas} guardadas en «${nombre}»` +
         (fallidas ? `; ${fallidas} no se pudieron añadir.` : '. Las nuevas se están descargando.'),
@@ -221,13 +221,13 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
         <input
           value={nombreNuevo}
           autoFocus
-          placeholder="Nombre del crate nuevo"
-          aria-label="Nombre del crate nuevo"
+          placeholder="Nombre de la playlist nueva"
+          aria-label="Nombre de la playlist nueva"
           onChange={(e) => setNombreNuevo(e.target.value)}
         />
       ) : (
         <select
-          aria-label="Crate para toda la búsqueda"
+          aria-label="Playlist para toda la búsqueda"
           value={crateTodas ?? ''}
           disabled={guardandoTodas !== null}
           onChange={(e) => {
@@ -235,13 +235,13 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
             else setCrateTodas(e.target.value ? Number(e.target.value) : null)
           }}
         >
-          <option value="">Elige un crate...</option>
+          <option value="">Elige una playlist...</option>
           {crates.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-          <option value="nuevo">+ Crear uno nuevo...</option>
+          <option value="nuevo">+ Crear una nueva...</option>
         </select>
       )}
       <button
@@ -250,7 +250,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
         disabled={
           guardandoTodas !== null || (nombreNuevo !== null ? !nombreNuevo.trim() : crateTodas === null)
         }
-        title="Las que no tienes se descargan; las que ya tienes solo entran en el crate. Se dejan fuera los mixes largos y los avances cortos."
+        title="Las que no tienes se descargan; las que ya tienes solo entran en la playlist. Se dejan fuera los mixes largos y los avances cortos."
         onClick={() => void guardarTodas()}
       >
         {guardandoTodas

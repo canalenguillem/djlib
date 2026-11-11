@@ -64,9 +64,9 @@ def create_crate(
     name = name.strip()
     slug = slugify(name)
     if not slug:
-        raise CrateError("El nombre del crate no es valido.")
+        raise CrateError("El nombre de la playlist no es valido.")
     if get_by_slug(db, slug) is not None:
-        raise CrateError(f"Ya existe un crate llamado '{name}'.")
+        raise CrateError(f"Ya existe una playlist llamada '{name}'.")
 
     crate = Crate(
         name=name,
@@ -87,10 +87,10 @@ def rename_crate(db: Session, crate: Crate, name: str) -> Crate:
     name = name.strip()
     slug = slugify(name)
     if not slug:
-        raise CrateError("El nombre del crate no es valido.")
+        raise CrateError("El nombre de la playlist no es valido.")
     choque = get_by_slug(db, slug)
     if choque is not None and choque.id != crate.id:
-        raise CrateError(f"Ya existe un crate llamado '{name}'.")
+        raise CrateError(f"Ya existe una playlist llamada '{name}'.")
     crate.name = name
     crate.slug = slug
     crate.updated_at = utcnow()
@@ -99,7 +99,7 @@ def rename_crate(db: Session, crate: Crate, name: str) -> Crate:
 
 def add_track(db: Session, crate: Crate, track_id: int) -> Crate:
     if any(entrada.track_id == track_id for entrada in crate.entries):
-        raise CrateError("Esa cancion ya esta en el crate.")
+        raise CrateError("Esa cancion ya esta en la playlist.")
     if not _existing_ready_tracks(db, [track_id]):
         raise CrateError("La cancion no existe o todavia no esta descargada.")
 
@@ -117,7 +117,7 @@ def add_track(db: Session, crate: Crate, track_id: int) -> Crate:
 def remove_track(db: Session, crate: Crate, track_id: int) -> Crate:
     entrada = next((e for e in crate.entries if e.track_id == track_id), None)
     if entrada is None:
-        raise CrateError("Esa cancion no esta en el crate.")
+        raise CrateError("Esa cancion no esta en la playlist.")
     crate.entries.remove(entrada)
     db.flush()
     _renumber(crate)
@@ -138,7 +138,7 @@ def reorder(db: Session, crate: Crate, track_ids: list[int]) -> Crate:
     desconocidos = set(pedidos) - actuales
     if desconocidos:
         raise CrateError(
-            f"Estas canciones no estan en el crate: {sorted(desconocidos)}"
+            f"Estas canciones no estan en la playlist: {sorted(desconocidos)}"
         )
     if set(pedidos) != actuales:
         faltan = actuales - set(pedidos)

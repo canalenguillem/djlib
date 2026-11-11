@@ -155,14 +155,14 @@ export function DownloadsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            aria-label="Crate"
+            aria-label="Playlist"
             value={crateId ?? ''}
             onChange={(e) => {
               setCrateId(e.target.value ? Number(e.target.value) : null)
               setPagina(0)
             }}
           >
-            <option value="">Todos los crates</option>
+            <option value="">Todas las playlists</option>
             {crates.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} ({c.track_count})

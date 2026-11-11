@@ -93,7 +93,7 @@ def suggest(db: Session, track: Track) -> list[Sugerencia]:
         # El nombre del crate es un artista suyo o el tipo de version
         if any(re.search(rf"\b{re.escape(a)}\b", nombre) for a in mios):
             s.puntos += 4
-            s.motivos.append("el crate lleva el nombre del artista")
+            s.motivos.append("la playlist lleva el nombre del artista")
         for v in _VERSIONES:
             if re.search(rf"\b{v}", nombre) and re.search(rf"\b{v}", titulo):
                 s.puntos += 3
@@ -107,7 +107,7 @@ def suggest(db: Session, track: Track) -> list[Sugerencia]:
             dif = _bpm_parecido(track.bpm, centro)
             if dif <= 3:
                 s.puntos += 2
-                s.motivos.append(f"BPM como el del crate (~{round(centro)})")
+                s.motivos.append(f"BPM como el de la playlist (~{round(centro)})")
             elif dif <= 6:
                 s.puntos += 1
                 s.motivos.append(f"BPM cercano (~{round(centro)})")

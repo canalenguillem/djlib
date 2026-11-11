@@ -138,15 +138,15 @@ export function BatchesPanel({
                     {n} de {t.total} · {ESTADO_TANDA[t.status]}
                     {t.crate_name && (
                       <>
-                        {' · crate '}
+                        {' · playlist '}
                         {t.crate_name}
                       </>
                     )}
                   </span>
                 </button>
                 {t.crate_id && (
-                  <Link className="btn btn--ghost" to={`/crates/${t.crate_id}`}>
-                    Ver crate
+                  <Link className="btn btn--ghost" to={`/playlists/${t.crate_id}`}>
+                    Ver playlist
                   </Link>
                 )}
                 {t.status === 'active' && (

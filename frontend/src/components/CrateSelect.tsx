@@ -61,7 +61,7 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false
       setActuales(track.crate_ids)
       setPendienteId(track.pending_crate_id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cambiar de crate.')
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar de playlist.')
     } finally {
       setGuardando(false)
     }
@@ -70,13 +70,13 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false
   return (
     <span className={`crateselect${actual !== null ? ' crateselect--set' : ''}`}>
       <select
-        aria-label="Crate"
-        title={pendienteId !== null ? 'Entrará en este crate al terminar de descargarse' : 'Crate de la canción'}
+        aria-label="Playlist"
+        title={pendienteId !== null ? 'Entrará en esta playlist al terminar de descargarse' : 'Playlist de la canción'}
         value={actual ?? ''}
         disabled={guardando || crates.length === 0}
         onChange={(e) => void cambiar(e.target.value ? Number(e.target.value) : null)}
       >
-        <option value="">{crates.length === 0 ? 'No hay crates' : 'Sin crate'}</option>
+        <option value="">{crates.length === 0 ? 'No hay playlists' : 'Sin playlist'}</option>
         {crates.map((crate) => (
           <option key={crate.id} value={crate.id}>
             {crate.name}
@@ -84,7 +84,7 @@ export function CrateSelect({ trackId, crateIds, pendingCrateId, sugerir = false
         ))}
       </select>
       {otros > 0 && (
-        <span className="crateselect__more" title="También está en otros crates">
+        <span className="crateselect__more" title="También está en otras playlists">
           +{otros}
         </span>
       )}

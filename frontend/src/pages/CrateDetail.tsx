@@ -38,7 +38,7 @@ export function CrateDetailPage() {
       setName(encontrado.name)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cargar el crate.')
+      setError(err instanceof Error ? err.message : 'No se pudo cargar la playlist.')
     } finally {
       setLoading(false)
     }
@@ -99,12 +99,12 @@ export function CrateDetailPage() {
   }
 
   if (loading) return <Loading />
-  if (!crate) return <Alert kind="error">{error ?? 'Crate no encontrado.'}</Alert>
+  if (!crate) return <Alert kind="error">{error ?? 'Playlist no encontrada.'}</Alert>
 
   return (
     <div className="stack">
-      <Link to="/crates" className="muted">
-        ← Crates
+      <Link to="/playlists" className="muted">
+        ← Playlists
       </Link>
 
       {editing ? (
@@ -151,7 +151,7 @@ export function CrateDetailPage() {
             })
           }
         >
-          {busy ? 'Preparando...' : 'Descargar el crate'}
+          {busy ? 'Preparando...' : 'Descargar la playlist'}
         </button>
         <button
           type="button"
@@ -160,11 +160,11 @@ export function CrateDetailPage() {
           onClick={() =>
             guard(async () => {
               await cratesApi.deleteCrate(id)
-              navigate('/crates', { replace: true })
+              navigate('/playlists', { replace: true })
             })
           }
         >
-          Borrar crate
+          Borrar playlist
         </button>
       </div>
 
@@ -173,7 +173,7 @@ export function CrateDetailPage() {
         {crate.tracks.length === 0 ? (
           <p className="muted">
             Vacio. Busca canciones abajo, o filtra la biblioteca y guarda el resultado
-            como crate desde alli.
+            como playlist desde alli.
           </p>
         ) : (
           <>

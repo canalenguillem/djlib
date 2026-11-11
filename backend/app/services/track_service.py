@@ -65,7 +65,7 @@ def create_from_url(
     if not downloader.is_supported_url(url):
         raise ValueError("Introduce una URL que empiece por http:// o https://")
     if crate_id is not None and db.get(Crate, crate_id) is None:
-        raise LookupError("Crate no encontrado.")
+        raise LookupError("Playlist no encontrada.")
 
     # Si es de YouTube podemos deducir el id sin salir a la red y avisar del
     # duplicado al instante, antes de crear nada.
@@ -549,7 +549,7 @@ def move_to_crate(
     destino = db.get(Crate, crate_id) if crate_id is not None else None
     origen = db.get(Crate, from_crate_id) if from_crate_id is not None else None
     if (crate_id is not None and destino is None) or (from_crate_id is not None and origen is None):
-        raise LookupError("Crate no encontrado.")
+        raise LookupError("Playlist no encontrada.")
 
     if track.status != TrackStatus.ready:
         track.pending_crate_id = crate_id

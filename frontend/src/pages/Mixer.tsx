@@ -538,7 +538,7 @@ export function MixerPage() {
       <p className="muted">
         Dos platos con crossfader para practicar transiciones con tu propia
         biblioteca. El tempo cambia el tono, como en un plato de verdad. No sustituye
-        a rekordbox ni a Mixxx: para el bolo, exporta el crate a un USB.
+        a rekordbox ni a Mixxx: para el bolo, exporta la playlist a un USB.
       </p>
 
       {error && <Alert kind="error">{error}</Alert>}
@@ -811,7 +811,7 @@ export function MixerPage() {
           </form>
           {crates.length > 0 && (
             <div className="filters__group">
-              <span className="filters__label">Crate</span>
+              <span className="filters__label">Playlist</span>
               <select
                 value={crateId ?? ''}
                 onChange={(e) => setCrateId(e.target.value ? Number(e.target.value) : null)}

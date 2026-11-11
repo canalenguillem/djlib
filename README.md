@@ -521,7 +521,12 @@ tarjeta externa ni prescucha por auriculares.
 Sirve para practicar transiciones y preparar el set; para el bolo, exporta el
 crate a un USB.
 
-## Crates
+## Playlists (crates)
+
+En la interfaz se llaman **playlists**, como en rekordbox, que es lo que usa la
+gente del curso de DJ. En el codigo, la base de datos y la API siguen siendo
+`crates` (`/crates`, tabla `crates`); la pagina vive en `/playlists` y
+`/crates` redirige alli.
 
 Un **crate** es una seleccion de canciones con nombre y orden propio: "warm-up
 del sabado", "cierre 90s". Viene de las cajas de vinilos que los DJ llevaban al

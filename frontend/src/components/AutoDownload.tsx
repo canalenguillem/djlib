@@ -307,7 +307,7 @@ export function AutoDownloadBar({
       elegir(crate.id)
       setCreando(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el crate.')
+      setError(err instanceof Error ? err.message : 'No se pudo crear la playlist.')
     } finally {
       setGuardando(false)
     }
@@ -319,12 +319,12 @@ export function AutoDownloadBar({
     <div className="autoload">
       {creando ? (
         <form className="autoload__crate" onSubmit={crear}>
-          <span>Crate nuevo</span>
+          <span>Playlist nueva</span>
           <input
             value={nombre}
             autoFocus
-            placeholder="Nombre del crate"
-            aria-label="Nombre del crate nuevo"
+            placeholder="Nombre de la playlist"
+            aria-label="Nombre de la playlist nueva"
             onChange={(e) => setNombre(e.target.value)}
           />
           <button type="submit" className="btn btn--primary" disabled={guardando || !nombre.trim()}>
@@ -336,7 +336,7 @@ export function AutoDownloadBar({
         </form>
       ) : (
         <label className="autoload__crate">
-          <span>Meterlas en el crate</span>
+          <span>Meterlas en la playlist</span>
           <select
             value={elegido ?? ''}
             disabled={auto.enCola}
@@ -350,13 +350,13 @@ export function AutoDownloadBar({
               }
             }}
           >
-            <option value="">Ninguno, solo a la biblioteca</option>
+            <option value="">Ninguna, solo a la biblioteca</option>
             {crates.map((crate) => (
               <option key={crate.id} value={crate.id}>
                 {crate.name}
               </option>
             ))}
-            <option value={NUEVO}>+ Crear uno nuevo...</option>
+            <option value={NUEVO}>+ Crear una nueva...</option>
           </select>
         </label>
       )}
@@ -391,7 +391,7 @@ export function AutoDownloadBar({
           onClick={() => void auto.descargar(canciones, elegido, nombreTanda)}
         >
           {pendientes === 0
-            ? 'Meterlas en el crate'
+            ? 'Meterlas en la playlist'
             : pendientes === canciones.length
               ? `Descargar todas (${pendientes})`
               : `Descargar las que faltan (${pendientes})`}

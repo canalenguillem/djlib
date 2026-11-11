@@ -38,7 +38,7 @@ def _detail(crate: Crate) -> CrateDetail:
 def _get_or_404(db, crate_id: int) -> Crate:
     crate = crate_service.get_by_id(db, crate_id)
     if crate is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Crate no encontrado.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Playlist no encontrada.")
     return crate
 
 
@@ -119,7 +119,7 @@ def export_crate(crate_id: int, current_user: CurrentUser, db: DbSession):
     if not entradas:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="El crate no tiene ninguna cancion descargada.",
+            detail="La playlist no tiene ninguna cancion descargada.",
         )
 
     destino = zip_export.build_zip(entradas)

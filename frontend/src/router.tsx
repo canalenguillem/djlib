@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom'
+import { Navigate, createBrowserRouter, useLocation, useParams } from 'react-router-dom'
 
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RequireAdmin } from './auth/RequireAdmin'
@@ -39,6 +39,13 @@ function Movida({ to }: { to: string }) {
   return <Navigate to={`${to}${search}`} replace />
 }
 
+/** Los crates ahora se llaman playlists, como en rekordbox: los enlaces
+ *  guardados con la direccion vieja siguen llevando al mismo sitio. */
+function CrateViejo() {
+  const { crateId } = useParams()
+  return <Navigate to={crateId ? `/playlists/${crateId}` : '/playlists'} replace />
+}
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
@@ -74,8 +81,10 @@ export const router = createBrowserRouter([
           {
             element: <RequireMenu menu="crates" />,
             children: [
-              { path: '/crates', element: <CratesPage /> },
-              { path: '/crates/:crateId', element: <CrateDetailPage /> },
+              { path: '/playlists', element: <CratesPage /> },
+              { path: '/playlists/:crateId', element: <CrateDetailPage /> },
+              { path: '/crates', element: <CrateViejo /> },
+              { path: '/crates/:crateId', element: <CrateViejo /> },
             ],
           },
           { element: <RequireMenu menu="listen" />, children: [{ path: '/listen', element: <ListenPage /> }] },
