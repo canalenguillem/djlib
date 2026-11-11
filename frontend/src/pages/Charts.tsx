@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as chartsApi from '../api/charts'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, useAlCambiarBusqueda, textoBuscar } from '../components/AutoDownload'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
@@ -458,7 +458,7 @@ export function ChartsPage() {
                     disabled={buscando}
                     onClick={() => void buscar(indice, p)}
                   >
-                    {buscando && abierta === indice ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
+                    {buscando && abierta === indice ? 'Buscando...' : textoBuscar(auto)}
                   </button>
                 </div>
                 {abierta === indice && candidatos !== null && (

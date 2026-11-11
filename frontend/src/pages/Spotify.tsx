@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import * as spotifyApi from '../api/spotify'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, useAlCambiarBusqueda, textoBuscar } from '../components/AutoDownload'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
 import type {
@@ -229,7 +229,7 @@ export function SpotifyPage() {
                   disabled={buscando}
                   onClick={() => buscar(indice, cancion)}
                 >
-                  {buscando && abierta === indice ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
+                  {buscando && abierta === indice ? 'Buscando...' : textoBuscar(auto)}
                 </button>
               </div>
               {abierta === indice && candidatos !== null && (

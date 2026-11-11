@@ -46,6 +46,14 @@ export function nombreSitio(sitio: Sitio): string {
   return sitio === 'soundcloud' ? 'SoundCloud' : 'YouTube'
 }
 
+/** El boton de cada cancion, que dice lo que va a buscar: "Buscar en YouTube"
+ *  o "Buscar extended en SoundCloud". */
+export function textoBuscar(auto: { version: Version | null; sitio: Sitio }): string {
+  return auto.version
+    ? `Buscar ${nombreVersion(auto.version).toLowerCase()} en ${nombreSitio(auto.sitio)}`
+    : `Buscar en ${nombreSitio(auto.sitio)}`
+}
+
 function tandasGuardadas(origen: string): number[] {
   try {
     const valor = JSON.parse(localStorage.getItem(CLAVE_TANDAS + origen) ?? '[]')
@@ -449,10 +457,19 @@ export function AutoDownloadBar({
         >
           {pendientes === 0
             ? 'Meterlas en la playlist'
-            : pendientes === canciones.length
-              ? `Descargar todas (${pendientes})`
-              : `Descargar las que faltan (${pendientes})`}
+            : `${pendientes === canciones.length ? 'Descargar todas' : 'Descargar las que faltan'} (${pendientes})${
+                auto.version ? ` en ${nombreVersion(auto.version).toLowerCase()}` : ''
+              } de ${nombreSitio(auto.sitio)}`}
         </button>
+      )}
+      {!auto.enCola && pendientes > 0 && (
+        <p className="muted autoload__explica">
+          {auto.version
+            ? `Se buscará la versión ${nombreVersion(auto.version)} de cada canción en ${nombreSitio(auto.sitio)}. Las que no la tengan quedarán «sin resultado» y podrás probar otra versión o sitio.`
+            : `Se buscará cada canción en ${nombreSitio(auto.sitio)} y se bajará el primer resultado que no sea un mix.`}
+          {pendientes < canciones.length &&
+            ` ${canciones.length - pendientes} ya se pidieron en ${auto.version ? `${nombreVersion(auto.version).toLowerCase()} de ` : ''}${nombreSitio(auto.sitio)}.`}
+        </p>
       )}
       {auto.progreso && (
         <p className="autoload__progreso" role="status">

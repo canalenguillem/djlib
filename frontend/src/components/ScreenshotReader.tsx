@@ -4,7 +4,7 @@ import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
 import type { DetectedSong, SearchCandidate, Version } from '../types/api'
 import { Alert } from './Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from './AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, useAlCambiarBusqueda, textoBuscar } from './AutoDownload'
 import { SearchCandidates } from './SearchCandidates'
 
 // Capturas leidas a la vez: el modelo tarda un par de segundos por imagen, y
@@ -237,7 +237,7 @@ export function ScreenshotReader() {
                       disabled={searching}
                       onClick={() => buscar(index, song)}
                     >
-                      {searching && openIndex === index ? 'Buscando...' : `Buscar en ${nombreSitio(auto.sitio)}`}
+                      {searching && openIndex === index ? 'Buscando...' : textoBuscar(auto)}
                     </button>
                   </div>
                   {openIndex === index && candidates !== null && (
