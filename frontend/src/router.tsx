@@ -25,6 +25,7 @@ import { NotFoundPage } from './pages/NotFound'
 import { RecognizePage } from './pages/Recognize'
 import { TagsPage } from './pages/Tags'
 import { UsersPage } from './pages/Users'
+import { SoundcloudPage } from './pages/Soundcloud'
 import { YoutubePage } from './pages/Youtube'
 
 /** La portada es el primer apartado que tenga cada uno. */
@@ -72,6 +73,10 @@ export const router = createBrowserRouter([
               { element: <RequireMenu menu="spotify" />, children: [{ path: 'spotify', element: <SpotifyPage /> }] },
               { element: <RequireMenu menu="beatport" />, children: [{ path: 'beatport', element: <BeatportPage /> }] },
               { element: <RequireMenu menu="youtube" />, children: [{ path: 'youtube', element: <YoutubePage /> }] },
+              {
+                element: <RequireMenu menu="soundcloud" />,
+                children: [{ path: 'soundcloud', element: <SoundcloudPage /> }],
+              },
               { element: <RequireMenu menu="charts" />, children: [{ path: 'combinar', element: <ChartsPage /> }] },
               { path: 'cola', element: <ColaPage /> },
             ],

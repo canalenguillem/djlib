@@ -165,6 +165,7 @@ class FakeDownloader:
         self.downloaded_queries: list[str] = []
         self.searched: list[tuple[str, str | None]] = []
         self.versions: list[str | None] = []
+        self.sitios: list[str] = []
         self.channel_queries: list[str] = []
         self.extension = "m4a"
         # El canal del que subio el video: la unica documentacion que hay de
@@ -208,7 +209,8 @@ class FakeDownloader:
             raise self.error
         return self.channel
 
-    def search(self, title: str, artist: str | None, version: str | None = None):
+    def search(self, title: str, artist: str | None, version: str | None = None, sitio: str = "youtube"):
+        self.sitios.append(sitio)
         self.searched.append((title, artist))
         self.versions.append(version)
         if self.error is not None:

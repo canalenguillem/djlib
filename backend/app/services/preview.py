@@ -7,6 +7,7 @@ no vuelve a salir a la red.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import subprocess
 import time
@@ -39,8 +40,11 @@ def _limpiar_cache() -> None:
 def build(url: str) -> Path:
     """Devuelve la ruta del fragmento, descargandolo si no estaba en cache."""
     video_id = extract_youtube_id(url)
+    if not video_id and "soundcloud.com/" in url:
+        # SoundCloud no lleva el id en la direccion: vale con una huella de ella
+        video_id = "sc-" + hashlib.sha1(url.encode()).hexdigest()[:16]
     if not video_id:
-        raise DownloadError("Solo se pueden escuchar fragmentos de videos de YouTube.")
+        raise DownloadError("Solo se pueden escuchar fragmentos de YouTube y SoundCloud.")
 
     destino = cache_dir() / f"{video_id}.m4a"
     if destino.exists():
@@ -53,21 +57,24 @@ def build(url: str) -> Path:
     temporal = destino.with_suffix(".parcial.m4a")
     temporal.unlink(missing_ok=True)
 
-    _run(
-        _base_args()
-        + [
-            "--format",
-            settings.ytdlp_format,
-            # Solo ese tramo: bajar el tema entero para escuchar medio minuto
-            # seria absurdo, y ademas tardaria.
-            "--download-sections",
-            f"*{inicio}-{fin}",
-            "--force-keyframes-at-cuts",
-            "--output",
-            str(temporal),
-            url,
-        ]
-    )
+    if video_id.startswith("sc-"):
+        _soundcloud(url, temporal, inicio)
+    else:
+        _run(
+            _base_args()
+            + [
+                "--format",
+                settings.ytdlp_format,
+                # Solo ese tramo: bajar el tema entero para escuchar medio minuto
+                # seria absurdo, y ademas tardaria.
+                "--download-sections",
+                f"*{inicio}-{fin}",
+                "--force-keyframes-at-cuts",
+                "--output",
+                str(temporal),
+                url,
+            ]
+        )
 
     resultado = next(iter(sorted(temporal.parent.glob(f"{video_id}.parcial*"))), None)
     if resultado is None or not resultado.exists():
@@ -76,6 +83,30 @@ def build(url: str) -> Path:
 
     _limpiar_cache()
     return destino
+
+
+def _soundcloud(url: str, temporal: Path, inicio: int) -> None:
+    """SoundCloud sirve el audio por HLS y ahi yt-dlp no sabe cortar un tramo:
+    sale un fichero vacio. Se baja entero (unos 4 MB, va rapido) y se recorta
+    con ffmpeg sin recodificar."""
+    entero = temporal.with_name(temporal.name.replace(".parcial.", ".entero."))
+    try:
+        _run(_base_args() + ["--format", settings.ytdlp_format, "--output", str(entero), url])
+        bajado = next(iter(sorted(entero.parent.glob(entero.stem + "*"))), None)
+        if bajado is None:
+            raise DownloadError("No se pudo preparar el fragmento.")
+        resultado = subprocess.run(
+            ["ffmpeg", "-v", "error", "-y", "-ss", str(inicio), "-t", str(settings.preview_seconds),
+             "-i", str(bajado), "-vn", "-c:a", "copy", str(temporal)],
+            capture_output=True,
+            timeout=60,
+            check=False,
+        )
+        if resultado.returncode != 0:
+            raise DownloadError("No se pudo preparar el fragmento.")
+    finally:
+        for f in entero.parent.glob(entero.stem + "*"):
+            f.unlink(missing_ok=True)
 
 
 def touch_time(path: Path) -> float:

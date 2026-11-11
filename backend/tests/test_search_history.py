@@ -29,3 +29,14 @@ def test_guarda_las_busquedas_sin_repetir(client: TestClient, admin_user, normal
 
     assert client.delete("/tracks/search/history", headers=h).status_code == 204
     assert client.get("/tracks/search/history", headers=h).json() == []
+
+
+def test_soundcloud_busca_alli_y_va_aparte(client: TestClient, admin_user, fake_downloader) -> None:
+    h = headers(client)
+    buscar(client, h, artist="Charly Chaser", source="soundcloud")
+    buscar(client, h, title="Song 2", artist="Blur")
+    assert fake_downloader.sitios == ["soundcloud", "youtube"]
+
+    solo_sc = client.get("/tracks/search/history", params={"source": "soundcloud"}, headers=h).json()
+    assert [(b["artist"], b["source"]) for b in solo_sc] == [("Charly Chaser", "soundcloud")]
+    assert len(client.get("/tracks/search/history", headers=h).json()) == 2

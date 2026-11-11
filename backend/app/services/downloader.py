@@ -104,7 +104,14 @@ def es_version(titulo: str, version: str | None) -> bool:
     return any(palabra in texto for palabra in VERSIONES[version][1])
 
 
-def search_query(title: str | None, artist: str | None, version: str | None = None) -> str:
+# Donde se busca: el prefijo de busqueda de yt-dlp de cada sitio. SoundCloud es
+# donde los DJ suben sus edits y bootlegs, muchos de descarga libre
+SITIOS = {"youtube": "ytsearch", "soundcloud": "scsearch"}
+
+
+def search_query(
+    title: str | None, artist: str | None, version: str | None = None, sitio: str = "youtube"
+) -> str:
     """Consulta para yt-dlp. Se piden varios resultados, no uno: el primero
     suele ser un mix largo cuando la consulta no es exacta.
 
@@ -117,7 +124,7 @@ def search_query(title: str | None, artist: str | None, version: str | None = No
         if (title or "").strip()
         else settings.search_artist_candidates
     )
-    return f"ytsearch{cuantos}:{terms}"
+    return f"{SITIOS[sitio]}{cuantos}:{terms}"
 
 
 def search_query_for_request(request_query: str) -> str:
@@ -208,6 +215,13 @@ def _candidates(payload: str) -> list[dict]:
     return found
 
 
+# Reclamos de SoundCloud que no son parte del nombre de la cancion
+_SIN_RECLAMO = re.compile(
+    r"[\[(]?\s*\b(?:free\s*(?:dl|download)|buy\s*=\s*free\s*(?:dl|download)?)\b\s*[\])]?|<3+|!{2,}",
+    re.I,
+)
+
+
 def _parse_info(payload: str) -> MediaInfo:
     found = _candidates(payload)
     if not found:
@@ -223,7 +237,15 @@ def _parse_info(payload: str) -> MediaInfo:
     # deducirlos del titulo, que suele venir como "Artista - Titulo (Official...)".
     track_name = (data.get("track") or "").strip()
     artist_name = (data.get("artist") or "").strip()
-    if track_name and artist_name:
+    sitio = (data.get("extractor_key") or data.get("extractor") or "").lower()
+    if sitio == "soundcloud":
+        # En SoundCloud "track" es el titulo tal cual y el artista es quien lo
+        # sube, que suele ser el DJ del edit: el de la cancion va en el titulo,
+        # "BAD GYAL - DA ME (X Edit) FREE DL"
+        artist, title = split_artist_title(
+            _SIN_RECLAMO.sub(" ", data.get("title") or "").strip(" -|"), data.get("uploader")
+        )
+    elif track_name and artist_name:
         title, artist = track_name, artist_name
     else:
         artist, title = split_artist_title(
@@ -279,7 +301,9 @@ def _video_url(data: dict) -> str:
     )
 
 
-def search(title: str | None, artist: str | None, version: str | None = None) -> list[SearchResult]:
+def search(
+    title: str | None, artist: str | None, version: str | None = None, sitio: str = "youtube"
+) -> list[SearchResult]:
     """Lista los candidatos de una busqueda sin descargar nada.
 
     Usa --flat-playlist: pedir los metadatos completos de cinco videos tarda
@@ -288,7 +312,7 @@ def search(title: str | None, artist: str | None, version: str | None = None) ->
     elegir.
     """
     payload = _run(
-        _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist, version)]
+        _base_args() + ["--flat-playlist", "--dump-json", search_query(title, artist, version, sitio)]
     )
     resultados = []
     for data in _candidates(payload):
@@ -401,7 +425,9 @@ def download(query: str, destination_dir: Path, video_id: str) -> Path:
         _base_args()
         + [
             "--format",
-            settings.ytdlp_format,
+            # De SoundCloud, el fichero original si el autor deja descargarlo
+            # (suele ser un wav o un mp3 a 320); si no, lo mejor del streaming
+            f"download/{settings.ytdlp_format}" if "soundcloud.com/" in query else settings.ytdlp_format,
             "--embed-metadata",
             "--output",
             str(destination_dir / f"{video_id}.%(ext)s"),

@@ -24,5 +24,7 @@ class SearchHistory(Base):
     title: Mapped[str | None] = mapped_column(String(300), nullable=True)
     artist: Mapped[str | None] = mapped_column(String(300), nullable=True)
     version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # "youtube" o "soundcloud"
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="youtube")
     results: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utcnow)

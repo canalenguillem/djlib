@@ -96,3 +96,22 @@ def test_versiones_para_dj() -> None:
     assert not downloader.es_version("Gasolina (Radio Edit)", "edit")
     assert not downloader.es_version("Gasolina (Official Video)", "remix")
     assert downloader.es_version("Gasolina (Official Video)", None)
+
+
+def test_titulo_de_soundcloud() -> None:
+    """En SoundCloud el artista que da yt-dlp es quien lo sube (el DJ del
+    edit); el de la cancion va en el titulo, con reclamos que sobran."""
+    import json
+
+    from app.services import downloader
+
+    info = downloader._parse_info(json.dumps({
+        "id": "2195114767", "title": "BAD GYAL - DA ME (Charly Chaser HARD BOUNCE EDIT) FREE DL <3",
+        "track": "BAD GYAL - DA ME (Charly Chaser HARD BOUNCE EDIT) FREE DL <3",
+        "uploader": "CHARLY CHASER", "duration": 217.4, "extractor_key": "Soundcloud",
+        "webpage_url": "https://soundcloud.com/charlychaser/bad-gyal-da-me",
+    }))
+    assert info.artist == "BAD GYAL"
+    assert info.title == "DA ME (Charly Chaser HARD BOUNCE EDIT)"
+    assert info.site == "soundcloud"
+    assert downloader.search_query(None, "Charly Chaser", None, "soundcloud").startswith("scsearch")

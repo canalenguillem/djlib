@@ -17,7 +17,15 @@ def _limpio(valor: str | None) -> str | None:
     return (valor or "").strip()[:300] or None
 
 
-def record(db: Session, user: User, title: str | None, artist: str | None, version: str | None, results: int) -> None:
+def record(
+    db: Session,
+    user: User,
+    title: str | None,
+    artist: str | None,
+    version: str | None,
+    results: int,
+    source: str = "youtube",
+) -> None:
     title, artist = _limpio(title), _limpio(artist)
     misma = db.scalars(
         select(SearchHistory).where(
@@ -25,13 +33,24 @@ def record(db: Session, user: User, title: str | None, artist: str | None, versi
             SearchHistory.title == title if title else SearchHistory.title.is_(None),
             SearchHistory.artist == artist if artist else SearchHistory.artist.is_(None),
             SearchHistory.version == version if version else SearchHistory.version.is_(None),
+            SearchHistory.source == source,
         )
     ).first()
     # Se borra y se vuelve a crear, no se actualiza: la fecha va a segundos y
     # dos busquedas seguidas empatarian; el id nuevo deja claro cual es la ultima
     if misma:
         db.delete(misma)
-    db.add(SearchHistory(user_id=user.id, title=title, artist=artist, version=version, results=results, created_at=utcnow()))
+    db.add(
+        SearchHistory(
+            user_id=user.id,
+            title=title,
+            artist=artist,
+            version=version,
+            source=source,
+            results=results,
+            created_at=utcnow(),
+        )
+    )
     db.flush()
     sobran = db.scalars(
         select(SearchHistory.id)
@@ -43,11 +62,14 @@ def record(db: Session, user: User, title: str | None, artist: str | None, versi
         db.execute(delete(SearchHistory).where(SearchHistory.id.in_(sobran)))
 
 
-def recent(db: Session, user: User, limit: int) -> list[SearchHistory]:
+def recent(db: Session, user: User, limit: int, source: str | None = None) -> list[SearchHistory]:
+    filtro = [SearchHistory.user_id == user.id]
+    if source:
+        filtro.append(SearchHistory.source == source)
     return list(
         db.scalars(
             select(SearchHistory)
-            .where(SearchHistory.user_id == user.id)
+            .where(*filtro)
             .order_by(SearchHistory.created_at.desc(), SearchHistory.id.desc())
             .limit(limit)
         )

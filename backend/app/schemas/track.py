@@ -85,6 +85,8 @@ class TrackFromSearch(BaseModel):
     artist: str | None = Field(default=None, max_length=300)
     # Una version para DJ ("extended", "remix", "mashup", "edit"); sin ella, la normal
     version: Version | None = None
+    # Donde buscar
+    source: Literal["youtube", "soundcloud"] = "youtube"
 
     @model_validator(mode="after")
     def al_menos_uno(self) -> "TrackFromSearch":
@@ -160,5 +162,6 @@ class SearchHistoryOut(BaseModel):
     title: str | None = None
     artist: str | None = None
     version: str | None = None
+    source: str = "youtube"
     results: int
     created_at: datetime

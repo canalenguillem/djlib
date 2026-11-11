@@ -7,6 +7,7 @@ export type Menu =
   | 'spotify'
   | 'beatport'
   | 'youtube'
+  | 'soundcloud'
   | 'charts'
   | 'crates'
   | 'downloads'
@@ -410,6 +411,10 @@ export interface SearchHistoryEntry {
   title: string | null
   artist: string | null
   version: Version | null
+  source: Sitio
   results: number
   created_at: string
 }
+
+/** Donde se busca la musica. */
+export type Sitio = 'youtube' | 'soundcloud'

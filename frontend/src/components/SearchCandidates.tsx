@@ -6,7 +6,7 @@ import * as tracksApi from '../api/tracks'
 import { refrescarCrates, useCrates } from '../lib/crates'
 import { formatDuration } from '../lib/format'
 import { VersionChips, nombreVersion } from '../lib/versiones'
-import type { SearchCandidate, Track, Version } from '../types/api'
+import type { SearchCandidate, Sitio, Track, Version } from '../types/api'
 import { CrateSelect } from './CrateSelect'
 import { PauseIcon, PlayIcon } from './icons'
 
@@ -48,6 +48,8 @@ interface Props {
   /** Con esto se ven botones para repetir la busqueda en otra version. */
   version?: Version | null
   onVersion?: (version: Version | null) => void
+  /** Donde se hizo la busqueda: las de un artista desde aqui van al mismo sitio. */
+  source?: Sitio
 }
 
 /** Resultados de YouTube para que el usuario elija.
@@ -57,7 +59,7 @@ interface Props {
  *  canal y decida. El primer resultado de una busqueda imprecisa suele ser un
  *  mix de una hora, y con la duracion delante eso se ve de un vistazo.
  */
-export function SearchCandidates({ candidates, addedIds, addingId, onAdd, version = null, onVersion }: Props) {
+export function SearchCandidates({ candidates, addedIds, addingId, onAdd, version = null, onVersion, source = 'youtube' }: Props) {
   // Fragmento que se esta escuchando, si hay alguno
   const [sonando, setSonando] = useState<string | null>(null)
   const [cargando, setCargando] = useState<string | null>(null)
@@ -121,7 +123,7 @@ export function SearchCandidates({ candidates, addedIds, addingId, onAdd, versio
     setFallo(null)
     setBuscandoOtra(true)
     try {
-      const resultado = await tracksApi.previewSearch(null, limpio, enVersion)
+      const resultado = await tracksApi.previewSearch(null, limpio, enVersion, source)
       setOtra({ nombre: limpio, version: enVersion, lista: resultado.candidates })
       setEscrito('')
     } catch (err) {

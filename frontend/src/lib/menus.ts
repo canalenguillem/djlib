@@ -17,6 +17,7 @@ export const MENUS: MenuDef[] = [
   { key: 'spotify', to: '/fuentes/spotify', label: 'Spotify', fuente: true },
   { key: 'beatport', to: '/fuentes/beatport', label: 'Beatport', fuente: true },
   { key: 'youtube', to: '/fuentes/youtube', label: 'YouTube', fuente: true },
+  { key: 'soundcloud', to: '/fuentes/soundcloud', label: 'SoundCloud', fuente: true },
   { key: 'charts', to: '/fuentes/combinar', label: 'Combinar tops', fuente: true },
   { key: 'crates', to: '/playlists', label: 'Playlists' },
   { key: 'downloads', to: '/downloads', label: 'Descargas' },

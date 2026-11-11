@@ -135,7 +135,7 @@ def preview_search(
     porque solo pide el listado, no los metadatos completos de cada video.
     """
     try:
-        resultados = downloader.search(payload.title, payload.artist, payload.version)
+        resultados = downloader.search(payload.title, payload.artist, payload.version, payload.source)
     except DownloadError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)
@@ -143,11 +143,13 @@ def preview_search(
 
     ya_estan = track_service.existing_by_video_id(db, [r.video_id for r in resultados])
     limite = settings.max_song_duration_seconds
-    search_history.record(db, current_user, payload.title, payload.artist, payload.version, len(resultados))
+    search_history.record(
+        db, current_user, payload.title, payload.artist, payload.version, len(resultados), payload.source
+    )
     db.commit()
 
     return SearchResults(
-        query=downloader.search_query(payload.title, payload.artist, payload.version),
+        query=downloader.search_query(payload.title, payload.artist, payload.version, payload.source),
         candidates=[
             SearchCandidate(
                 video_id=r.video_id,
@@ -167,10 +169,15 @@ def preview_search(
 
 @router.get("/search/history", response_model=list[SearchHistoryOut])
 def search_history_list(
-    current_user: CurrentUser, db: DbSession, limit: int = Query(30, ge=1, le=100)
+    current_user: CurrentUser,
+    db: DbSession,
+    limit: int = Query(30, ge=1, le=100),
+    source: str | None = Query(None, pattern="^(youtube|soundcloud)$"),
 ) -> list[SearchHistoryOut]:
-    """Las ultimas busquedas en YouTube, la mas reciente primero."""
-    return [SearchHistoryOut.model_validate(h) for h in search_history.recent(db, current_user, limit)]
+    """Las ultimas busquedas, la mas reciente primero; de un sitio si se pide."""
+    return [
+        SearchHistoryOut.model_validate(h) for h in search_history.recent(db, current_user, limit, source)
+    ]
 
 
 @router.delete("/search/history", status_code=status.HTTP_204_NO_CONTENT)

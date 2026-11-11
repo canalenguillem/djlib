@@ -1,4 +1,4 @@
-import type { CrateSuggestion, SearchHistoryEntry, SearchResults, Track, TrackFilters, TrackPage, Version, Waveform } from '../types/api'
+import type { CrateSuggestion, SearchHistoryEntry, SearchResults, Sitio, Track, TrackFilters, TrackPage, Version, Waveform } from '../types/api'
 import { apiFetch, apiFetchBlob, apiFetchForm } from './client'
 
 export function listTracks(filters: TrackFilters = {}): Promise<TrackPage> {
@@ -38,10 +38,11 @@ export function previewSearch(
   title: string | null,
   artist: string | null,
   version: Version | null = null,
+  source: Sitio = 'youtube',
 ): Promise<SearchResults> {
   return apiFetch<SearchResults>('/tracks/search/preview', {
     method: 'POST',
-    body: { title, artist, version },
+    body: { title, artist, version, source },
   })
 }
 
@@ -122,8 +123,9 @@ export function crateSuggestions(id: number): Promise<CrateSuggestion[]> {
   return apiFetch<CrateSuggestion[]>(`/tracks/${id}/crate-suggestions`)
 }
 
-export function searchHistory(limit = 30): Promise<SearchHistoryEntry[]> {
-  return apiFetch<SearchHistoryEntry[]>(`/tracks/search/history?limit=${limit}`)
+export function searchHistory(limit = 30, source?: Sitio): Promise<SearchHistoryEntry[]> {
+  const sitio = source ? `&source=${source}` : ''
+  return apiFetch<SearchHistoryEntry[]>(`/tracks/search/history?limit=${limit}${sitio}`)
 }
 
 export function clearSearchHistory(): Promise<void> {
