@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as batchesApi from '../api/batches'
@@ -301,6 +301,20 @@ export function useAutoDownload(origen: string, { recordarCrate = true } = {}) {
 }
 
 export type AutoDownload = ReturnType<typeof useAutoDownload>
+
+/** Avisa cuando cambian la version o el sitio de la barra (no al entrar): la
+ *  busqueda de una cancion que este abierta tiene que repetirse con ellos. */
+export function useAlCambiarBusqueda(auto: AutoDownload, alCambiar: () => void) {
+  const clave = `${auto.version}|${auto.sitio}`
+  const previa = useRef(clave)
+  const ultima = useRef(alCambiar)
+  ultima.current = alCambiar
+  useEffect(() => {
+    if (previa.current === clave) return
+    previa.current = clave
+    ultima.current()
+  }, [clave])
+}
 
 const NUEVO = 'nuevo'
 

@@ -4,7 +4,7 @@ import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
 import type { DetectedSong, SearchCandidate, Version } from '../types/api'
 import { Alert } from './Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from './AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from './AutoDownload'
 import { SearchCandidates } from './SearchCandidates'
 
 // Capturas leidas a la vez: el modelo tarda un par de segundos por imagen, y
@@ -102,7 +102,14 @@ export function ScreenshotReader() {
     return () => window.removeEventListener('paste', onPaste)
   }, [])
 
+  // La ultima cancion buscada, para repetirla si cambian version o sitio
+  const ultimaBuscada = useRef<[number, DetectedSong] | null>(null)
+  useAlCambiarBusqueda(auto, () => {
+    if (openIndex !== null && ultimaBuscada.current) void buscar(...ultimaBuscada.current)
+  })
+
   async function buscar(index: number, song: DetectedSong, version: Version | null = auto.version) {
+    ultimaBuscada.current = [index, song]
     setOpenIndex(index)
     setCandidates(null)
     setSearching(true)
@@ -243,7 +250,6 @@ export function ScreenshotReader() {
                       source={auto.sitio}
                       onVersion={(v) => {
                         auto.elegirVersion(v)
-                        void buscar(index, song, v)
                       }}
                     />
                   )}

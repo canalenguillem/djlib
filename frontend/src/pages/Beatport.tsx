@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import * as beatportApi from '../api/beatport'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from '../components/AutoDownload'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
@@ -101,7 +101,14 @@ export function BeatportPage() {
     })
   }
 
+  // La ultima cancion buscada, para repetirla si cambian version o sitio
+  const ultimaBuscada = useRef<[BeatportTrack] | null>(null)
+  useAlCambiarBusqueda(auto, () => {
+    if (abierta !== null && ultimaBuscada.current) void buscar(...ultimaBuscada.current)
+  })
+
   async function buscar(pista: BeatportTrack, version: Version | null = auto.version) {
+    ultimaBuscada.current = [pista]
     setAbierta(pista.position)
     setCandidatos(null)
     setBuscando(true)
@@ -254,7 +261,6 @@ export function BeatportPage() {
                       source={auto.sitio}
                       onVersion={(v) => {
                         auto.elegirVersion(v)
-                        void buscar(p, v)
                       }}
                     />
                   )}

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import * as spotifyApi from '../api/spotify'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from '../components/AutoDownload'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
 import type {
@@ -157,7 +157,14 @@ export function SpotifyPage() {
     }
   }
 
+  // La ultima cancion buscada, para repetirla si cambian version o sitio
+  const ultimaBuscada = useRef<[string, PlayedTrack] | null>(null)
+  useAlCambiarBusqueda(auto, () => {
+    if (abierta !== null && ultimaBuscada.current) void buscar(...ultimaBuscada.current)
+  })
+
   async function buscar(indice: string, cancion: PlayedTrack, version: Version | null = auto.version) {
+    ultimaBuscada.current = [indice, cancion]
     setAbierta(indice)
     setCandidatos(null)
     setBuscando(true)
@@ -235,7 +242,6 @@ export function SpotifyPage() {
                   source={auto.sitio}
                   onVersion={(v) => {
                     auto.elegirVersion(v)
-                    void buscar(indice, cancion, v)
                   }}
                 />
               )}

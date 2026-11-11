@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as chartsApi from '../api/charts'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
-import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio } from '../components/AutoDownload'
+import { AutoDownloadBar, EstadoDescarga, claveCancion, useAutoDownload, nombreSitio, useAlCambiarBusqueda } from '../components/AutoDownload'
 import { PauseIcon, PlayIcon } from '../components/icons'
 import { Loading } from '../components/Loading'
 import { SearchCandidates } from '../components/SearchCandidates'
@@ -175,7 +175,14 @@ export function ChartsPage() {
     })
   }
 
+  // La ultima cancion buscada, para repetirla si cambian version o sitio
+  const ultimaBuscada = useRef<[number, ChartTrack] | null>(null)
+  useAlCambiarBusqueda(auto, () => {
+    if (abierta !== null && ultimaBuscada.current) void buscar(...ultimaBuscada.current)
+  })
+
   async function buscar(indice: number, pista: ChartTrack, version: Version | null = auto.version) {
+    ultimaBuscada.current = [indice, pista]
     setAbierta(indice)
     setCandidatos(null)
     setBuscando(true)
@@ -464,7 +471,6 @@ export function ChartsPage() {
                     source={auto.sitio}
                     onVersion={(v) => {
                       auto.elegirVersion(v)
-                      void buscar(indice, p, v)
                     }}
                   />
                 )}
