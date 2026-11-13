@@ -6,6 +6,7 @@ import type { BeatGrid } from '../lib/beatgrid'
 import type { DeckWaveformData } from '../lib/waveform'
 import type { Track } from '../types/api'
 import { DeckWaveform } from './DeckWaveform'
+import { Jog } from './Jog'
 import { PauseIcon, PlayIcon } from './icons'
 
 export interface DeckControls {
@@ -46,12 +47,10 @@ export interface DeckControls {
   /** Empujon del jog: 1 al soltar. */
   onNudge: (factor: number) => void
   onDownbeat: () => void
+  /** El plato de la derecha va en espejo: SYNC y tempo hacia fuera. */
+  side?: 'left' | 'right'
 }
 
-// Cuanto frena o acelera el empujon. Con un 4 % se quedaba corto: habia que
-// mantenerlo varios segundos para mover medio golpe. Con un 10 %, medio
-// segundo pulsado corre unos 50 ms, lo que se suele necesitar.
-const EMPUJON = 0.1
 // Paso del fader de tempo: 0,05 %, lo fino que hace falta para cuadrar dos
 // temas a mano
 const PASO_TEMPO = 0.0005
@@ -161,9 +160,13 @@ export function DeckPanel(props: DeckControls) {
     )
   }
 
+  // Lo que queda, con decimas, como la pantalla del CDJ: "-03:11.6"
+  const queda = Math.max(0, duration - position)
+  const textoQueda = `-${String(Math.floor(queda / 60)).padStart(2, '0')}:${(queda % 60).toFixed(1).padStart(4, '0')}`
+
   return (
-    <section className="deck card">
-      <div className="deck__head">
+    <section className={`cdeck card${props.side === 'right' ? ' cdeck--der' : ''}`}>
+      <header className="cdeck__head">
         <span className="deck__label">{label}</span>
         <div className="deck__title">
           {loading ? (
@@ -174,27 +177,16 @@ export function DeckPanel(props: DeckControls) {
               <span className="muted">{track.artist_text ?? 'Artista desconocido'}</span>
             </>
           ) : (
-            <span className="muted">Sin cancion. Cargala desde la lista de abajo.</span>
+            <span className="muted">Sin canción. Cárgala desde la lista de abajo.</span>
           )}
         </div>
-      </div>
-
-      <div className="deck__transport">
-        <div className="deck__times">
-          <span>{formatClock(position)}</span>
-          <span className="muted">-{formatClock(Math.max(0, duration - position))}</span>
+        <div className="cdeck__lectura">
+          <span className="cdeck__queda" title={`Lleva ${formatClock(position)}`}>{listo ? textoQueda : '--:--.-'}</span>
+          <strong className="cdeck__bpm" title={bpm ? `Original ${bpm.toFixed(grid ? 2 : 0)} BPM` : 'Sin BPM'}>
+            {sonando === null ? '—' : sonando.toFixed(1)}
+          </strong>
         </div>
-        <div className="deck__bpm">
-          {bpm === null ? (
-            <span className="muted">sin BPM</span>
-          ) : (
-            <>
-              <strong>{sonando!.toFixed(grid ? 2 : 1)}</strong>
-              <span className="muted">BPM{tempo !== 1 && ` · original ${bpm.toFixed(grid ? 2 : 0)}`}</span>
-            </>
-          )}
-        </div>
-      </div>
+      </header>
 
       <DeckWaveform
         data={waveform}
@@ -206,45 +198,11 @@ export function DeckPanel(props: DeckControls) {
         cues={cues}
         mainCue={mainCue}
         onSeek={props.onSeek}
+        soloGeneral
       />
 
-      <div className="deck__deck">
-        {/* CUE encima de PLAY, como en un CDJ: la mano no tiene que buscarlos */}
-        <div className="deck__buttons">
-          <button
-            type="button"
-            className={`bigbtn bigbtn--cue${enCue ? ' bigbtn--on' : ''}`}
-            disabled={!listo}
-            title="Sonando: vuelve al cue. Parado: marca el cue aqui, o si ya estas en el, suena mientras lo mantengas"
-            onPointerDown={(e) => {
-              if (e.button !== 0) return
-              // Para enterarse de que se suelta aunque el dedo salga del boton
-              e.currentTarget.setPointerCapture(e.pointerId)
-              props.onCueDown()
-            }}
-            onPointerUp={props.onCueUp}
-            onPointerCancel={props.onCueUp}
-            onKeyDown={(e) => {
-              if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
-                e.preventDefault()
-                props.onCueDown()
-              }
-            }}
-            onKeyUp={(e) => {
-              if (e.key === ' ' || e.key === 'Enter') props.onCueUp()
-            }}
-          >
-            CUE
-          </button>
-          <button
-            type="button"
-            className={`bigbtn bigbtn--play${playing ? ' bigbtn--on' : listo ? ' bigbtn--ready' : ''}`}
-            disabled={!listo}
-            aria-label={playing ? 'Pausar' : 'Reproducir'}
-            onClick={props.onPlayPause}
-          >
-            {playing ? <PauseIcon /> : <PlayIcon />}
-          </button>
+      <div className="cdeck__cuerpo">
+        <div className="cdeck__lado">
           <button
             type="button"
             className={`syncbtn${props.sync ? ' syncbtn--on' : ''}`}
@@ -261,123 +219,50 @@ export function DeckPanel(props: DeckControls) {
           >
             SYNC
           </button>
-        </div>
-
-        <div className="deck__side">
-          <div className="deck__pads">
-            {cues.map((cue, indice) => (
-              <div key={indice} className="pad__wrap">
-                <button
-                  type="button"
-                  className={cue === null ? 'pad' : 'pad pad--set'}
-                  disabled={!track}
-                  title={
-                    cue === null
-                      ? 'Marca este punto de la cancion'
-                      : `Saltar a ${formatClock(cue)}`
-                  }
-                  onClick={() => props.onCue(indice)}
-                >
-                  <span className="pad__num">{indice + 1}</span>
-                  <span className="pad__time">{cue === null ? '—' : formatClock(cue)}</span>
-                </button>
-                {cue !== null && (
-                  <button
-                    type="button"
-                    className="pad__clear"
-                    aria-label={`Borrar el cue ${indice + 1}`}
-                    onClick={() => props.onClearCue(indice)}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
+          <div className="cdeck__tempo">
+            <strong>{textoTempo}</strong>
+            {sonando !== null && <span className="muted">{sonando.toFixed(2)}</span>}
           </div>
-
-          <div className="deck__nudge">
-            {[
-              { factor: 1 - EMPUJON, texto: '« Frenar', ayuda: 'Mantén pulsado para que el plato vaya un poco más lento y sus golpes se retrasen' },
-              { factor: 1 + EMPUJON, texto: 'Empujar »', ayuda: 'Mantén pulsado para que el plato vaya un poco más rápido y sus golpes se adelanten' },
-            ].map(({ factor, texto, ayuda }) => (
+          <div className="cdeck__rangos" role="group" aria-label="Recorrido del tempo">
+            {props.ranges.map((opcion) => (
               <button
-                key={texto}
+                key={opcion}
                 type="button"
-                className="btn btn--ghost nudge"
-                disabled={!listo}
-                title={ayuda}
-                onPointerDown={(e) => {
-                  if (e.button !== 0) return
-                  e.currentTarget.setPointerCapture(e.pointerId)
-                  props.onNudge(factor)
-                }}
-                onPointerUp={() => props.onNudge(1)}
-                onPointerCancel={() => props.onNudge(1)}
-                onKeyDown={(e) => {
-                  if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
-                    e.preventDefault()
-                    props.onNudge(factor)
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') props.onNudge(1)
-                }}
+                className={opcion === range ? 'rangebtn rangebtn--on' : 'rangebtn'}
+                onClick={() => props.onRange(opcion)}
               >
-                {texto}
+                {textoRango(opcion)}
               </button>
             ))}
+          </div>
+          {puedeIgualar && !props.sync && (
+            <button type="button" className="deck__match" onClick={props.onMatch} title="Solo el tempo, sin poner los golpes a la par">
+              Igualar BPM
+            </button>
+          )}
+          {!puedeIgualar && necesario !== null && (
+            <span className="muted deck__needed">igualar pide {necesario > 0 ? '+' : ''}{necesario.toFixed(1)} %</span>
+          )}
+          {tempo !== 1 && (
             <button
               type="button"
-              className="btn btn--ghost nudge"
-              disabled={!grid}
-              title="Si la línea roja no cae en el primer tiempo del compás, para la aguja en él y pulsa aquí"
-              onClick={props.onDownbeat}
+              className="deck__match deck__match--reset"
+              title="Devuelve el plato a su velocidad original"
+              onClick={props.onResetTempo}
             >
-              Marcar el 1 aquí
+              Tempo original
             </button>
-          </div>
-
-          <label className="deck__control">
-            <span>
-              Tempo <strong>{textoTempo}</strong>
-              {puedeIgualar && (
-                <button type="button" className="deck__match" onClick={props.onMatch}>
-                  Igualar al otro plato
-                </button>
-              )}
-              {/* Solo tiene sentido si el tempo esta tocado */}
-              {tempo !== 1 && (
-                <button
-                  type="button"
-                  className="deck__match deck__match--reset"
-                  title="Devuelve el plato a su velocidad original"
-                  onClick={props.onResetTempo}
-                >
-                  Tempo original{bpm ? ` (${bpm.toFixed(grid ? 2 : 0)})` : ''}
-                </button>
-              )}
-            </span>
-            <div className="deck__range">
-              <span className="muted">Recorrido</span>
-              {props.ranges.map((opcion) => (
-                <button
-                  key={opcion}
-                  type="button"
-                  className={opcion === range ? 'rangebtn rangebtn--on' : 'rangebtn'}
-                  onClick={() => props.onRange(opcion)}
-                >
-                  {textoRango(opcion)}
-                </button>
-              ))}
-              {!puedeIgualar && necesario !== null && (
-                <span className="muted deck__needed">
-                  igualar pide {necesario > 0 ? '+' : ''}
-                  {necesario.toFixed(1)} %
-                </span>
-              )}
-            </div>
-          </label>
+          )}
         </div>
+
+        <Jog
+          label={label}
+          position={position}
+          playing={playing}
+          disabled={!listo}
+          onNudge={props.onNudge}
+          onSeek={props.onSeek}
+        />
 
         {/* El fader de tempo del CDJ: vertical, con el - arriba y el + abajo.
             Hacia uno mismo, mas rapido. */}
@@ -413,9 +298,82 @@ export function DeckPanel(props: DeckControls) {
             />
           </div>
           {botonFino(1)}
-          <strong className="pitch__value">{textoTempo}</strong>
-          {sonando !== null && <span className="pitch__bpm">{sonando.toFixed(2)} BPM</span>}
         </div>
+      </div>
+
+      <div className="cdeck__transporte">
+        <button
+          type="button"
+          className={`tbtn tbtn--play${playing ? ' tbtn--on' : ''}`}
+          disabled={!listo}
+          aria-label={playing ? 'Pausar' : 'Reproducir'}
+          onClick={props.onPlayPause}
+        >
+          {playing ? <PauseIcon /> : <PlayIcon />}
+          {playing ? 'PAUSE' : 'PLAY'}
+        </button>
+        <button
+          type="button"
+          className={`tbtn tbtn--cue${enCue ? ' tbtn--on' : ''}`}
+          disabled={!listo}
+          title="Sonando: vuelve al cue. Parado: marca el cue aquí, o si ya estás en él, suena mientras lo mantengas"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            // Para enterarse de que se suelta aunque el dedo salga del boton
+            e.currentTarget.setPointerCapture(e.pointerId)
+            props.onCueDown()
+          }}
+          onPointerUp={props.onCueUp}
+          onPointerCancel={props.onCueUp}
+          onKeyDown={(e) => {
+            if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+              e.preventDefault()
+              props.onCueDown()
+            }
+          }}
+          onKeyUp={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') props.onCueUp()
+          }}
+        >
+          CUE
+        </button>
+        <button
+          type="button"
+          className="tbtn"
+          disabled={!grid}
+          title="Si la línea roja no cae en el primer tiempo del compás, para la aguja en él y pulsa aquí"
+          onClick={props.onDownbeat}
+        >
+          Marcar el 1
+        </button>
+      </div>
+
+      <div className="cdeck__cues">
+        <span className="cdeck__etiqueta">Hot cue</span>
+        {cues.map((cue, indice) => (
+          <div key={indice} className="pad__wrap">
+            <button
+              type="button"
+              className={cue === null ? 'pad' : 'pad pad--set'}
+              disabled={!track}
+              title={cue === null ? 'Marca este punto de la canción' : `Saltar a ${formatClock(cue)}`}
+              onClick={() => props.onCue(indice)}
+            >
+              <span className="pad__num">{indice + 1}</span>
+              <span className="pad__time">{cue === null ? '—' : formatClock(cue)}</span>
+            </button>
+            {cue !== null && (
+              <button
+                type="button"
+                className="pad__clear"
+                aria-label={`Borrar el cue ${indice + 1}`}
+                onClick={() => props.onClearCue(indice)}
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </section>
   )

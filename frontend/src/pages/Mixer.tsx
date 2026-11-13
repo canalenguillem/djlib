@@ -5,7 +5,7 @@ import * as cratesApi from '../api/crates'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { DeckPanel } from '../components/DeckPanel'
-import { SyncView } from '../components/SyncView'
+import { VerticalSync } from '../components/VerticalSync'
 import { Loading } from '../components/Loading'
 import { Knob } from '../components/Knob'
 import { Deck, audioContext, crossfadeGains, eqDb } from '../lib/audioEngine'
@@ -533,26 +533,21 @@ export function MixerPage() {
   const sinDiferencia = (banda: EqBand) => estados[0].eq[banda] === estados[1].eq[banda]
 
   return (
-    <div className="stack">
-      <h1>Mesa de mezclas</h1>
-      <p className="muted">
-        Dos platos con crossfader para practicar transiciones con tu propia
-        biblioteca. El tempo cambia el tono, como en un plato de verdad. No sustituye
-        a rekordbox ni a Mixxx: para el bolo, exporta la playlist a un USB.
-      </p>
+    <div className="stack mezclador">
+      <div className="mezclador__cabecera">
+        <h1>Mesa de mezclas</h1>
+        <p className="muted">
+          Para practicar transiciones con tu biblioteca. El tempo cambia el tono, como en un
+          plato de verdad. Para el bolo, exporta la playlist a un USB.
+        </p>
+      </div>
 
       {error && <Alert kind="error">{error}</Alert>}
 
-      <SyncView
-        decks={[
-          { label: 'A', loaded: estados[0].track !== null && !estados[0].loading, ...estados[0], data: estados[0].waveform },
-          { label: 'B', loaded: estados[1].track !== null && !estados[1].loading, ...estados[1], data: estados[1].waveform },
-        ]}
-      />
-
-      <div className="mixer">
+      <div className="consola">
         <DeckPanel
           label="A"
+          side="left"
           {...estados[0]}
           otherBpm={sonandoA(1)}
           onMatch={() => igualar(0)}
@@ -588,138 +583,97 @@ export function MixerPage() {
           }}
         />
 
-        <div className="crossfader card">
-          {/* Los canales, como en una mesa Pioneer: ecualizador arriba y fader
-              debajo, y los dos pasan despues por el crossfader. */}
-          <div className="channels">
-            {([0, 1] as const).map((indice) => (
-              <div key={indice} className="channel">
-                <span className="channel__label">{indice === 0 ? 'A' : 'B'}</span>
-                {EQ.map(({ band, label }) => (
-                  <Knob
-                    key={band}
-                    label={label}
-                    color={COLOR_BANDA[band]}
-                    value={estados[indice].eq[band]}
-                    valueText={textoDb(estados[indice].eq[band], equipo)}
-                    onChange={(v) => {
-                      // La mano manda sobre un barrido en marcha
-                      pararBarrido(band)
-                      cambiarEq(indice, band, v)
-                    }}
-                  />
-                ))}
-                {equipo.colorFx.length > 0 && (
-                  <Knob
-                    label="COLOR"
-                    color={colorFx ? '#f5a623' : '#5b6574'}
-                    value={estados[indice].color}
-                    valueText={
-                      colorFx
-                        ? `${COLOR_FX.find((f) => f.id === colorFx)?.label} ${Math.round(estados[indice].color * 100)}`
-                        : 'Sin efecto elegido'
-                    }
-                    onChange={(v) => girarColor(indice, v)}
-                  />
-                )}
-                <input
-                  type="range"
-                  className="channel__fader"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={estados[indice].volume}
-                  aria-label={`Volumen del plato ${indice === 0 ? 'A' : 'B'}`}
-                  onChange={(e) => cambiarVolumen(indice, Number(e.target.value))}
-                />
-                <span className="channel__value">{Math.round(estados[indice].volume * 100)}</span>
-              </div>
-            ))}
-          </div>
-
-          {equipo.colorFx.length > 0 && (
-            <div className="colorfx">
-              <span className="crossfader__label">Sound Color FX</span>
-              <div className="colorfx__botones">
-                {COLOR_FX.filter((f) => equipo.colorFx.includes(f.id)).map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className={colorFx === f.id ? 'colorfxbtn colorfxbtn--on' : 'colorfxbtn'}
-                    aria-pressed={colorFx === f.id}
-                    title={f.ayuda}
-                    onClick={() => elegirColorFx(f.id)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              <Knob
-                label="PARAMETER"
-                color="#f5a623"
-                value={parametro}
-                valueText={`${Math.round(((parametro + 1) / 2) * 100)} %`}
-                onChange={girarParametro}
-              />
-              <p className="muted colorfx__ayuda">
-                {colorFx
-                  ? COLOR_FX.find((f) => f.id === colorFx)?.ayuda
-                  : 'Elige un efecto y gira la rueda COLOR de cada canal. En el centro no suena.'}
-              </p>
-            </div>
-          )}
-
-          {/* Intercambio de ecualizador: lo que en la mesa se hace con dos manos */}
-          <div className="swap">
-            <span className="crossfader__label">Intercambiar entre A y B</span>
-            <div className="swap__bands">
+        <section className="cmesa card" aria-label="Mesa">
+          <div className="cmesa__cuerpo">
+            <div className="channel">
+              <span className="channel__label">A</span>
               {EQ.map(({ band, label }) => (
-                <button
+                <Knob
                   key={band}
-                  type="button"
-                  className={barriendo[band] ? 'swapbtn swapbtn--running' : 'swapbtn'}
-                  style={{ '--band': COLOR_BANDA[band] } as CSSProperties}
-                  disabled={sinDiferencia(band) && !barriendo[band]}
-                  title={
-                    sinDiferencia(band)
-                      ? `Los ${label.toLowerCase()} de A y B estan igual: no hay nada que intercambiar`
-                      : `Baja los ${label.toLowerCase()} del canal que los tiene subidos y sube los del otro`
-                  }
-                  onClick={() => intercambiar(band, segundosIntercambio)}
-                >
-                  {label}
-                </button>
+                  label={label}
+                  color={COLOR_BANDA[band]}
+                  value={estados[0].eq[band]}
+                  valueText={textoDb(estados[0].eq[band], equipo)}
+                  onChange={(v) => {
+                    // La mano manda sobre un barrido en marcha
+                    pararBarrido(band)
+                    cambiarEq(0, band, v)
+                  }}
+                />
               ))}
-              <button
-                type="button"
-                className="swapbtn swapbtn--all"
-                disabled={EQ.every(({ band }) => sinDiferencia(band))}
-                title="Intercambia las tres bandas a la vez"
-                onClick={() => EQ.forEach(({ band }) => intercambiar(band, segundosIntercambio))}
-              >
-                Todo
-              </button>
+              {equipo.colorFx.length > 0 && (
+                <Knob
+                  label="COLOR"
+                  color={colorFx ? '#f5a623' : '#5b6574'}
+                  value={estados[0].color}
+                  valueText={
+                    colorFx
+                      ? `${COLOR_FX.find((f) => f.id === colorFx)?.label} ${Math.round(estados[0].color * 100)}`
+                      : 'Sin efecto elegido'
+                  }
+                  onChange={(v) => girarColor(0, v)}
+                />
+              )}
+              <input
+                type="range"
+                className="channel__fader"
+                min={0}
+                max={1}
+                step={0.01}
+                value={estados[0].volume}
+                aria-label="Volumen del plato A"
+                onChange={(e) => cambiarVolumen(0, Number(e.target.value))}
+              />
+              <span className="channel__value">{Math.round(estados[0].volume * 100)}</span>
             </div>
-            <div className="swap__speed">
-              {VELOCIDADES.map((opcion) => (
-                <button
-                  key={opcion}
-                  type="button"
-                  className={opcion === compases ? 'rangebtn rangebtn--on' : 'rangebtn'}
-                  title={
-                    opcion === 0
-                      ? 'Cambio seco, de golpe'
-                      : `${opcion} ${opcion === 1 ? 'compas' : 'compases'}: ${((opcion * 4 * 60) / bpmMezcla).toFixed(1)} s a ${bpmMezcla.toFixed(0)} BPM`
-                  }
-                  onClick={() => setCompases(opcion)}
-                >
-                  {opcion === 0 ? 'Corte' : opcion}
-                </button>
+            <VerticalSync
+              decks={[
+                { label: 'A', loaded: estados[0].track !== null && !estados[0].loading, ...estados[0], data: estados[0].waveform },
+                { label: 'B', loaded: estados[1].track !== null && !estados[1].loading, ...estados[1], data: estados[1].waveform },
+              ]}
+            />
+            <div className="channel">
+              <span className="channel__label">B</span>
+              {EQ.map(({ band, label }) => (
+                <Knob
+                  key={band}
+                  label={label}
+                  color={COLOR_BANDA[band]}
+                  value={estados[1].eq[band]}
+                  valueText={textoDb(estados[1].eq[band], equipo)}
+                  onChange={(v) => {
+                    // La mano manda sobre un barrido en marcha
+                    pararBarrido(band)
+                    cambiarEq(1, band, v)
+                  }}
+                />
               ))}
-              <span className="muted">{compases === 0 ? 'de golpe' : compases === 1 ? 'compas' : 'compases'}</span>
+              {equipo.colorFx.length > 0 && (
+                <Knob
+                  label="COLOR"
+                  color={colorFx ? '#f5a623' : '#5b6574'}
+                  value={estados[1].color}
+                  valueText={
+                    colorFx
+                      ? `${COLOR_FX.find((f) => f.id === colorFx)?.label} ${Math.round(estados[1].color * 100)}`
+                      : 'Sin efecto elegido'
+                  }
+                  onChange={(v) => girarColor(1, v)}
+                />
+              )}
+              <input
+                type="range"
+                className="channel__fader"
+                min={0}
+                max={1}
+                step={0.01}
+                value={estados[1].volume}
+                aria-label="Volumen del plato B"
+                onChange={(e) => cambiarVolumen(1, Number(e.target.value))}
+              />
+              <span className="channel__value">{Math.round(estados[1].volume * 100)}</span>
             </div>
           </div>
-
           <span className="crossfader__label">Crossfader</span>
           <input
             type="range"
@@ -748,10 +702,11 @@ export function MixerPage() {
             </button>
             <span>B</span>
           </div>
-        </div>
+        </section>
 
         <DeckPanel
           label="B"
+          side="right"
           {...estados[1]}
           otherBpm={sonandoA(0)}
           onMatch={() => igualar(1)}
@@ -788,8 +743,94 @@ export function MixerPage() {
         />
       </div>
 
+      <section className="card fxbar" aria-label="Efectos e intercambio de EQ">
+          {equipo.colorFx.length > 0 && (
+          <div className="colorfx">
+            <span className="crossfader__label">Sound Color FX</span>
+            <div className="colorfx__botones">
+              {COLOR_FX.filter((f) => equipo.colorFx.includes(f.id)).map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={colorFx === f.id ? 'colorfxbtn colorfxbtn--on' : 'colorfxbtn'}
+                  aria-pressed={colorFx === f.id}
+                  title={f.ayuda}
+                  onClick={() => elegirColorFx(f.id)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <Knob
+              label="PARAMETER"
+              color="#f5a623"
+              value={parametro}
+              valueText={`${Math.round(((parametro + 1) / 2) * 100)} %`}
+              onChange={girarParametro}
+            />
+            <p className="muted colorfx__ayuda">
+              {colorFx
+                ? COLOR_FX.find((f) => f.id === colorFx)?.ayuda
+                : 'Elige un efecto y gira la rueda COLOR de cada canal. En el centro no suena.'}
+            </p>
+          </div>
+        )}
+
+          {/* Intercambio de ecualizador: lo que en la mesa se hace con dos manos */}
+        <div className="swap">
+          <span className="crossfader__label">Intercambiar entre A y B</span>
+          <div className="swap__bands">
+            {EQ.map(({ band, label }) => (
+              <button
+                key={band}
+                type="button"
+                className={barriendo[band] ? 'swapbtn swapbtn--running' : 'swapbtn'}
+                style={{ '--band': COLOR_BANDA[band] } as CSSProperties}
+                disabled={sinDiferencia(band) && !barriendo[band]}
+                title={
+                  sinDiferencia(band)
+                    ? `Los ${label.toLowerCase()} de A y B estan igual: no hay nada que intercambiar`
+                    : `Baja los ${label.toLowerCase()} del canal que los tiene subidos y sube los del otro`
+                }
+                onClick={() => intercambiar(band, segundosIntercambio)}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="swapbtn swapbtn--all"
+              disabled={EQ.every(({ band }) => sinDiferencia(band))}
+              title="Intercambia las tres bandas a la vez"
+              onClick={() => EQ.forEach(({ band }) => intercambiar(band, segundosIntercambio))}
+            >
+              Todo
+            </button>
+          </div>
+          <div className="swap__speed">
+            {VELOCIDADES.map((opcion) => (
+              <button
+                key={opcion}
+                type="button"
+                className={opcion === compases ? 'rangebtn rangebtn--on' : 'rangebtn'}
+                title={
+                  opcion === 0
+                    ? 'Cambio seco, de golpe'
+                    : `${opcion} ${opcion === 1 ? 'compas' : 'compases'}: ${((opcion * 4 * 60) / bpmMezcla).toFixed(1)} s a ${bpmMezcla.toFixed(0)} BPM`
+                }
+                onClick={() => setCompases(opcion)}
+              >
+                {opcion === 0 ? 'Corte' : opcion}
+              </button>
+            ))}
+            <span className="muted">{compases === 0 ? 'de golpe' : compases === 1 ? 'compas' : 'compases'}</span>
+          </div>
+        </div>
+
+      </section>
+
       <section className="card">
-        <h2>Cargar canciones</h2>
+        <h2>Canciones</h2>
         <div className="filters">
           <form
             className="filters__search"
@@ -832,33 +873,48 @@ export function MixerPage() {
         ) : listaVisible.length === 0 ? (
           <p className="muted">Nada que cargar.</p>
         ) : (
-          <ul className="tracklist">
-            {listaVisible.map((track) => (
-              <li key={track.id} className="track">
-                <div className="track__main">
-                  {track.thumbnail_url && (
-                    <img className="track__thumb" src={track.thumbnail_url} alt="" loading="lazy" />
-                  )}
-                  <div className="track__info">
-                    <div className="track__title">{track.title}</div>
-                    <div className="track__meta">
-                      <span>{track.artist_text ?? 'Artista desconocido'}</span>
-                      <span>·</span>
-                      <span>{formatDuration(track.duration_seconds)}</span>
-                    </div>
-                  </div>
-                  <div className="track__actions">
-                    <button type="button" className="btn btn--ghost" onClick={() => cargarEnPlato(0, track)}>
-                      → A
-                    </button>
-                    <button type="button" className="btn btn--ghost" onClick={() => cargarEnPlato(1, track)}>
-                      → B
-                    </button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="browser">
+            <table>
+              <thead>
+                <tr>
+                  <th>Título</th>
+                  <th>Artista</th>
+                  <th className="browser__num">Duración</th>
+                  <th className="browser__num">BPM</th>
+                  <th className="browser__cargar">Cargar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {listaVisible.map((track) => {
+                  const en = ([0, 1] as const).filter((i) => estados[i].track?.id === track.id)
+                  return (
+                    <tr key={track.id} className={en.length ? 'browser__cargada' : undefined}>
+                      <td className="browser__titulo">
+                        {track.thumbnail_url && <img src={track.thumbnail_url} alt="" loading="lazy" />}
+                        <span>{track.title}</span>
+                      </td>
+                      <td className="browser__artista">{track.artist_text ?? '—'}</td>
+                      <td className="browser__num">{formatDuration(track.duration_seconds)}</td>
+                      <td className="browser__num">{track.bpm ?? '—'}</td>
+                      <td className="browser__cargar">
+                        {([0, 1] as const).map((i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            className={en.includes(i) ? 'cargarbtn cargarbtn--on' : 'cargarbtn'}
+                            title={`Cargar en el plato ${i === 0 ? 'A' : 'B'}`}
+                            onClick={() => void cargarEnPlato(i, track)}
+                          >
+                            {i === 0 ? 'A' : 'B'}
+                          </button>
+                        ))}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>

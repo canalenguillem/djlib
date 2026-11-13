@@ -2995,3 +2995,493 @@ input[type='file'] {
   padding: 0.3rem 0.5rem;
   font-size: 0.85rem;
 }
+
+/* --- Consola del mezclador: plato A | mesa | plato B ----------------------- */
+.mezclador__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.mezclador__cabecera h1 {
+  margin: 0;
+}
+
+.mezclador__cabecera p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.consola {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: stretch;
+}
+
+.cdeck {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.cdeck__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.cdeck__head .deck__title {
+  flex: 1;
+}
+
+.cdeck__lectura {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cdeck__queda {
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.cdeck__bpm {
+  font-size: 1.15rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0b0e13;
+}
+
+.cdeck__cuerpo {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+  grid-template-areas: 'lado jog pitch';
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.cdeck--der .cdeck__cuerpo {
+  grid-template-columns: auto minmax(0, 1fr) 6.5rem;
+  grid-template-areas: 'pitch jog lado';
+}
+
+.cdeck__lado {
+  grid-area: lado;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+.cdeck__lado .syncbtn {
+  width: 100%;
+}
+
+.cdeck__tempo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.cdeck__tempo strong {
+  font-size: 1.05rem;
+}
+
+.cdeck__rangos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  justify-content: center;
+}
+
+.cdeck__lado .deck__match {
+  margin: 0;
+  text-align: center;
+}
+
+.cdeck .pitch {
+  grid-area: pitch;
+}
+
+/* La rueda: un vinilo que gira con la musica */
+.jog {
+  grid-area: jog;
+  width: min(100%, 220px);
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.jog:active {
+  cursor: grabbing;
+}
+
+.jog--off {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.jog svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.jog__borde {
+  fill: #0b0e13;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.jog__vinilo {
+  fill: #151a22;
+  stroke: #232a35;
+  stroke-width: 1;
+}
+
+.jog__surco {
+  fill: #2a3240;
+}
+
+.jog__marca {
+  stroke: #e6edf3;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.jog--on .jog__marca {
+  stroke: #ffffff;
+}
+
+.jog__centro {
+  fill: #0b0e13;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.jog__letra {
+  fill: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cdeck__transporte {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0b0e13;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tbtn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.tbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tbtn--play {
+  border-color: #2fd36b;
+  color: #8ff0b0;
+}
+
+.tbtn--play.tbtn--on {
+  background: #2fd36b;
+  color: #04120a;
+}
+
+.tbtn--cue {
+  border-color: #ff9f0a;
+  color: #ffc56b;
+}
+
+.tbtn--cue.tbtn--on {
+  background: rgba(255, 159, 10, 0.2);
+}
+
+.cdeck__cues {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.cdeck__etiqueta {
+  grid-column: 1 / -1;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.cdeck__cues .pad {
+  aspect-ratio: auto;
+  min-height: 2.2rem;
+  flex-direction: row;
+  gap: 0.4rem;
+}
+
+/* La mesa del centro: canal A | ondas en vertical | canal B */
+.cmesa {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cmesa__cuerpo {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.cmesa .channel {
+  gap: 0.3rem;
+}
+
+.cmesa .knob__dial {
+  width: 38px;
+  height: 38px;
+}
+
+.cmesa input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.vsync {
+  --alto: 330px;
+  --ancho: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vsync__ondas {
+  position: relative;
+  display: flex;
+  gap: 4px;
+}
+
+.vsync__carril {
+  position: relative;
+  width: var(--ancho);
+  height: var(--alto);
+  overflow: hidden;
+  background: #05070a;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* El canvas se pinta en horizontal y se gira: lo que va a sonar queda arriba */
+.vsync__onda {
+  position: absolute;
+  width: var(--alto);
+  height: var(--ancho);
+  left: calc((var(--ancho) - var(--alto)) / 2);
+  top: calc((var(--alto) - var(--ancho)) / 2);
+  transform: rotate(-90deg);
+}
+
+.vsync__aguja {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 50%;
+  height: 2px;
+  background: #ff3b30;
+  pointer-events: none;
+}
+
+.vsync__fases {
+  display: flex;
+  gap: 4px;
+}
+
+.phase--mini {
+  grid-template-columns: repeat(4, calc((var(--ancho) - 6px) / 4));
+  gap: 2px;
+}
+
+.phase--mini .phase__beat {
+  height: 1.1rem;
+  font-size: 0.6rem;
+}
+
+.vsync__estado {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: calc(var(--ancho) * 2 + 4px);
+}
+
+.vsync__estado--ok {
+  color: #8ff0b0;
+}
+
+/* Efectos e intercambio de EQ, en una fila bajo la consola */
+.fxbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: flex-start;
+}
+
+.fxbar .colorfx,
+.fxbar .swap {
+  flex: 1 1 22rem;
+}
+
+/* Navegador en tabla, como el de rekordbox */
+.browser {
+  max-height: 460px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.browser table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.browser th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.browser td {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.browser tbody tr:hover {
+  background: rgba(111, 92, 255, 0.08);
+}
+
+.browser__cargada {
+  background: rgba(111, 92, 255, 0.14);
+}
+
+.browser__titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 12rem;
+}
+
+.browser__titulo img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: none;
+}
+
+.browser__artista {
+  color: var(--muted);
+}
+
+.browser__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.browser th.browser__num {
+  text-align: right;
+}
+
+.browser__cargar {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.cargarbtn {
+  width: 2rem;
+  height: 1.8rem;
+  margin-left: 0.25rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cargarbtn:hover {
+  background: rgba(111, 92, 255, 0.25);
+}
+
+.cargarbtn--on {
+  background: var(--accent);
+}
+
+@media (max-width: 1150px) {
+  .consola {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .cmesa {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-items: center;
+  }
+}
+
+@media (max-width: 760px) {
+  .consola {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cmesa {
+    grid-row: auto;
+  }
+
+  .browser__artista {
+    display: none;
+  }
+}

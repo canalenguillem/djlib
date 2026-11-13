@@ -103,6 +103,8 @@ interface Props extends DetailOptions {
   analyzing: boolean
   duration: number
   onSeek: (segundos: number) => void
+  /** Sin la de detalle: en la consola va en el centro, en vertical. */
+  soloGeneral?: boolean
 }
 
 /** Triangulo con la punta hacia dentro de la onda; `alto` negativo, abajo. */
@@ -181,12 +183,14 @@ export function DeckWaveform(props: Props) {
 
   return (
     <div className="deckwave">
-      <canvas
-        ref={detailRef}
-        className={`deckwave__detail${cargando}`}
-        role="img"
-        aria-label="Onda de detalle alrededor del punto que suena"
-      />
+      {!props.soloGeneral && (
+        <canvas
+          ref={detailRef}
+          className={`deckwave__detail${cargando}`}
+          role="img"
+          aria-label="Onda de detalle alrededor del punto que suena"
+        />
+      )}
       <canvas
         ref={overviewRef}
         className={`deckwave__overview${cargando}`}
