@@ -51,6 +51,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Lista de Menu que puede ver; None es todos
     menus: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # Proveedor de IA elegido ("openai", "anthropic", "grok"), con su clave en ai_keys
+    ai_provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # Cualquier access token emitido antes de esta fecha deja de valer.
     password_changed_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow

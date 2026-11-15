@@ -33,18 +33,17 @@ def test_el_estado_dice_si_se_pueden_leer_capturas(
 ) -> None:
     estado = client.get("/recognize/status", headers=headers(client)).json()
     assert estado["screenshot_enabled"] is True
+    assert estado["screenshot_provider"] == "OpenAI"
 
 
-def test_sin_clave_de_openai_se_avisa(client: TestClient, admin_user, monkeypatch) -> None:
-    from app.core.config import settings
-
-    monkeypatch.setattr(settings, "openai_api_key", "")
+def test_sin_clave_propia_se_avisa(client: TestClient, admin_user) -> None:
+    """La clave ya no es del servidor: cada usuario pone la suya."""
     h = headers(client)
 
     assert client.get("/recognize/status", headers=h).json()["screenshot_enabled"] is False
     respuesta = enviar(client, h)
-    assert respuesta.status_code == 503
-    assert "no esta configurada" in respuesta.json()["detail"]
+    assert respuesta.status_code == 400
+    assert "Mi cuenta" in respuesta.json()["detail"]
 
 
 def test_devuelve_las_canciones_en_orden(
@@ -59,8 +58,9 @@ def test_devuelve_las_canciones_en_orden(
         ("Parklife", "Blur"),
         ("Sin artista", None),
     ]
-    # La imagen llega entera y con su tipo
+    # La imagen llega entera y con su tipo, y se lee con la clave del usuario
     assert fake_screenshot.recibido == [(len(PNG), "image/png")]
+    assert fake_screenshot.proveedores == ["openai"]
 
 
 def test_captura_sin_canciones(client: TestClient, admin_user, fake_screenshot) -> None:
@@ -95,10 +95,10 @@ def test_imagen_demasiado_grande(
 def test_si_openai_falla_se_explica(
     client: TestClient, admin_user, fake_screenshot
 ) -> None:
-    fake_screenshot.error = ScreenshotError("La clave de OpenAI no es valida.")
+    fake_screenshot.error = ScreenshotError("OpenAI no acepta tu clave.")
     respuesta = enviar(client, headers(client))
     assert respuesta.status_code == 502
-    assert "clave de OpenAI" in respuesta.json()["detail"]
+    assert "no acepta tu clave" in respuesta.json()["detail"]
 
 
 def test_de_la_captura_a_la_biblioteca(

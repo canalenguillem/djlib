@@ -12,7 +12,7 @@ from app.schemas.recognition import (
     ScreenshotResult,
 )
 from app.schemas.track import SearchCandidate
-from app.services import downloader, recognition, screenshot, track_service
+from app.services import ai_keys, downloader, recognition, screenshot, track_service
 from app.services.downloader import DownloadError
 from app.services.recognition import RecognitionError, RecognitionNotConfigured
 from app.services.screenshot import ScreenshotError, ScreenshotNotConfigured
@@ -22,13 +22,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/recognize", tags=["recognition"])
 
 
+def _config_ia(db, user):
+    """La clave de IA del usuario; si no se puede leer, como si no hubiera."""
+    try:
+        return ai_keys.config(db, user)
+    except ai_keys.AiKeyError:
+        return None
+
+
 @router.get("/status", response_model=RecognitionStatus)
-def recognition_status(current_user: CurrentUser) -> RecognitionStatus:
+def recognition_status(current_user: CurrentUser, db: DbSession) -> RecognitionStatus:
     habilitado = recognition.is_enabled()
+    ia = _config_ia(db, current_user)
     return RecognitionStatus(
         enabled=habilitado,
         provider=recognition.provider_name() if habilitado else None,
-        screenshot_enabled=screenshot.is_enabled(),
+        screenshot_enabled=ia is not None,
+        screenshot_provider=ia.nombre if ia else None,
     )
 
 
@@ -121,6 +131,7 @@ IMAGENES_ADMITIDAS = {
 @router.post("/screenshot", response_model=ScreenshotResult, dependencies=[require_menu(Menu.recognize)])
 def recognize_screenshot(
     current_user: CurrentUser,
+    db: DbSession,
     image: UploadFile = File(..., description="Captura con canciones visibles"),
 ) -> ScreenshotResult:
     """Lee las canciones que aparecen en una captura de pantalla.
@@ -129,10 +140,14 @@ def recognize_screenshot(
     noche, al dia siguiente subes la captura y salen todas de una vez, en vez
     de teclearlas una por una.
     """
-    if not screenshot.is_enabled():
+    try:
+        ia = ai_keys.config(db, current_user)
+    except ai_keys.AiKeyError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if ia is None:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="La lectura de capturas no esta configurada en el servidor.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Para leer capturas pon tu clave de OpenAI, Anthropic o Grok en Mi cuenta.",
         )
 
     tipo = (image.content_type or "").split(";")[0].strip().lower()
@@ -156,7 +171,7 @@ def recognize_screenshot(
         )
 
     try:
-        canciones = screenshot.extract_songs(contenido, tipo)
+        canciones = screenshot.extract_songs(contenido, tipo, ia)
     except ScreenshotNotConfigured as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)

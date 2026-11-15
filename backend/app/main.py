@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routers import (
+    ai,
     artists,
     auth,
     batches,
@@ -80,6 +81,7 @@ app.include_router(batches.router)
 app.include_router(listens.router)
 app.include_router(beatport.router)
 app.include_router(charts.router)
+app.include_router(ai.router)
 
 
 @app.get("/health", tags=["health"])

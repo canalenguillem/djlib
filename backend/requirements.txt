@@ -18,3 +18,5 @@ yt-dlp>=2025.1.1
 
 pytest==8.3.4
 httpx==0.28.1
+# SDK oficial de Anthropic, para leer capturas con Claude con la clave de cada usuario
+anthropic==2.8.0

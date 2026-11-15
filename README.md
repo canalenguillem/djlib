@@ -566,10 +566,16 @@ que en el resto de la aplicacion.
 Vale para cualquier captura donde se lean titulos, no solo para Shazam. En el
 ordenador se puede **pegar con Ctrl+V** sin pasar por guardar la imagen.
 
-Necesita una clave de OpenAI en `OPENAI_API_KEY` y un modelo con vision en
-`OPENAI_MODEL`. **Sin clave, la seccion no aparece**: el frontend lo consulta en
-`GET /recognize/status`, igual que hace con el microfono. Las dos cosas son
-independientes: se puede tener una sin la otra.
+**Cada usuario pone su propia clave** en Mi cuenta: de OpenAI, de Anthropic o
+de Grok (xAI), o de varios, y elige cual se usa (`/me/ai`). Cada uno paga lo
+suyo; el servidor ya no tiene clave propia. Las claves se guardan cifradas
+(Fernet, con una clave derivada de `JWT_SECRET_KEY`): si se cambia ese secreto
+hay que volver a ponerlas. El modelo se puede cambiar por proveedor; por
+defecto, `OPENAI_MODEL` (gpt-4o-mini) para OpenAI, `claude-opus-5-5` para
+Anthropic y `grok-4` para Grok. OpenAI y Grok van por su API de chat (la misma
+para los dos); Anthropic, con su SDK oficial (`anthropic`) y salida JSON con
+esquema. Sin clave, Reconocer avisa de que hay que ponerla:
+`GET /recognize/status` dice si el usuario tiene una y de que proveedor.
 
 Probado con una captura que imita la lista de Shazam, con cuatro canciones,
 acentos, y una cabecera que dice "3 canciones" para ver si el modelo cuenta lo

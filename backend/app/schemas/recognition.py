@@ -10,6 +10,8 @@ class RecognitionStatus(BaseModel):
     enabled: bool
     provider: str | None = None
     screenshot_enabled: bool = False
+    # El proveedor de IA con el que se leeran, p. ej. "Anthropic"
+    screenshot_provider: str | None = None
 
 
 class RecognitionResult(BaseModel):

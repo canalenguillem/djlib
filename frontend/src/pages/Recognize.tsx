@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import * as recognitionApi from '../api/recognition'
 import * as tracksApi from '../api/tracks'
 import { Alert } from '../components/Alert'
 import { Loading } from '../components/Loading'
+
 import { ScreenshotReader } from '../components/ScreenshotReader'
 import { SearchCandidates } from '../components/SearchCandidates'
 import { RecorderError, SILENCE_THRESHOLD, checkSupport, record } from '../lib/recorder'
@@ -151,7 +153,14 @@ export function RecognizePage() {
           El reconocimiento por microfono no esta configurado. Hace falta una clave
           de AudD en <code>RECOGNITION_API_KEY</code>.
         </Alert>
-        {screenshotAvailable && <ScreenshotReader />}
+        {screenshotAvailable ? (
+          <ScreenshotReader />
+        ) : (
+          <Alert kind="info">
+            Para leer canciones de una captura de pantalla, pon tu clave de OpenAI, Anthropic o
+            Grok en <Link to="/account">Mi cuenta</Link>.
+          </Alert>
+        )}
       </div>
     )
   }
@@ -244,7 +253,14 @@ export function RecognizePage() {
         </section>
       )}
 
-      {screenshotAvailable && <ScreenshotReader />}
+      {screenshotAvailable ? (
+          <ScreenshotReader />
+        ) : (
+          <Alert kind="info">
+            Para leer canciones de una captura de pantalla, pon tu clave de OpenAI, Anthropic o
+            Grok en <Link to="/account">Mi cuenta</Link>.
+          </Alert>
+        )}
 
       {result?.recognized && (
         <section className="card">

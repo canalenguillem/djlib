@@ -331,7 +331,7 @@ def fake_recognition(monkeypatch) -> FakeRecognition:
 
 
 class FakeScreenshot:
-    """Sustituye al modelo de vision de OpenAI."""
+    """Sustituye al modelo de vision (OpenAI, Anthropic o Grok)."""
 
     def __init__(self) -> None:
         self.songs = [
@@ -341,19 +341,25 @@ class FakeScreenshot:
         ]
         self.error: Exception | None = None
         self.recibido: list[tuple[int, str]] = []  # (tamano, tipo mime)
+        self.proveedores: list[str] = []
 
-    def extract_songs(self, image: bytes, mime_type: str = "image/png"):
+    def extract_songs(self, image: bytes, mime_type: str, conf):
         self.recibido.append((len(image), mime_type))
+        self.proveedores.append(conf.provider if conf else None)
         if self.error is not None:
             raise self.error
         return self.songs
 
 
 @pytest.fixture
-def fake_screenshot(monkeypatch) -> FakeScreenshot:
+def fake_screenshot(monkeypatch, admin_user, db) -> FakeScreenshot:
+    """El admin con su clave de OpenAI puesta, y el modelo de mentira."""
+    from app.services import ai_keys
+
     fake = FakeScreenshot()
     monkeypatch.setattr(screenshot, "extract_songs", fake.extract_songs)
-    monkeypatch.setattr(settings, "openai_api_key", "clave-de-prueba")
+    ai_keys.guardar(db, db.merge(admin_user), "openai", "sk-prueba-1234", None)
+    db.commit()
     return fake
 
 

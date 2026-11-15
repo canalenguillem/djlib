@@ -189,6 +189,8 @@ export interface RecognitionStatus {
   enabled: boolean
   provider: string | null
   screenshot_enabled: boolean
+  /** Con que proveedor de IA se leen las capturas, p. ej. "Anthropic". */
+  screenshot_provider: string | null
 }
 
 export interface DetectedSong {
@@ -422,3 +424,24 @@ export interface SearchHistoryEntry {
 
 /** Donde se busca la musica. */
 export type Sitio = 'youtube' | 'soundcloud'
+
+/** Un proveedor de IA y la clave que tiene puesta el usuario (solo el final). */
+export interface AiProvider {
+  id: 'openai' | 'anthropic' | 'grok'
+  name: string
+  default_model: string
+  console_url: string
+  configured: boolean
+  key_hint: string | null
+  model: string | null
+}
+
+export interface AiSettings {
+  selected: AiProvider['id'] | null
+  providers: AiProvider[]
+}
+
+export interface AiTestResult {
+  ok: boolean
+  message: string
+}

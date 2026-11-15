@@ -1,4 +1,5 @@
-"""Lectura de capturas de pantalla con un modelo de vision.
+"""Lectura de capturas de pantalla con un modelo de vision: el de OpenAI,
+Anthropic o Grok que haya elegido cada usuario, con su propia clave.
 
 El caso de uso: Shazam va identificando canciones solo durante la noche; al dia
 siguiente se hace una captura de la lista y se sube aqui. El modelo extrae los
@@ -19,10 +20,10 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+from app.services import screenshot_anthropic
+from app.services.ai_keys import BASES_COMPATIBLES, AiConfig
 
 logger = logging.getLogger(__name__)
-
-OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions"
 
 INSTRUCCIONES = """Eres un extractor de canciones a partir de capturas de pantalla.
 
@@ -56,40 +57,27 @@ class DetectedSong:
     artist: str | None
 
 
-def is_enabled() -> bool:
-    return bool(settings.openai_api_key)
-
-
-def _mensaje_error(payload: dict, status_code: int) -> str:
+def _mensaje_error(nombre: str, modelo: str, payload: dict, status_code: int) -> str:
     error = (payload or {}).get("error") or {}
+    if isinstance(error, str):
+        error = {"message": error}
     codigo = error.get("code") or ""
     mensaje = error.get("message") or ""
 
-    if status_code == 401:
-        return "La clave de OpenAI no es valida. Revisa OPENAI_API_KEY."
+    if status_code in (401, 403):
+        return f"{nombre} no acepta tu clave. Revísala en Mi cuenta."
     if status_code == 429 or codigo == "insufficient_quota":
-        return (
-            "OpenAI ha rechazado la peticion por cuota o limite de uso. "
-            "Revisa el saldo de tu cuenta."
-        )
-    if codigo == "model_not_found":
-        return (
-            f"Tu cuenta no tiene acceso al modelo '{settings.openai_model}'. "
-            "Cambia OPENAI_MODEL por uno que si tengas."
-        )
-    return f"OpenAI ha devuelto un error ({status_code}): {mensaje[:160]}"
+        return f"{nombre} ha rechazado la petición por cuota o límite de uso. Revisa el saldo de tu cuenta."
+    if codigo == "model_not_found" or status_code == 404:
+        return f"Tu cuenta de {nombre} no tiene el modelo «{modelo}». Cámbialo en Mi cuenta."
+    return f"{nombre} ha devuelto un error ({status_code}): {str(mensaje)[:160]}"
 
 
-def extract_songs(image: bytes, mime_type: str = "image/png") -> list[DetectedSong]:
-    """Devuelve las canciones que se leen en la imagen, en su orden."""
-    if not is_enabled():
-        raise ScreenshotNotConfigured(
-            "La lectura de capturas no esta configurada. Falta OPENAI_API_KEY."
-        )
-
+def _compatible_openai(image: bytes, mime_type: str, conf: AiConfig) -> dict:
+    """OpenAI y Grok: la misma API de chat, con la imagen como data URL."""
     data_url = f"data:{mime_type};base64,{base64.b64encode(image).decode('ascii')}"
     cuerpo = {
-        "model": settings.openai_model,
+        "model": conf.model,
         # Fuerza JSON valido: sin esto el modelo tiende a envolverlo en prosa.
         "response_format": {"type": "json_object"},
         "messages": [
@@ -103,30 +91,46 @@ def extract_songs(image: bytes, mime_type: str = "image/png") -> list[DetectedSo
             },
         ],
     }
-
     try:
         respuesta = httpx.post(
-            OPENAI_ENDPOINT,
-            headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+            f"{BASES_COMPATIBLES[conf.provider]}/chat/completions",
+            headers={"Authorization": f"Bearer {conf.api_key}"},
             json=cuerpo,
             timeout=settings.openai_timeout_seconds,
         )
     except httpx.HTTPError as exc:
-        raise ScreenshotError(f"No se pudo contactar con OpenAI: {exc}") from exc
-
-    payload = respuesta.json() if respuesta.content else {}
-    if respuesta.status_code >= 400:
-        raise ScreenshotError(_mensaje_error(payload, respuesta.status_code))
+        raise ScreenshotError(f"No se pudo contactar con {conf.nombre}.") from exc
 
     try:
-        contenido = payload["choices"][0]["message"]["content"]
-        datos = json.loads(contenido)
+        payload = respuesta.json() if respuesta.content else {}
+    except ValueError:
+        payload = {}
+    if respuesta.status_code >= 400:
+        raise ScreenshotError(_mensaje_error(conf.nombre, conf.model, payload, respuesta.status_code))
+    try:
+        return json.loads(payload["choices"][0]["message"]["content"])
     except (KeyError, IndexError, TypeError, ValueError) as exc:
-        raise ScreenshotError("OpenAI no ha devuelto un resultado legible.") from exc
+        raise ScreenshotError(f"{conf.nombre} no ha devuelto un resultado legible.") from exc
+
+
+def extract_songs(image: bytes, mime_type: str, conf: AiConfig | None) -> list[DetectedSong]:
+    """Devuelve las canciones que se leen en la imagen, en su orden, con la
+    clave y el proveedor de IA del usuario."""
+    if conf is None:
+        raise ScreenshotNotConfigured(
+            "Para leer capturas pon tu clave de OpenAI, Anthropic o Grok en Mi cuenta."
+        )
+    if conf.provider == "anthropic":
+        try:
+            datos = screenshot_anthropic.extraer(image, mime_type, conf.api_key, conf.model, INSTRUCCIONES)
+        except screenshot_anthropic.ClaudeError as exc:
+            raise ScreenshotError(str(exc)) from exc
+    else:
+        datos = _compatible_openai(image, mime_type, conf)
 
     canciones: list[DetectedSong] = []
     vistas: set[tuple[str, str]] = set()
-    for entrada in datos.get("songs") or []:
+    for entrada in (datos or {}).get("songs") or []:
         if not isinstance(entrada, dict):
             continue
         titulo = str(entrada.get("title") or "").strip()

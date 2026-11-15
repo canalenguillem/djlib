@@ -1,3 +1,4 @@
+from app.models.ai import AiKey
 from app.models.artist import Artist, ArtistRelation, EnrichmentStatus, track_artists
 from app.models.batch import BatchItemStatus, BatchStatus, DownloadBatch, DownloadBatchItem
 from app.models.crate import Crate, CrateTrack
@@ -10,6 +11,7 @@ from app.models.track import Track, TrackSource, TrackStatus, track_tags
 from app.models.user import User, UserRole
 
 __all__ = [
+    "AiKey",
     "User",
     "UserRole",
     "RefreshToken",

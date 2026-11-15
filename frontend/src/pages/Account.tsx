@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import * as authApi from '../api/auth'
+import { AiKeysPanel } from '../components/AiKeysPanel'
 import { Alert } from '../components/Alert'
 import { useAuth } from '../auth/useAuth'
 
@@ -91,6 +92,8 @@ export function AccountPage() {
           </div>
         </dl>
       </section>
+
+      <AiKeysPanel />
 
       <section className="card">
         <h2>Email</h2>

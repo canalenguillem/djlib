@@ -3485,3 +3485,48 @@ input[type='file'] {
     display: none;
   }
 }
+
+/* Claves de IA en Mi cuenta */
+.aikeys {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.aikey {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.aikey--on {
+  border-color: var(--accent);
+}
+
+.aikey__cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+}
+
+.aikey__elegir {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.aikey__campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.6rem;
+}
+
+.aikey__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
